@@ -1,0 +1,3245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WealthTrack v2.1.3</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f0e8;--bg2:#faf7f2;--bg3:#efe9de;--bg4:#e5ddd0;
+  --border:rgba(120,100,70,.13);--border2:rgba(120,100,70,.22);
+  --text:#2a2318;--text2:#6b5d4a;--text3:#a8967e;
+  --accent:#c17f3a;--accent2:#a06828;
+  --green:#3a7d52;--green-bg:#e8f4ed;
+  --red:#b84040;--red-bg:#faeaea;
+  --amber:#b07020;--amber-bg:#fef3e0;
+  --blue:#2e6ea6;--blue-bg:#e5eef8;
+  --purple:#6b44a8;--purple-bg:#f0eafa;
+  --radius:12px;--radius-sm:8px;
+  --font:'Plus Jakarta Sans',sans-serif;
+  --font-display:'Lora',serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --shadow:0 1px 3px rgba(80,60,30,.08),0 4px 12px rgba(80,60,30,.05);
+  --shadow-sm:0 1px 2px rgba(80,60,30,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:230px;min-width:230px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s;box-shadow:var(--shadow);}
+.logo{padding:20px 22px 18px;border-bottom:1px solid var(--border);}
+.logo-title{font-family:var(--font-display);font-size:21px;color:var(--accent);}
+.logo-sub{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--font-mono);}
+.nav-section{font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--text3);padding:12px 22px 4px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 22px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-left:2.5px solid transparent;transition:all .15s;user-select:none;}
+.nav-item:hover{color:var(--text);background:var(--bg3);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(193,127,58,.07);font-weight:600;}
+.nav-ai{color:var(--purple) !important;}
+.nav-ai.active{color:var(--purple) !important;border-left-color:var(--purple) !important;background:rgba(107,68,168,.07) !important;}
+.nav-icon{font-size:15px;width:18px;text-align:center;}
+.version-badge{margin-top:auto;padding:12px 22px;font-size:10px;color:var(--text3);font-family:var(--font-mono);border-top:1px solid var(--border);line-height:1.8;}
+.main{margin-left:230px;flex:1;min-height:100vh;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:13px 26px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-sm);}
+.topbar-title{font-family:var(--font-display);font-size:19px;}
+.topbar-meta{font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;}
+.page{padding:24px;display:none;}
+.page.active{display:block;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);}
+.card-title{font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;box-shadow:var(--shadow-sm);}
+.stat-label{font-size:11px;color:var(--text3);margin-bottom:4px;}
+.stat-val{font-size:20px;font-weight:600;font-family:var(--font-mono);}
+.tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.tag-green{background:var(--green-bg);color:var(--green);}
+.tag-red{background:var(--red-bg);color:var(--red);}
+.tag-amber{background:var(--amber-bg);color:var(--amber);}
+.tag-blue{background:var(--blue-bg);color:var(--blue);}
+.tag-purple{background:var(--purple-bg);color:var(--purple);}
+.tag-gray{background:var(--bg3);color:var(--text2);}
+.progress-wrap{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:6px;}
+.progress-bar{height:100%;border-radius:3px;transition:width .5s;}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg3);}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--bg3);color:var(--text);}
+.amount{font-family:var(--font-mono);font-size:12px;text-align:right;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent2);}
+.btn-ai{background:var(--purple);color:#fff;}
+.btn-ai:hover{background:#5a3590;}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2);}
+.btn-ghost:hover{background:var(--bg3);color:var(--text);}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid rgba(184,64,64,.15);}
+.btn-danger:hover{background:#f5d5d5;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.form-group{margin-bottom:13px;}
+.form-label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500;}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:13px;padding:8px 11px;outline:none;transition:border-color .15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(40,30,15,.45);z-index:200;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(40,30,15,.18);}
+.modal-title{font-family:var(--font-display);font-size:18px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);}
+.alert{border-radius:var(--radius-sm);padding:11px 14px;font-size:13px;margin-bottom:10px;}
+.alert-red{background:var(--red-bg);border-left:3px solid var(--red);color:#963030;}
+.alert-amber{background:var(--amber-bg);border-left:3px solid var(--amber);color:#8a5510;}
+.alert-green{background:var(--green-bg);border-left:3px solid var(--green);color:#2a6040;}
+.alert-blue{background:var(--blue-bg);border-left:3px solid var(--blue);color:#1e5080;}
+.alert-purple{background:var(--purple-bg);border-left:3px solid var(--purple);color:#4a2880;}
+.sec-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.sec-title{font-family:var(--font-display);font-size:18px;}
+.sec-sub{font-size:12px;color:var(--text3);margin-top:1px;}
+.ai-chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:400px;}
+.ai-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;}
+.ai-msg{display:flex;gap:10px;align-items:flex-start;}
+.ai-msg.user{flex-direction:row-reverse;}
+.ai-bubble{max-width:80%;padding:11px 14px;border-radius:12px;font-size:13px;line-height:1.7;}
+.ai-msg.user .ai-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px;}
+.ai-msg.assistant .ai-bubble{background:var(--bg2);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px;}
+.ai-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;margin-top:2px;}
+.ai-msg.user .ai-avatar{background:var(--accent);color:#fff;}
+.ai-msg.assistant .ai-avatar{background:var(--purple-bg);color:var(--purple);}
+.ai-input-row{display:flex;gap:10px;}
+.ai-input{flex:1;resize:none;min-height:42px;max-height:120px;font-size:13px;border-radius:var(--radius-sm);}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:bounce .8s infinite;display:inline-block;}
+.ai-dot:nth-child(2){animation-delay:.15s;}
+.ai-dot:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-6px);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.ai-fab{position:fixed;bottom:28px;right:28px;width:52px;height:52px;border-radius:50%;background:var(--purple);color:#fff;border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(107,68,168,.35);z-index:150;transition:all .2s;}
+.ai-fab:hover{transform:scale(1.08);background:#5a3590;}
+.ai-float-panel{position:fixed;bottom:90px;right:28px;width:380px;height:500px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 32px rgba(40,30,15,.18);z-index:149;display:none;flex-direction:column;overflow:hidden;}
+.ai-float-panel.open{display:flex;}
+.ai-float-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--purple);color:#fff;}
+.ai-float-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;}
+.ai-float-input-row{padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.ai-float-input{flex:1;resize:none;font-size:13px;min-height:36px;max-height:80px;border-radius:var(--radius-sm);}
+.setup-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
+.setup-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:36px;max-width:460px;width:100%;box-shadow:var(--shadow);}
+.setup-title{font-family:var(--font-display);font-size:26px;color:var(--accent);margin-bottom:6px;}
+.setup-sub{font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.7;}
+.budget-item{padding:11px 0;border-bottom:1px solid var(--border);}
+.budget-item:last-child{border-bottom:none;}
+.budget-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.budget-name{font-size:13px;font-weight:500;}
+.budget-amounts{font-size:12px;color:var(--text3);font-family:var(--font-mono);}
+.debt-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:10px;}
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all .15s;color:var(--text3);}
+.upload-zone:hover{border-color:var(--accent);color:var(--accent);background:rgba(193,127,58,.04);}
+.upload-zone input{display:none;}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-bar .form-select,.filter-bar .form-input{width:auto;min-width:130px;}
+.linked-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:var(--purple-bg);color:var(--purple);border:1px solid rgba(107,68,168,.2);}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg2);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;z-index:999;display:none;white-space:nowrap;}
+.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);font-size:20px;}
+.import-step{padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px;}
+.import-step.done{background:var(--green-bg);color:var(--green);}
+.import-step.active{background:var(--blue-bg);color:var(--blue);}
+.import-step.pending{background:var(--bg3);color:var(--text3);}
+.opening-bal-banner{background:var(--blue-bg);border:1px solid rgba(46,110,166,.2);border-radius:var(--radius-sm);padding:11px 14px;font-size:13px;color:var(--blue);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.rp-row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;}
+.pc-row{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);}
+.pc-active{border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(193,127,58,.1);}
+.pc-dim{opacity:0.6;}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;}
+  .hamburger{display:block;}
+  .grid2,.grid3,.grid4{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .page{padding:14px;}
+  .topbar{padding:12px 14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="setup-screen" id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-title">WealthTrack</div>
+    <div class="setup-sub">Welcome back, William. Enter your Anthropic API key to enable AI features. Stored only in your browser.</div>
+    <div class="form-group">
+      <label class="form-label">Anthropic API Key</label>
+      <input type="password" class="form-input" id="setup-key" placeholder="sk-ant-api03-..." autocomplete="off">
+      <div style="font-size:11px;color:var(--text3);margin-top:5px;">Get your key at platform.anthropic.com - API Keys</div>
+    </div>
+    <div id="setup-error" style="color:var(--red);font-size:12px;margin-bottom:10px;display:none;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" style="flex:1;" id="btn-save-key">Save and Launch</button>
+      <button class="btn btn-ghost" id="btn-skip-setup">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-title">WealthTrack</div>
+    <div class="logo-sub">v2.1.9 - William R.M.</div>
+  </div>
+  <div class="nav-section">Main</div>
+  <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
+  <div class="nav-item" data-page="transactions"><span class="nav-icon">&#8597;</span>Transactions</div>
+  <div class="nav-item" data-page="budget"><span class="nav-icon">&#9678;</span>Budget</div>
+  <div class="nav-section">Finance</div>
+  <div class="nav-item" data-page="accounts"><span class="nav-icon">&#9635;</span>Accounts</div>
+  <div class="nav-item" data-page="debts"><span class="nav-icon">&#9671;</span>Debts</div>
+  <div class="nav-item" data-page="paycheque"><span class="nav-icon">&#8853;</span>Paycheque Plan</div>
+  <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
+  <div class="nav-item" data-page="categories"><span class="nav-icon">&#9632;</span>Categories</div>
+  <div class="nav-section">Tools</div>
+  <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
+  <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
+  <div class="nav-section">AI</div>
+  <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
+  <div class="version-badge">WealthTrack v2.1.9<br>Cloud sync - Supabase<br>Apr 2026</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button class="hamburger" id="btn-hamburger">&#9776;</button>
+      <div>
+        <div class="topbar-title" id="page-title">Dashboard</div>
+        <div class="topbar-meta">April 2026</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;font-size:11px;color:var(--text3);">
+        <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:var(--text3);display:inline-block;margin-right:5px;"></span>
+        <span id="sync-label">Loading...</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="btn-open-transfer">Transfer</button>
+        <button class="btn btn-primary btn-sm" id="btn-open-add-txn">+ Transaction</button>
+      </div>
+    </div>
+
+  <div class="page active" id="page-dashboard">
+    <div id="dashboard-alerts" style="margin-bottom:16px;"></div>
+    <div class="grid4" style="margin-bottom:18px;">
+      <div class="stat-card"><div class="stat-label">Chequing balance</div><div class="stat-val" id="stat-chequing" style="color:var(--green);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">Wealthsimple live</div></div>
+      <div class="stat-card"><div class="stat-label">Monthly income</div><div class="stat-val" style="color:var(--blue);">$5,719</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">2 paycheques/mo</div></div>
+      <div class="stat-card"><div class="stat-label">Total debt</div><div class="stat-val" id="stat-debt" style="color:var(--red);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">all accounts</div></div>
+      <div class="stat-card"><div class="stat-label">Monthly cushion</div><div class="stat-val" style="color:var(--amber);">$182</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">after obligations</div></div>
+    </div>
+    <div class="grid3" style="margin-bottom:18px;">
+      <div class="card"><div class="card-title">Spending - Apr 2026</div><canvas id="chart-donut" style="width:100%;height:180px;"></canvas><div id="donut-legend" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div></div>
+      <div class="card"><div class="card-title">Income vs Expenses - 4 months</div><canvas id="chart-bar" style="width:100%;height:180px;"></canvas></div>
+      <div class="card"><div class="card-title">Debt balances</div><canvas id="chart-debt" style="width:100%;height:180px;"></canvas></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><div class="card-title">Budget - April 2026</div><div id="budget-progress-list"></div></div>
+      <div class="card">
+        <div class="card-title">Upcoming payments</div>
+        <div id="upcoming-timeline"></div>
+        <div style="margin-top:12px;"><button class="btn btn-sm" style="background:var(--purple-bg);color:var(--purple);border:none;width:100%;justify-content:center;" id="btn-ask-payments">Ask AI about payments</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-transactions">
+    <div class="sec-header">
+      <div><div class="sec-title">Transactions</div><div class="sec-sub" id="txn-count">Loading...</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" id="btn-export-csv">Export CSV</button>
+        <button class="btn btn-sm btn-ai" id="btn-ai-txn">AI Analysis</button>
+        <button class="btn btn-primary btn-sm" id="btn-add-txn2">+ Add</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <select class="form-select" id="filter-account"><option value="">All accounts</option></select>
+      <select class="form-select" id="filter-cat"></select>
+      <select class="form-select" id="filter-month">
+        <option value="">All months</option>
+        <option value="2026-01">Jan 2026</option><option value="2026-02">Feb 2026</option>
+        <option value="2026-03">Mar 2026</option><option value="2026-04" selected>Apr 2026</option>
+      </select>
+      <select class="form-select" id="filter-type">
+        <option value="">All types</option><option value="income">Income</option><option value="expense">Expense</option>
+      </select>
+      <input type="text" class="form-input" id="filter-search" placeholder="Search..." style="min-width:160px;">
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl">
+        <thead><tr>
+          <th style="cursor:pointer;" data-sort="date">Date</th>
+          <th>Description</th><th>Account</th><th>Category</th>
+          <th style="text-align:right;cursor:pointer;" data-sort="amount">Amount</th>
+          <th style="text-align:right;">Balance</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="txn-body"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;" id="txn-summary"></div>
+  </div>
+
+  <div class="page" id="page-budget">
+    <div class="sec-header">
+      <div><div class="sec-title">Budget</div><div class="sec-sub" id="budget-month-label">April 2026</div></div>
+      <button class="btn btn-sm btn-ai" id="btn-ai-budget">AI Budget Review</button>
+    </div>
+    <div id="budget-alerts" style="margin-bottom:8px;"></div>
+    <div style="margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div><div style="font-size:15px;font-weight:600;color:var(--text);">Fixed obligations</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">From recurring payments - edit amounts in Recurring tab</div></div>
+        <div id="fixed-total-badge"></div>
+      </div>
+      <div id="fixed-obligations-list"></div>
+    </div>
+    <div style="margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div><div style="font-size:15px;font-weight:600;color:var(--text);">Flexible budget</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Monthly limits you have set per category</div></div>
+        <div id="flex-total-badge"></div>
+      </div>
+      <div id="flex-budget-list"></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:pointer;" id="uncapped-header">
+        <div><div style="font-size:15px;font-weight:600;color:var(--text3);">No limit set</div><div style="font-size:12px;color:var(--text3);margin-top:2px;" id="uncapped-subtext"></div></div>
+        <button class="btn btn-ghost btn-sm" id="btn-toggle-uncapped">Show</button>
+      </div>
+      <div id="uncapped-list" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-accounts">
+    <div class="sec-header"><div><div class="sec-title">Accounts</div><div class="sec-sub">Live ledger-based balances</div></div><button class="btn btn-primary btn-sm" id="btn-add-account">+ Account</button></div>
+    <div class="opening-bal-banner">
+      <span>Balance ledger - Cut date: <strong id="cut-date-display">Apr 14, 2026</strong></span>
+      <button class="btn btn-ghost btn-sm" id="btn-edit-balances">Edit opening balances</button>
+    </div>
+    <div id="accounts-list"></div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Chequing balance history</div>
+      <canvas id="chart-bal-history" style="width:100%;height:180px;"></canvas>
+    </div>
+  </div>
+
+  <div class="page" id="page-debts">
+    <div class="sec-header">
+      <div><div class="sec-title">Debt Tracker</div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="btn-add-installment">+ Installment plan</button>
+        <button class="btn btn-sm btn-ai" id="btn-ai-debts">AI Payoff Strategy</button>
+      </div>
+    </div>
+    <div class="grid3" style="margin-bottom:18px;">
+      <div class="stat-card"><div class="stat-label">Total debt</div><div class="stat-val" id="total-debt-val" style="color:var(--red);">-</div></div>
+      <div class="stat-card"><div class="stat-label">0% interest debt</div><div class="stat-val" id="zero-debt-val" style="color:var(--amber);">-</div></div>
+      <div class="stat-card"><div class="stat-label">Monthly payments</div><div class="stat-val" style="color:var(--blue);">$3,353</div></div>
+    </div>
+    <div id="debt-list"></div>
+  </div>
+
+  <div class="page" id="page-paycheque">
+    <div class="sec-header"><div><div class="sec-title">Paycheque Plan</div><div class="sec-sub" id="pc-period-label">Apr 2026</div></div><button class="btn btn-ghost btn-sm" id="btn-go-recurring">Edit recurring</button></div>
+    <div id="paycheque-plan"></div>
+  </div>
+
+  <div class="page" id="page-recurring">
+    <div class="sec-header"><div><div class="sec-title">Recurring Payments</div><div class="sec-sub">Edit amounts, dates, mark paid</div></div><button class="btn btn-primary btn-sm" id="btn-add-recurring">+ Add payment</button></div>
+    <div id="recurring-list"></div>
+  </div>
+
+  <div class="page" id="page-categories">
+    <div class="sec-header">
+      <div><div class="sec-title">Categories</div><div class="sec-sub">Manage spending categories and groups</div></div>
+      <button class="btn btn-primary btn-sm" id="btn-add-category">+ Add category</button>
+    </div>
+    <div class="alert alert-blue" style="margin-bottom:16px;">Categories are used going forward. Existing transactions keep their original labels.</div>
+    <div id="categories-list"></div>
+  </div>
+
+  <div class="page" id="page-reports">
+    <div class="sec-header">
+      <div><div class="sec-title">Reports</div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm btn-ai" id="btn-ai-report">Weekly Summary</button>
+        <button class="btn btn-ghost btn-sm" id="btn-export-csv2">Export CSV</button>
+      </div>
+    </div>
+    <div class="grid3" style="margin-bottom:16px;">
+      <div class="stat-card" id="report-income"></div>
+      <div class="stat-card" id="report-expenses"></div>
+      <div class="stat-card" id="report-net"></div>
+    </div>
+    <div class="filter-bar">
+      <select class="form-select" id="report-month">
+        <option value="">All months</option><option value="2026-01">Jan 2026</option>
+        <option value="2026-02">Feb 2026</option><option value="2026-03">Mar 2026</option>
+        <option value="2026-04" selected>Apr 2026</option>
+      </select>
+      <select class="form-select" id="report-group">
+        <option value="category">By category</option><option value="account">By account</option>
+        <option value="type">By type</option>
+      </select>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="tbl"><thead><tr><th>Group</th><th style="text-align:right;">Out</th><th style="text-align:right;">In</th><th style="text-align:right;">Count</th></tr></thead>
+      <tbody id="report-body"></tbody></table>
+    </div>
+  </div>
+
+  <div class="page" id="page-import">
+    <div class="sec-header"><div><div class="sec-title">Import Anything</div><div class="sec-sub">CSV, Photo, PDF - AI reads any format</div></div></div>
+    <div class="grid2" style="margin-bottom:16px;">
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;">Upload statement</div>
+        <label class="upload-zone" style="border:none;border-radius:0;padding:24px 20px;">
+          <div style="font-size:32px;margin-bottom:10px;">&#8593;</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text2);">Drop any file or click to browse</div>
+          <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+            <span class="tag tag-blue">CSV</span><span class="tag tag-green">Photo</span><span class="tag tag-amber">PDF</span><span class="tag tag-purple">Any bank</span>
+          </div>
+          <input type="file" accept=".csv,.pdf,.png,.jpg,.jpeg,.webp,.heic,image/*" id="universal-file-input">
+        </label>
+      </div>
+      <div class="card">
+        <div class="card-title">Import settings</div>
+        <div class="form-group"><label class="form-label">Target account</label><select class="form-select" id="import-account-select"></select></div>
+        <div class="form-group">
+          <label class="form-label">Closing balance from statement (optional)</label>
+          <input type="number" step="0.01" class="form-input" id="import-closing-bal" placeholder="e.g. 877.83">
+        </div>
+        <div class="alert alert-blue">Supports Wealthsimple CSV, BMO, Scotia, Amex paper statements (photo), Rogers, any screenshot.</div>
+      </div>
+    </div>
+    <div id="import-ai-steps" style="display:none;margin-bottom:16px;"></div>
+    <div id="import-preview" style="display:none;">
+      <div class="sec-header">
+        <div><div class="sec-title" style="font-size:16px;">Preview</div><div class="sec-sub" id="import-preview-meta"></div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="btn-cancel-import">Cancel</button>
+          <button class="btn btn-primary btn-sm" id="btn-confirm-import">Import new transactions</button>
+        </div>
+      </div>
+      <div id="import-ai-summary" style="margin-bottom:14px;"></div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="tbl">
+          <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Category</th><th style="text-align:right;">Running balance</th><th>Status</th></tr></thead>
+          <tbody id="import-preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-ai">
+    <div class="sec-header">
+      <div><div class="sec-title">AI Assistant</div><div class="sec-sub">Powered by Claude</div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="btn-clear-ai">Clear chat</button>
+        <button class="btn btn-ghost btn-sm" id="btn-ai-settings">Settings</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="ai-quick-btns"></div>
+    <div class="ai-chat-wrap">
+      <div class="ai-messages" id="ai-messages"></div>
+      <div class="ai-input-row">
+        <textarea class="form-input ai-input" id="ai-input" placeholder="Ask anything about your finances..."></textarea>
+        <button class="btn btn-ai" id="ai-send-btn">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="ai-fab" id="ai-fab" title="AI Assistant">&#10022;</button>
+<div class="ai-float-panel" id="ai-float-panel">
+  <div class="ai-float-header">
+    <span style="font-weight:600;font-size:14px;">WealthTrack AI</span>
+    <button id="btn-close-float" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;">&#10005;</button>
+  </div>
+  <div class="ai-float-messages" id="ai-float-messages"></div>
+  <div class="ai-float-input-row">
+    <textarea class="form-input ai-float-input" id="ai-float-input" placeholder="Ask anything..."></textarea>
+    <button class="btn btn-ai btn-sm" id="btn-float-send">&#8594;</button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-add-txn">
+  <div class="modal">
+    <div class="modal-title">Add Transaction</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="txn-date"></div>
+      <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="txn-amount" placeholder="0.00"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="txn-desc"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Account</label><select class="form-select" id="txn-account"></select></div>
+      <div class="form-group"><label class="form-label">Category</label>
+        <select class="form-select" id="txn-category"></select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Type</label>
+      <div style="display:flex;gap:14px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="txn-type" value="expense" checked> Expense</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="txn-type" value="income"> Income</label>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="txn-notes" rows="2"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-txn">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-txn">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-txn">
+  <div class="modal">
+    <div class="modal-title">Edit Transaction</div>
+    <input type="hidden" id="edit-txn-id">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="edit-txn-date"></div>
+      <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="edit-txn-amount"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="edit-txn-desc"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Account</label><select class="form-select" id="edit-txn-account"></select></div>
+      <div class="form-group"><label class="form-label">Category</label>
+        <select class="form-select" id="edit-txn-category"></select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Type</label>
+      <div style="display:flex;gap:14px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="edit-txn-type" value="expense"> Expense</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="edit-txn-type" value="income"> Income</label>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="edit-txn-notes" rows="2"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-txn">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-edit-txn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-title">Transfer Between Accounts</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="tr-date"></div>
+      <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="tr-amount" placeholder="0.00"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">From</label><select class="form-select" id="tr-from"></select></div>
+      <div class="form-group"><label class="form-label">To</label><select class="form-select" id="tr-to"></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="tr-desc" placeholder="e.g. CC payment"></div>
+    <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="tr-category"></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-transfer">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-transfer">Add Transfer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-account">
+  <div class="modal">
+    <div class="modal-title">Add Account</div>
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="acc-name"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="acc-type"><option>Chequing</option><option>Savings</option><option>Credit card</option><option>Loan</option><option>Investment</option><option>TFSA</option><option>FHSA</option></select></div>
+      <div class="form-group"><label class="form-label">Current balance</label><input type="number" step="0.01" class="form-input" id="acc-balance" placeholder="0.00"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Credit limit (if applicable)</label><input type="number" step="0.01" class="form-input" id="acc-limit" placeholder="0.00"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-account">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-account">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cut-date">
+  <div class="modal">
+    <div class="modal-title">Opening balances and cut date</div>
+    <div class="alert alert-blue" style="margin-bottom:14px;">Set balances as of the cut date. All transactions on or after this date update balances automatically.</div>
+    <div class="form-group"><label class="form-label">Cut date</label><input type="date" class="form-input" id="cut-date-input"></div>
+    <div id="opening-bal-fields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-cut-date">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-cut-date">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-installment">
+  <div class="modal">
+    <div class="modal-title">Add Installment Plan</div>
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="inst-name" placeholder="e.g. Klarna - Concert ticket"></div>
+    <div class="form-group"><label class="form-label">Provider</label><input type="text" class="form-input" id="inst-provider" placeholder="e.g. Klarna, Affirm, Afterpay"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Total amount ($)</label><input type="number" step="0.01" class="form-input" id="inst-total" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Number of payments</label><input type="number" min="1" max="52" class="form-input" id="inst-count" placeholder="4"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Amount per payment ($)</label><input type="number" step="0.01" class="form-input" id="inst-payment-amt" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">First payment date</label><input type="date" class="form-input" id="inst-first-date"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Payment frequency</label>
+      <select class="form-select" id="inst-frequency">
+        <option value="14">Every 2 weeks</option>
+        <option value="30">Monthly</option>
+        <option value="7">Weekly</option>
+        <option value="custom">Custom dates</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="inst-keywords" placeholder="e.g. klarna, ticketmaster"></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+      <input type="checkbox" id="inst-first-paid" style="width:auto;">
+      <label class="form-label" style="margin:0;cursor:pointer;" for="inst-first-paid">First payment already made</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-installment">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-installment">Add plan</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-debt">
+  <div class="modal">
+    <div class="modal-title" id="edit-debt-title">Edit debt details</div>
+    <input type="hidden" id="edit-debt-id">
+    <div class="form-group"><label class="form-label">Interest rate</label><input type="text" class="form-input" id="edit-debt-rate" placeholder="e.g. 19.99%, 0% promo, Fixed"></div>
+    <div class="form-group"><label class="form-label">Monthly payment ($)</label><input type="number" step="0.01" class="form-input" id="edit-debt-payment" placeholder="0.00"></div>
+    <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="edit-debt-note" placeholder="e.g. promo ends Dec 2026"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-debt">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-edit-debt">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-set-limit">
+  <div class="modal">
+    <div class="modal-title" id="set-limit-title">Set monthly limit</div>
+    <input type="hidden" id="set-limit-cat">
+    <div class="form-group">
+      <label class="form-label">Monthly limit ($)</label>
+      <input type="number" step="0.01" class="form-input" id="set-limit-amount" placeholder="0.00">
+      <div style="font-size:11px;color:var(--text3);margin-top:5px;">Set to 0 or leave blank to remove the limit</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-limit">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-limit">Save limit</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-recurring">
+  <div class="modal">
+    <div class="modal-title">Add Recurring Payment</div>
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="rp-name" placeholder="e.g. Netflix"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="rp-amount"></div>
+      <div class="form-group"><label class="form-label">Expected day of month</label><input type="number" min="1" max="31" class="form-input" id="rp-day"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tolerance (+-days)</label><input type="number" min="0" max="10" class="form-input" id="rp-tolerance" value="5"></div>
+      <div class="form-group"><label class="form-label">Paycheque period</label><select class="form-select" id="rp-paycheque"><option value="1">Paycheque 1</option><option value="2">Paycheque 2</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="rp-keywords" placeholder="e.g. rogers, 4700"></div>
+    <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="rp-category"></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-rp">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-rp">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-recurring">
+  <div class="modal">
+    <div class="modal-title">Edit Recurring Payment</div>
+    <input type="hidden" id="edit-rp-id">
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="edit-rp-name"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="edit-rp-amount"></div>
+      <div class="form-group"><label class="form-label">Expected day</label><input type="number" min="1" max="31" class="form-input" id="edit-rp-day"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Tolerance (+-days)</label><input type="number" min="0" max="10" class="form-input" id="edit-rp-tolerance"></div>
+      <div class="form-group"><label class="form-label">Paycheque period</label><select class="form-select" id="edit-rp-paycheque"><option value="1">Paycheque 1</option><option value="2">Paycheque 2</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Detection keywords</label><input type="text" class="form-input" id="edit-rp-keywords"></div>
+    <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="edit-rp-category"></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-rp">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-edit-rp">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-category">
+  <div class="modal">
+    <div class="modal-title">Add Category</div>
+    <div class="form-group"><label class="form-label">Category name</label><input type="text" class="form-input" id="cat-name" placeholder="e.g. Home maintenance"></div>
+    <div class="form-group"><label class="form-label">Group</label>
+      <select class="form-select" id="cat-group">
+        <option>Income</option><option>Housing</option><option>Debt payments</option>
+        <option>Living expenses</option><option>Transport</option><option>Subscriptions</option><option>Transfers</option>
+      </select>
+      <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+        <span style="font-size:12px;color:var(--text3);">Or create new group:</span>
+        <input type="text" class="form-input" id="cat-newgroup" placeholder="New group name" style="flex:1;">
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Color</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="cat-color-picker"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-category">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-category">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-category">
+  <div class="modal">
+    <div class="modal-title">Edit Category</div>
+    <input type="hidden" id="edit-cat-id">
+    <div class="form-group"><label class="form-label">Category name</label><input type="text" class="form-input" id="edit-cat-name"></div>
+    <div class="form-group"><label class="form-label">Group</label>
+      <select class="form-select" id="edit-cat-group">
+        <option>Income</option><option>Housing</option><option>Debt payments</option>
+        <option>Living expenses</option><option>Transport</option><option>Subscriptions</option><option>Transfers</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Color</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="edit-cat-color-picker"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-category">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-edit-category">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-ai-settings">
+  <div class="modal">
+    <div class="modal-title">AI Settings</div>
+    <div class="form-group"><label class="form-label">Anthropic API Key</label><input type="password" class="form-input" id="settings-key" placeholder="sk-ant-api03-..."></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;" id="key-status-label"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-ai-settings">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-ai-settings">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// WealthTrack v2.1.3 - All JS uses DOM methods, zero innerHTML with HTML tags
+// This prevents the HTML parser from breaking on </tag> sequences inside strings
+
+var SK='wealthtrack_v210', SK_KEY='wealthtrack_apikey';
+
+// ---- SUPABASE SYNC ----
+var SB_URL='https://mvxhoukpnprrmoptyyay.supabase.co';
+var SB_KEY='sb_publishable_bVhqQrbPOJMHYczsTcXVrQ_h1PoF4tR';
+var SB_HEADERS={'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'};
+
+// Sync state
+var syncState={online:navigator.onLine,syncing:false,lastSync:null,queue:[]};
+
+// Load sync queue from localStorage
+try{var _q=localStorage.getItem('wt_sync_queue');if(_q) syncState.queue=JSON.parse(_q);}catch(e){}
+
+function saveSyncQueue(){try{localStorage.setItem('wt_sync_queue',JSON.stringify(syncState.queue));}catch(e){}}
+
+function setSyncStatus(state,msg){
+  var dot=document.getElementById('sync-dot');
+  var label=document.getElementById('sync-label');
+  if(!dot||!label) return;
+  var styles={online:'background:var(--green);',syncing:'background:var(--amber);animation:pulse 1s infinite;',offline:'background:var(--red);',error:'background:var(--red);'};
+  dot.style.cssText='width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0;'+(styles[state]||styles.online);
+  label.textContent=msg||({online:'Synced',syncing:'Syncing...',offline:'Offline',error:'Sync error'}[state]||'');
+}
+
+// Supabase REST helpers
+async function sbGet(table,filter){
+  var url=SB_URL+'/rest/v1/'+table+(filter?'?'+filter:'');
+  var r=await fetch(url,{headers:SB_HEADERS});
+  if(!r.ok) throw new Error('GET '+table+' failed: '+r.status);
+  return r.json();
+}
+async function sbUpsert(table,rows){
+  var url=SB_URL+'/rest/v1/'+table;
+  var r=await fetch(url,{method:'POST',headers:{...SB_HEADERS,'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(Array.isArray(rows)?rows:[rows])});
+  if(!r.ok) throw new Error('UPSERT '+table+' failed: '+r.status);
+  return r;
+}
+
+// ---- SYNC: PUSH single transaction ----
+async function pushTransaction(txn){
+  var row={id:txn.id,data:txn,deleted:false,updated_at:new Date().toISOString()};
+  await sbUpsert('wealthtrack_transactions',[row]);
+}
+
+// ---- SYNC: PUSH single settings key ----
+async function pushSetting(key,value){
+  var row={key:key,value:value,updated_at:new Date().toISOString()};
+  await sbUpsert('wealthtrack_settings',[row]);
+}
+
+// ---- SYNC: PULL and MERGE all data ----
+async function pullAndMerge(){
+  // Pull transactions
+  var rows=await sbGet('wealthtrack_transactions','deleted=eq.false&order=updated_at.asc');
+  var changed=false;
+  rows.forEach(function(row){
+    var existing=db.transactions.find(function(t){return t.id===row.id;});
+    if(!existing){
+      db.transactions.push(row.data);
+      changed=true;
+    }
+  });
+
+  // Pull settings keys
+  var settings=await sbGet('wealthtrack_settings','');
+  settings.forEach(function(row){
+    var key=row.key;
+    var val=row.value;
+    // Only overwrite if cloud is newer than our local updated_at
+    var localTs=db._settingsTs&&db._settingsTs[key]?db._settingsTs[key]:'1970-01-01';
+    var cloudTs=row.updated_at||'1970-01-01';
+    if(cloudTs>localTs){
+      db[key]=val;
+      if(!db._settingsTs) db._settingsTs={};
+      db._settingsTs[key]=cloudTs;
+      changed=true;
+    }
+  });
+
+  if(changed){
+    saveLocalOnly();
+    return true;
+  }
+  return false;
+}
+
+// ---- SYNC: PUSH all local data to cloud (initial migration) ----
+async function pushAllToCloud(){
+  setSyncStatus('syncing','Uploading...');
+  // Push all transactions
+  var txnRows=db.transactions.map(function(t){return{id:t.id,data:t,deleted:false,updated_at:new Date().toISOString()};});
+  if(txnRows.length) await sbUpsert('wealthtrack_transactions',txnRows);
+
+  // Push all settings keys
+  var ts=new Date().toISOString();
+  var settingsKeys=['accounts','recurringPayments','customCategories','flexBudgets','installmentPlans','manualOverrides','dismissedAlerts','cutDate','varBudgets'];
+  var settingsRows=settingsKeys.map(function(k){return{key:k,value:db[k]!==undefined?db[k]:null,updated_at:ts};});
+  await sbUpsert('wealthtrack_settings',settingsRows);
+}
+
+// ---- REPLAY OFFLINE QUEUE ----
+async function replayQueue(){
+  if(!syncState.queue.length) return;
+  setSyncStatus('syncing','Syncing offline changes...');
+  var failed=[];
+  for(var i=0;i<syncState.queue.length;i++){
+    var item=syncState.queue[i];
+    try{
+      if(item.type==='txn') await pushTransaction(item.data);
+      else if(item.type==='setting') await pushSetting(item.key,item.value);
+    }catch(e){ failed.push(item); }
+  }
+  syncState.queue=failed;
+  saveSyncQueue();
+}
+
+// ---- MAIN SAVE: save locally + queue/push to cloud ----
+function saveLocalOnly(){
+  try{localStorage.setItem(SK,JSON.stringify(db));}catch(e){}
+}
+
+async function saveData(changedTxn,changedSettingKey){
+  saveLocalOnly();
+  if(!syncState.online){
+    // Queue changes for later
+    if(changedTxn) syncState.queue.push({type:'txn',data:changedTxn,ts:new Date().toISOString()});
+    if(changedSettingKey){
+      var val=db[changedSettingKey];
+      syncState.queue.push({type:'setting',key:changedSettingKey,value:val,ts:new Date().toISOString()});
+    }
+    saveSyncQueue();
+    setSyncStatus('offline','Offline - saved locally');
+    return;
+  }
+  try{
+    setSyncStatus('syncing');
+    if(changedTxn) await pushTransaction(changedTxn);
+    if(changedSettingKey) await pushSetting(changedSettingKey,db[changedSettingKey]);
+    // If no specific key given, push everything (bulk save)
+    if(!changedTxn&&!changedSettingKey) await pushAllToCloud();
+    syncState.lastSync=new Date();
+    setSyncStatus('online','Synced '+new Date().toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){
+    setSyncStatus('error','Sync error - saved locally');
+    // Queue for retry
+    if(changedTxn) syncState.queue.push({type:'txn',data:changedTxn,ts:new Date().toISOString()});
+    if(changedSettingKey) syncState.queue.push({type:'setting',key:changedSettingKey,value:db[changedSettingKey],ts:new Date().toISOString()});
+    saveSyncQueue();
+  }
+}
+
+// Online/offline event listeners
+window.addEventListener('online',async function(){
+  syncState.online=true;
+  setSyncStatus('syncing','Back online - syncing...');
+  try{
+    await replayQueue();
+    var merged=await pullAndMerge();
+    await pushAllToCloud();
+    syncState.lastSync=new Date();
+    setSyncStatus('online','Synced');
+    if(merged){ renderDashboard(); showToast('Synced - new data from another device'); }
+  }catch(e){ setSyncStatus('error','Sync error'); }
+});
+window.addEventListener('offline',function(){
+  syncState.online=false;
+  setSyncStatus('offline','Offline');
+});
+
+
+function computeLiveBalance(accountId){
+  var acc=db.accounts.find(function(a){return a.id===accountId;});
+  if(!acc) return 0;
+  var cut=db.cutDate||'2026-04-14';
+  var delta=db.transactions
+    .filter(function(t){return t.account===accountId&&t.date>=cut;})
+    .reduce(function(s,t){return s+(t.type==='income'?t.amount:-t.amount);},0);
+  return (acc.openingBalance||0)+delta;
+}
+
+function computeRunningBalance(accountId,upToId){
+  var acc=db.accounts.find(function(a){return a.id===accountId;});
+  if(!acc) return 0;
+  var cut=db.cutDate||'2026-04-14';
+  var txns=db.transactions
+    .filter(function(t){return t.account===accountId&&t.date>=cut;})
+    .sort(function(a,b){return a.date.localeCompare(b.date)||a.id.localeCompare(b.id);});
+  var bal=acc.openingBalance||0;
+  for(var i=0;i<txns.length;i++){
+    bal+=txns[i].type==='income'?txns[i].amount:-txns[i].amount;
+    if(txns[i].id===upToId) break;
+  }
+  return bal;
+}
+
+// ---- DEFAULT DATA ----
+function buildDefaultData(){
+  var txns=[]; var id=1;
+  function t(date,desc,account,cat,amount,type,notes,linkedId){
+    return{id:'t'+(id++),date:date,description:desc,account:account,category:cat,amount:Math.abs(amount),type:type,notes:notes||'',linkedId:linkedId||null};
+  }
+  // JAN
+  txns.push(t('2026-01-01','Interest earned','ws-chq','Income',2.10,'income'));
+  txns.push(t('2026-01-02','Amex CC payment','ws-chq','Debt payment',1110.63,'expense'));
+  txns.push(t('2026-01-02','e-Transfer to BMO','ws-chq','Transfer',60,'expense'));
+  txns.push(t('2026-01-02','Rogers MC payment','ws-chq','Debt payment',157.03,'expense'));
+  txns.push(t('2026-01-02','Scotia Visa payment','ws-chq','Rent',894.95,'expense','Includes rent'));
+  txns.push(t('2026-01-02','MBNA payment','ws-chq','Debt payment',100,'expense'));
+  txns.push(t('2026-01-07','e-Transfer Received','ws-chq','Income',100,'income'));
+  txns.push(t('2026-01-08','Affirm Canada','ws-chq','Debt payment',62.90,'expense'));
+  txns.push(t('2026-01-12','Uplift Canada','ws-chq','Debt payment',65.40,'expense'));
+  txns.push(t('2026-01-13','Rogers phone 4700','ws-chq','Subscription',144.78,'expense'));
+  txns.push(t('2026-01-13','Amex Personal Loan 01004','ws-chq','Debt payment',461.41,'expense'));
+  txns.push(t('2026-01-15','Direct deposit AIC','ws-chq','Income',2859.28,'income','Paycheque 1'));
+  txns.push(t('2026-01-16','Amex CC payment','ws-chq','Debt payment',1000,'expense'));
+  txns.push(t('2026-01-16','e-Transfer to BMO','ws-chq','Transfer',70,'expense'));
+  txns.push(t('2026-01-21','e-Transfer to BMO','ws-chq','Transfer',159.93,'expense'));
+  txns.push(t('2026-01-26','RBC Loan payment','ws-chq','Debt payment',1285.42,'expense'));
+  txns.push(t('2026-01-27','e-Transfer Received','ws-chq','Income',50,'income'));
+  txns.push(t('2026-01-30','Direct deposit AIC','ws-chq','Income',2859.29,'income','Paycheque 2'));
+  txns.push(t('2026-01-31','Transfer out','ws-chq','Transfer',600,'expense'));
+  // FEB
+  txns.push(t('2026-02-01','Interest earned','ws-chq','Income',1.94,'income'));
+  txns.push(t('2026-02-02','Scotia Visa rent pmt 1','ws-chq','Rent',691.90,'expense'));
+  txns.push(t('2026-02-06','e-Transfer Received','ws-chq','Income',100,'income'));
+  txns.push(t('2026-02-06','Affirm Canada','ws-chq','Debt payment',62.90,'expense'));
+  txns.push(t('2026-02-11','Uplift Canada','ws-chq','Debt payment',65.40,'expense'));
+  txns.push(t('2026-02-13','Direct deposit AIC','ws-chq','Income',2859.28,'income','Paycheque 1'));
+  txns.push(t('2026-02-13','Amex Personal Loan 01004','ws-chq','Debt payment',461.41,'expense'));
+  txns.push(t('2026-02-17','Scotia Visa rent pmt 2','ws-chq','Rent',691.90,'expense'));
+  txns.push(t('2026-02-17','Amex CC payment','ws-chq','Debt payment',500,'expense'));
+  txns.push(t('2026-02-25','RBC Loan payment','ws-chq','Debt payment',1285.42,'expense'));
+  txns.push(t('2026-02-27','Direct deposit AIC','ws-chq','Income',2966.75,'income','Paycheque 2'));
+  txns.push(t('2026-02-27','Transfer to BMO','ws-chq','Transfer',800,'expense'));
+  // MAR
+  txns.push(t('2026-03-01','Interest earned','ws-chq','Income',2.43,'income'));
+  txns.push(t('2026-03-02','Amex CC payment','ws-chq','Debt payment',2172.70,'expense'));
+  txns.push(t('2026-03-02','Scotia Visa rent pmt 1','ws-chq','Rent',691.90,'expense'));
+  txns.push(t('2026-03-02','Rogers MC payment','ws-chq','Debt payment',97.97,'expense'));
+  txns.push(t('2026-03-05','Affirm Canada FINAL PAYOFF','ws-chq','Debt payment',883.57,'expense','Paid in full'));
+  txns.push(t('2026-03-05','Klarna EB Games Final','ws-chq','Debt payment',75.16,'expense'));
+  txns.push(t('2026-03-11','Uplift Canada','ws-chq','Debt payment',65.40,'expense'));
+  txns.push(t('2026-03-13','Direct deposit AIC','ws-chq','Income',2859.28,'income','Paycheque 1'));
+  txns.push(t('2026-03-13','Scotia Visa rent pmt 1','ws-chq','Rent',691.90,'expense'));
+  txns.push(t('2026-03-16','Amex Personal Loan 01004','ws-chq','Debt payment',461.41,'expense'));
+  txns.push(t('2026-03-19','Rogers MC payment','ws-chq','Debt payment',145.30,'expense'));
+  txns.push(t('2026-03-19','e-Transfer Received','ws-chq','Income',85.20,'income'));
+  txns.push(t('2026-03-22','e-Transfer to Colombia','ws-chq','Other',762,'expense','Emergency'));
+  txns.push(t('2026-03-25','RBC Loan payment','ws-chq','Debt payment',1285.42,'expense'));
+  txns.push(t('2026-03-31','Direct deposit AIC','ws-chq','Income',2859.28,'income','Paycheque 2'));
+  txns.push(t('2026-03-31','Amex CC payment','ws-chq','Debt payment',1327.41,'expense'));
+  txns.push(t('2026-03-31','Scotia Visa rent pmt 2','ws-chq','Rent',691.90,'expense'));
+  // APR
+  txns.push(t('2026-04-01','Interest earned','ws-chq','Income',2.34,'income'));
+  txns.push(t('2026-04-01','e-Transfer Received','ws-chq','Income',70,'income'));
+  txns.push(t('2026-04-08','Internal transfer non-reg','ws-chq','Transfer',1595.75,'income','Non-reg funds for MBNA'));
+  txns.push(t('2026-04-09','MBNA payoff','ws-chq','Debt payment',1594.55,'expense','Lump sum payoff'));
+  txns.push(t('2026-04-10','e-Transfer Cineplex','ws-chq','Subscription',11.29,'expense'));
+  txns.push(t('2026-04-12','e-Transfer Out','ws-chq','Transfer',80,'expense'));
+  txns.push(t('2026-04-13','Amex Personal Loan 01004','ws-chq','Debt payment',461.41,'expense'));
+  txns.push(t('2026-04-13','Uplift Canada','ws-chq','Debt payment',65.40,'expense'));
+  txns.push(t('2026-04-13','e-Transfer Out','ws-chq','Transfer',20,'expense'));
+  txns.push(t('2026-04-13','Online bill payment','ws-chq','Other',4,'expense'));
+  // BMO
+  txns.push(t('2026-03-06','Cineplex Cineclub','bmo-cc','Subscription',11.29,'expense'));
+  txns.push(t('2026-03-15','Eggsmart dining','bmo-cc','Dining',62.72,'expense'));
+  txns.push(t('2026-03-28','Norton subscription','bmo-cc','Subscription',112.99,'expense','Refund requested'));
+  txns.push(t('2026-04-03','Interest charges BMO','bmo-cc','Other',5.19,'expense'));
+
+  return{
+    version:'2.1.3',
+    cutDate:'2026-04-14',
+    accounts:[
+      {id:'ws-chq',name:'Wealthsimple Chequing',type:'Chequing',openingBalance:877.83,limit:null,currency:'CAD'},
+      {id:'mbna-amazon',name:'MBNA Amazon MC 2083',type:'Credit card',openingBalance:-1500,limit:6000,currency:'CAD',rate:'27.99%',monthlyPayment:50,rateNote:'Penalty rate — balance transfer to Rogers pending'},
+      {id:'bmo-cc',name:'BMO CashBack MC 9207',type:'Credit card',openingBalance:-5940.93,limit:11500,currency:'CAD',rate:'0% promo',monthlyPayment:620,rateNote:'0% promo — risk if minimum missed'},
+      {id:'scotia-visa',name:'Scotia Visa 9565',type:'Credit card',openingBalance:-692,limit:10000,currency:'CAD',rate:'Paid in full',monthlyPayment:1383.80,rateNote:'Rent via Chexy — paid in full monthly'},
+      {id:'rogers-mc',name:'Rogers Red MC 1113',type:'Credit card',openingBalance:-1554,limit:5000,currency:'CAD',rate:'0% / 12 mo',monthlyPayment:130,rateNote:'Balance transfer from MBNA — Apr 2026'},
+      {id:'amex-simple',name:'Amex SimplyCash 54001',type:'Credit card',openingBalance:-1857,limit:6089,currency:'CAD',rate:'~21.99%',monthlyPayment:300,rateNote:''},
+      {id:'amex-loan',name:'Amex Personal Loan 01004',type:'Loan',openingBalance:-2226,limit:null,currency:'CAD',rate:'Fixed',monthlyPayment:461.41,rateNote:'~5 months remaining — done Sept 2026'},
+      {id:'rbc-loan',name:'RBC Loan',type:'Loan',openingBalance:-10000,limit:null,currency:'CAD',rate:'Fixed',monthlyPayment:1285.42,rateNote:'Pre-authorized ~25th'},
+      {id:'ws-tfsa',name:'Wealthsimple TFSA',type:'TFSA',openingBalance:125.61,limit:null,currency:'CAD'},
+      {id:'ws-nonreg',name:'Wealthsimple Non-Registered',type:'Investment',openingBalance:0,limit:null,currency:'CAD'},
+    ],
+    transactions:txns,
+    // flexBudgets: category name -> monthly limit (only categories with limits set)
+    flexBudgets:{
+      'Groceries': 400,
+      'Dining out': 150,
+      'Personal care': 80,
+      'Transit / TTC': 100,
+      'Streaming': 30,
+      'Phone bill': 145,
+      'Entertainment': 50,
+    },
+    recurringPayments:[
+      {id:'rp1',name:'Rogers phone 4700',amount:145,expectedDay:13,tolerance:5,keywords:['rogers','4700'],paycheque:1,active:true,category:'Subscription'},
+      {id:'rp2',name:'Amex Personal Loan 01004',amount:461.41,expectedDay:13,tolerance:5,keywords:['amex','personal loan','01004'],paycheque:1,active:true,category:'Debt payment'},
+      {id:'rp3',name:'Uplift Canada',amount:65.40,expectedDay:11,tolerance:5,keywords:['uplift'],paycheque:1,active:true,category:'Debt payment'},
+      {id:'rp4',name:'Scotia Visa rent pmt 1',amount:691.90,expectedDay:14,tolerance:5,keywords:['scotia','9565'],paycheque:1,active:true,category:'Rent'},
+      {id:'rp5',name:'BMO e-Transfer',amount:620,expectedDay:14,tolerance:5,keywords:['bmo','transfer'],paycheque:1,active:true,category:'Transfer'},
+      {id:'rp6',name:'Rogers MC 1113 BT',amount:130,expectedDay:14,tolerance:5,keywords:['rogers','1113'],paycheque:1,active:true,category:'Debt payment'},
+      {id:'rp7',name:'RBC Loan payment',amount:1285.42,expectedDay:25,tolerance:5,keywords:['rbc','loan'],paycheque:2,active:true,category:'Debt payment'},
+      {id:'rp8',name:'Scotia Visa rent pmt 2',amount:691.90,expectedDay:28,tolerance:5,keywords:['scotia','9565'],paycheque:2,active:true,category:'Rent'},
+      {id:'rp9',name:'Amex SimplyCash 54001',amount:300,expectedDay:28,tolerance:5,keywords:['amex','simplycash','54001'],paycheque:2,active:true,category:'Debt payment'},
+    ],
+    manualOverrides:{},
+    installmentPlans:[
+      {
+        id:'inst1',
+        name:'Klarna - Ticketmaster CA',
+        merchant:'Ticketmaster CA',
+        totalAmount:356.40,
+        payments:[
+          {id:'p1',amount:89.10,dueDate:'2026-04-21',paid:true,paidDate:'2026-04-21'},
+          {id:'p2',amount:89.10,dueDate:'2026-05-05',paid:false,paidDate:null},
+          {id:'p3',amount:89.10,dueDate:'2026-05-19',paid:false,paidDate:null},
+          {id:'p4',amount:89.10,dueDate:'2026-06-02',paid:false,paidDate:null}
+        ],
+        provider:'Klarna',
+        keywords:['klarna','ticketmaster'],
+        active:true
+      }
+    ],
+    customCategories:[
+      {id:'cat-sal',  name:'Salary / Employment',  group:'Income',                color:'#3a7d52'},
+      {id:'cat-free', name:'Freelance / Side income',group:'Income',              color:'#3a7d52'},
+      {id:'cat-int',  name:'Interest earned',       group:'Income',               color:'#3a7d52'},
+      {id:'cat-trfin',name:'Transfer received',     group:'Income',               color:'#3a7d52'},
+      {id:'cat-rent', name:'Rent',                  group:'Housing',              color:'#6b44a8'},
+      {id:'cat-util', name:'Utilities',             group:'Housing',              color:'#6b44a8'},
+      {id:'cat-loan', name:'Loan payment',          group:'Debt payments',        color:'#b84040'},
+      {id:'cat-cc',   name:'Credit card payment',   group:'Debt payments',        color:'#b84040'},
+      {id:'cat-bnpl', name:'Buy now pay later',     group:'Debt payments',        color:'#b84040'},
+      {id:'cat-groc', name:'Groceries',             group:'Living expenses',      color:'#2e6ea6'},
+      {id:'cat-dine', name:'Dining out',            group:'Living expenses',      color:'#c17f3a'},
+      {id:'cat-care', name:'Personal care',         group:'Living expenses',      color:'#c17f3a'},
+      {id:'cat-clth', name:'Clothing',              group:'Living expenses',      color:'#c17f3a'},
+      {id:'cat-hlth', name:'Health / Pharmacy',     group:'Living expenses',      color:'#c17f3a'},
+      {id:'cat-tran', name:'Transit / TTC',         group:'Transport',            color:'#3a6a8a'},
+      {id:'cat-ride', name:'Ride share',            group:'Transport',            color:'#3a6a8a'},
+      {id:'cat-gas',  name:'Gas / Parking',         group:'Transport',            color:'#3a6a8a'},
+      {id:'cat-strm', name:'Streaming',             group:'Subscriptions',        color:'#b07020'},
+      {id:'cat-phon', name:'Phone bill',            group:'Subscriptions',        color:'#b07020'},
+      {id:'cat-soft', name:'Software / Apps',       group:'Subscriptions',        color:'#b07020'},
+      {id:'cat-ins',  name:'Insurance',             group:'Subscriptions',        color:'#b07020'},
+      {id:'cat-itrf', name:'Internal transfer',     group:'Transfers',            color:'#7a7a7a'},
+      {id:'cat-fam',  name:'Sent to family',        group:'Transfers',            color:'#7a7a7a'},
+      {id:'cat-emrg', name:'Emergency / One-time',  group:'Transfers',            color:'#7a7a7a'},
+      {id:'cat-othr', name:'Other',                 group:'Transfers',            color:'#7a7a7a'},
+    ],
+    aiHistory:[],floatHistory:[],
+    sortTxn:{field:'date',dir:'desc'}
+  };
+}
+
+function migrateData(d){
+  if(!d.cutDate) d.cutDate='2026-04-14';
+  if(!d.manualOverrides) d.manualOverrides={};
+  if(!d.recurringPayments) d.recurringPayments=buildDefaultData().recurringPayments;
+  if(!d.customCategories) d.customCategories=buildDefaultData().customCategories;
+  if(!d.dismissedAlerts) d.dismissedAlerts={};
+  if(!d.installmentPlans) d.installmentPlans=[];
+  if(!d.installmentPlans.find(function(x){return x.id==='inst1';})){
+    d.installmentPlans.push({
+      id:'inst1',name:'Klarna - Ticketmaster CA',merchant:'Ticketmaster CA',
+      totalAmount:356.40,provider:'Klarna',keywords:['klarna','ticketmaster'],active:true,
+      payments:[
+        {id:'p1',amount:89.10,dueDate:'2026-04-21',paid:true,paidDate:'2026-04-21'},
+        {id:'p2',amount:89.10,dueDate:'2026-05-05',paid:false,paidDate:null},
+        {id:'p3',amount:89.10,dueDate:'2026-05-19',paid:false,paidDate:null},
+        {id:'p4',amount:89.10,dueDate:'2026-06-02',paid:false,paidDate:null}
+      ]
+    });
+  }
+  if(!d.flexBudgets) d.flexBudgets=buildDefaultData().flexBudgets;
+  if(d.varBudgets&&!d.flexBudgets){d.flexBudgets={};d.varBudgets.forEach(function(v){d.flexBudgets[v.name]=v.limit;});}
+  if(!d.accounts.find(function(a){return a.id==='mbna-amazon';})){
+    d.accounts.splice(1,0,{id:'mbna-amazon',name:'MBNA Amazon MC 2083',type:'Credit card',openingBalance:-1500,limit:6000,currency:'CAD',rate:'27.99%',monthlyPayment:50,rateNote:'Penalty rate'});
+  }
+  var rateDefaults={'mbna-amazon':{rate:'27.99%',monthlyPayment:50},'bmo-cc':{rate:'0% promo',monthlyPayment:620},'scotia-visa':{rate:'Paid in full',monthlyPayment:1383.80},'rogers-mc':{rate:'0% / 12 mo',monthlyPayment:130},'amex-simple':{rate:'~21.99%',monthlyPayment:300},'amex-loan':{rate:'Fixed',monthlyPayment:461.41},'rbc-loan':{rate:'Fixed',monthlyPayment:1285.42}};
+  d.accounts.forEach(function(a){
+    if((a.type==='Credit card'||a.type==='Loan')&&!a.rate){var def=rateDefaults[a.id]||{rate:'?',monthlyPayment:0};a.rate=def.rate;a.monthlyPayment=def.monthlyPayment;a.rateNote=a.rateNote||'';}
+    if(a.balance!==undefined&&a.openingBalance===undefined) a.openingBalance=a.balance;
+  });
+  if(!d.aiHistory) d.aiHistory=[];
+  if(!d.floatHistory) d.floatHistory=[];
+  if(!d._settingsTs) d._settingsTs={};
+  return d;
+}
+
+function loadData(){
+  try{var r=localStorage.getItem(SK);if(r) return migrateData(JSON.parse(r));}catch(e){}
+  return migrateData(buildDefaultData());
+}
+
+// saveData is now async - defined in sync layer above
+// Synchronous fallback for places that can't await
+function saveDataSync(){saveLocalOnly();}
+
+var db=loadData();
+
+// ---- UTILS ----
+function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtDate(d){try{return new Date(d+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'});}catch(e){return d;}}
+function getApiKey(){return localStorage.getItem(SK_KEY)||'';}
+function setApiKey(k){localStorage.setItem(SK_KEY,k);}
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},3000);}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function el(id){return document.getElementById(id);}
+function mk(tag,cls,text){var e=document.createElement(tag);if(cls) e.className=cls;if(text!==undefined) e.textContent=text;return e;}
+
+// Populate a <select> with grouped category options
+function fillCatSelect(selectId, includeAll, selectedVal){
+  var sel=el(selectId); if(!sel) return;
+  sel.innerHTML='';
+  if(includeAll){var o=mk('option');o.value='';o.textContent='All categories';sel.appendChild(o);}
+  var groups=[...new Set(db.customCategories.map(function(c){return c.group;}))];
+  groups.forEach(function(grp){
+    var og=document.createElement('optgroup'); og.label=grp;
+    db.customCategories.filter(function(c){return c.group===grp;}).forEach(function(c){
+      var o=mk('option'); o.value=c.name; o.textContent=c.name;
+      if(selectedVal&&c.name===selectedVal) o.selected=true;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+}
+
+// All category names as flat array
+function allCatNames(){return db.customCategories.map(function(c){return c.name;});}
+
+// Color for a category name — checks custom list first, then legacy fallback
+function catColor(name){
+  var c=db.customCategories.find(function(x){return x.name===name;});
+  if(c) return c.color;
+  return CAT_COLORS_FALLBACK[name]||'#8a7a6a';
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(function(o){
+  o.addEventListener('click',function(e){if(e.target===o) o.classList.remove('open');});
+});
+
+// ---- SETUP ----
+el('btn-save-key').addEventListener('click', function(){
+  var k=el('setup-key').value.trim();
+  if(!k||!k.startsWith('sk-ant-')){
+    el('setup-error').textContent='Invalid key - should start with sk-ant-';
+    el('setup-error').style.display='block';
+    return;
+  }
+  setApiKey(k);
+  el('setup-screen').style.display='none';
+  init();
+  showToast('API key saved');
+});
+
+el('btn-skip-setup').addEventListener('click', function(){
+  el('setup-screen').style.display='none';
+  init();
+});
+
+function checkSetup(){
+  if(getApiKey()){el('setup-screen').style.display='none';init();}
+  else{el('setup-screen').style.display='flex';}
+}
+
+// ---- NAVIGATION ----
+var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',paycheque:'Paycheque Plan',recurring:'Recurring Payments',categories:'Categories',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
+
+function nav(page){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  var pg=document.getElementById('page-'+page);
+  if(pg) pg.classList.add('active');
+  var ni=document.querySelector('[data-page="'+page+'"]');
+  if(ni) ni.classList.add('active');
+  el('page-title').textContent=PAGE_TITLES[page]||page;
+  if(window.innerWidth<768) el('sidebar').classList.remove('open');
+  if(page==='dashboard') renderDashboard();
+  else if(page==='transactions') renderTransactions();
+  else if(page==='accounts') renderAccounts();
+  else if(page==='debts') renderDebts();
+  else if(page==='budget') renderBudget();
+  else if(page==='paycheque') renderPaycheque();
+  else if(page==='recurring') renderRecurring();
+  else if(page==='categories') renderCategories();
+  else if(page==='reports') renderReport();
+  else if(page==='import') renderImportPage();
+  else if(page==='ai'){renderAIChat();if(getApiKey()&&!db.aiHistory.length) loadAIInsights();}
+}
+
+document.querySelectorAll('.nav-item').forEach(function(n){
+  n.addEventListener('click',function(){nav(n.getAttribute('data-page'));});
+});
+el('btn-hamburger').addEventListener('click',function(){el('sidebar').classList.add('open');});
+
+// ---- CHARTS (pure Canvas) ----
+// CAT_COLORS now driven by db.customCategories via catColor() helper
+var CAT_COLORS_FALLBACK={'Rent':'#6b44a8','Groceries':'#2e6ea6','Debt payment':'#b84040','Transfer':'#7a7a7a','Subscription':'#b07020','Dining':'#c17f3a','Entertainment':'#7a6030','Transit':'#3a6a8a','Personal':'#c17f3a','Income':'#3a7d52','Other':'#8a7a6a'};
+
+function setupCanvas(id,h){
+  var canvas=el(id); if(!canvas) return null;
+  var dpr=window.devicePixelRatio||1;
+  var W=canvas.parentElement.clientWidth||300;
+  var H=h||180;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  var ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  return {ctx:ctx,W:W,H:H};
+}
+
+function drawDonut(canvasId,data,legendId){
+  var s=setupCanvas(canvasId); if(!s||!data.length) return;
+  var ctx=s.ctx,W=s.W,H=s.H;
+  var cx=W/2,cy=H/2,r=Math.min(W,H)*0.38,ri=r*0.55;
+  var total=data.reduce(function(a,b){return a+b[1];},0);
+  var angle=-Math.PI/2;
+  data.forEach(function(d){
+    var sl=(d[1]/total)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+sl);
+    ctx.closePath(); ctx.fillStyle=d[2]; ctx.fill(); angle+=sl;
+  });
+  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+  ctx.fillStyle='#faf7f2'; ctx.fill();
+  ctx.fillStyle='#2a2318'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font="500 12px 'Plus Jakarta Sans',sans-serif";
+  ctx.fillText('$'+Math.round(total).toLocaleString(),cx,cy);
+  if(legendId){
+    var lg=el(legendId); if(!lg) return;
+    lg.innerHTML='';
+    data.forEach(function(d){
+      var sp=mk('span',''); sp.style.cssText='display:flex;align-items:center;gap:3px;font-size:10px;color:#6b5d4a;';
+      var dot=mk('span',''); dot.style.cssText='width:7px;height:7px;border-radius:50%;background:'+d[2]+';flex-shrink:0;';
+      sp.appendChild(dot);
+      sp.appendChild(document.createTextNode(d[0]+' $'+Math.round(d[1]).toLocaleString()));
+      lg.appendChild(sp);
+    });
+  }
+}
+
+function drawBarChart(canvasId,labels,datasets){
+  var s=setupCanvas(canvasId); if(!s) return;
+  var ctx=s.ctx,W=s.W,H=s.H;
+  var pl=55,pr=10,pt=10,pb=50;
+  var cw=W-pl-pr,ch=H-pt-pb;
+  var maxVal=Math.max.apply(null,datasets.reduce(function(a,d){return a.concat(d.data);},[]))*1.1||1;
+  var n=labels.length,nd=datasets.length;
+  var gw=cw/n,bw=gw/(nd+1)*0.75;
+  ctx.strokeStyle='rgba(120,100,70,.1)'; ctx.lineWidth=1;
+  [0,0.5,1].forEach(function(t){
+    var y=pt+ch*(1-t);
+    ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(pl+cw,y); ctx.stroke();
+    ctx.fillStyle='#a8967e'; ctx.textAlign='right'; ctx.font='9px sans-serif';
+    ctx.fillText('$'+Math.round(maxVal*t/1000)+'k',pl-4,y+3);
+  });
+  labels.forEach(function(label,i){
+    datasets.forEach(function(ds,j){
+      var val=ds.data[i]||0;
+      var x=pl+i*gw+(j+0.5)*gw/(nd+1);
+      var bh=(val/maxVal)*ch;
+      ctx.fillStyle=ds.color; ctx.fillRect(x,pt+ch-bh,bw,bh);
+    });
+    ctx.fillStyle='#a8967e'; ctx.textAlign='center'; ctx.font='10px sans-serif';
+    ctx.fillText(label,pl+i*gw+gw/2,H-pb+13);
+  });
+  var lx=W/2-datasets.length*45;
+  datasets.forEach(function(ds,j){
+    ctx.fillStyle=ds.color; ctx.fillRect(lx+j*90,H-16,9,9);
+    ctx.fillStyle='#6b5d4a'; ctx.textAlign='left'; ctx.font='10px sans-serif';
+    ctx.fillText(ds.label,lx+j*90+13,H-8);
+  });
+}
+
+function drawHBarChart(canvasId,labels,values,colors){
+  if(!values.length) return;
+  var rowH=26,gap=6,labelW=140;
+  var h=values.length*(rowH+gap)+20;
+  var s=setupCanvas(canvasId,h); if(!s) return;
+  var ctx=s.ctx,W=s.W;
+  var maxVal=Math.max.apply(null,values)*1.1||1;
+  var barArea=W-labelW-55;
+  values.forEach(function(val,i){
+    var y=10+i*(rowH+gap);
+    var lbl=labels[i].length>20?labels[i].substring(0,18)+'..':labels[i];
+    ctx.fillStyle='#6b5d4a'; ctx.textAlign='left'; ctx.font='10px sans-serif';
+    ctx.fillText(lbl,0,y+rowH/2+3);
+    var bw=Math.max((val/maxVal)*barArea,2);
+    ctx.fillStyle=colors[i%colors.length]; ctx.fillRect(labelW,y,bw,rowH);
+    ctx.fillStyle='#2a2318'; ctx.textAlign='left'; ctx.font='500 10px sans-serif';
+    ctx.fillText('$'+Math.round(val).toLocaleString(),labelW+bw+4,y+rowH/2+3);
+  });
+}
+
+function drawLineChart(canvasId,labels,values){
+  if(!values.length) return;
+  var s=setupCanvas(canvasId); if(!s) return;
+  var ctx=s.ctx,W=s.W,H=s.H;
+  var pl=60,pr=15,pt=10,pb=28;
+  var cw=W-pl-pr,ch=H-pt-pb;
+  var minV=Math.min.apply(null,values),maxV=Math.max.apply(null,values),range=(maxV-minV)||1;
+  function toY(v){return pt+ch-(((v-minV)/range)*ch*0.88+ch*0.06);}
+  function toX(i){return pl+(i/(values.length-1||1))*cw;}
+  ctx.strokeStyle='rgba(120,100,70,.1)'; ctx.lineWidth=1;
+  [0,0.5,1].forEach(function(t){
+    var v=minV+range*t, y=toY(v);
+    ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(pl+cw,y); ctx.stroke();
+    ctx.fillStyle='#a8967e'; ctx.textAlign='right'; ctx.font='9px sans-serif';
+    ctx.fillText('$'+Math.round(v).toLocaleString(),pl-3,y+3);
+  });
+  ctx.beginPath(); ctx.moveTo(toX(0),toY(values[0]));
+  values.forEach(function(v,i){ctx.lineTo(toX(i),toY(v));});
+  ctx.lineTo(toX(values.length-1),pt+ch); ctx.lineTo(toX(0),pt+ch);
+  ctx.closePath(); ctx.fillStyle='rgba(46,110,166,.1)'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(toX(0),toY(values[0]));
+  values.forEach(function(v,i){ctx.lineTo(toX(i),toY(v));});
+  ctx.strokeStyle='#2e6ea6'; ctx.lineWidth=2; ctx.stroke();
+  var step=Math.ceil(labels.length/8);
+  labels.forEach(function(l,i){
+    if(i%step!==0&&i!==labels.length-1) return;
+    ctx.fillStyle='#a8967e'; ctx.textAlign='center'; ctx.font='9px sans-serif';
+    ctx.fillText(l,toX(i),H-pb+11);
+  });
+}
+
+// ---- DASHBOARD ----
+function renderDashboard(){
+  var live=computeLiveBalance('ws-chq');
+  el('stat-chequing').textContent=fmt(live);
+  el('stat-chequing').style.color=live<346?'var(--red)':live<500?'var(--amber)':'var(--green)';
+  var totalDebt=db.accounts.filter(function(a){return (a.type==='Credit card'||a.type==='Loan')&&computeLiveBalance(a.id)<0;})
+    .reduce(function(s,a){return s+Math.abs(computeLiveBalance(a.id));},0);
+  el('stat-debt').textContent=fmt(totalDebt);
+  renderAlerts(); renderBudgetProgress(); renderUpcoming();
+  setTimeout(function(){
+    var cats={};
+    db.transactions.filter(function(t){return t.date.startsWith('2026-04')&&t.type==='expense';})
+      .forEach(function(t){cats[t.category]=(cats[t.category]||0)+t.amount;});
+    var sorted=Object.entries(cats).sort(function(a,b){return b[1]-a[1];});
+    drawDonut('chart-donut',sorted.map(function(d){return[d[0],d[1],catColor(d[0])];}),'donut-legend');
+    var months=['2026-01','2026-02','2026-03','2026-04'],mlabels=['Jan','Feb','Mar','Apr'];
+    drawBarChart('chart-bar',mlabels,[
+      {label:'Income',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#3a7d52'},
+      {label:'Expenses',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#b84040'}
+    ]);
+    var debts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
+    drawHBarChart('chart-debt',debts.map(function(d){return d.name;}),debts.map(function(d){return Math.abs(computeLiveBalance(d.id));}),['#b84040','#b07020','#6b44a8','#2e6ea6','#c17f3a','#3a7d52']);
+  },50);
+  if(getApiKey()){
+    el('ai-proactive-section') && (el('ai-proactive-section').style.display='block');
+    loadAIInsights();
+  }
+}
+
+function renderAlerts(){
+  var c=el('dashboard-alerts'); c.innerHTML='';
+  var live=computeLiveBalance('ws-chq');
+  var alerts=[
+    {id:'alert-mbna',  type:'red',   msg:'MBNA penalty rate 27.99% takes effect Apr 20 - confirm Rogers BT has posted'},
+    {id:'alert-bmo',   type:'amber', msg:'BMO 0% promo - ensure $620/month e-transfer is being sent'},
+    {id:'alert-affirm',type:'green', msg:'Affirm and Klarna fully paid off - over $60/month freed permanently'}
+  ];
+  if(live<346) alerts.unshift({id:'alert-buffer',type:'red',msg:'Chequing '+fmt(live)+' is below $346 buffer'});
+  var dismissed=db.dismissedAlerts||{};
+  var anyShown=false;
+  alerts.forEach(function(a){
+    if(dismissed[a.id]) return;
+    anyShown=true;
+    var d=mk('div','alert alert-'+a.type);
+    d.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:10px;';
+    var txt=mk('span','',a.msg); txt.style.flex='1';
+    var xBtn=mk('button','','x');
+    xBtn.title='Dismiss';
+    xBtn.style.cssText='background:none;border:none;cursor:pointer;font-size:16px;color:inherit;opacity:0.5;padding:0;line-height:1;flex-shrink:0;';
+    xBtn.addEventListener('click',function(){
+      if(!db.dismissedAlerts) db.dismissedAlerts={};
+      db.dismissedAlerts[a.id]=true;
+      saveData(); renderAlerts();
+    });
+    d.appendChild(txt); d.appendChild(xBtn);
+    c.appendChild(d);
+  });
+  // Show a subtle "reset" link if all dismissed
+  if(!anyShown&&alerts.length>0){
+    var reset=mk('div','');
+    reset.style.cssText='font-size:11px;color:var(--text3);margin-bottom:8px;display:flex;justify-content:flex-end;';
+    var resetBtn=mk('button','','Show dismissed alerts');
+    resetBtn.style.cssText='background:none;border:none;cursor:pointer;color:var(--text3);font-size:11px;text-decoration:underline;';
+    resetBtn.addEventListener('click',function(){db.dismissedAlerts={};saveData();renderAlerts();});
+    reset.appendChild(resetBtn); c.appendChild(reset);
+  }
+}
+
+function renderBudgetProgress(){
+  var month=getCurrentMonth();
+  var spent=getSpentByCategory(month);
+  var c=el('budget-progress-list'); c.innerHTML='';
+  var entries=Object.entries(db.flexBudgets).sort(function(a,b){
+    return ((spent[b[0]]||0)/b[1])-((spent[a[0]]||0)/a[1]);
+  }).slice(0,6);
+  if(!entries.length){
+    var none=mk('div','','No budget limits set. Go to Budget tab to set some.');
+    none.style.cssText='color:var(--text3);font-size:13px;padding:8px 0;';
+    c.appendChild(none); return;
+  }
+  entries.forEach(function(e){
+    var cat=e[0],limit=e[1],s=spent[cat]||0;
+    var pct=Math.min(100,(s/limit)*100);
+    var color=pct>=100?'var(--red)':pct>=80?'var(--amber)':'var(--green)';
+    var row=mk('div','budget-item');
+    var top=mk('div','budget-row');
+    top.appendChild(mk('span','budget-name',cat));
+    var am=mk('span','budget-amounts',fmt(s)+' / '+fmt(limit));
+    am.style.color=color; top.appendChild(am);
+    var pw=mk('div','progress-wrap'); var pb=mk('div','progress-bar');
+    pb.style.width=pct+'%'; pb.style.background=color; pw.appendChild(pb);
+    row.appendChild(top); row.appendChild(pw); c.appendChild(row);
+  });
+  renderDashboardBudgetAlerts(spent);
+}
+
+function renderDashboardBudgetAlerts(spent){
+  var existing=el('dashboard-alerts');
+  if(!existing) return;
+  existing.querySelectorAll('.dash-budget-alert').forEach(function(d){d.remove();});
+  Object.entries(db.flexBudgets).forEach(function(e){
+    var cat=e[0],limit=e[1],s=spent[cat]||0;
+    if(s>=limit){
+      var d=mk('div','alert alert-red dash-budget-alert');
+      d.style.display='flex'; d.style.justifyContent='space-between'; d.style.alignItems='center';
+      d.appendChild(mk('span','','Budget exceeded: '+cat+' - '+fmt(s)+' of '+fmt(limit)+' limit'));
+      existing.appendChild(d);
+    }
+  });
+}
+
+function renderUpcoming(){
+  var c=el('upcoming-timeline'); c.innerHTML='';
+  var today=new Date().toISOString().split('T')[0];
+  var now=new Date(); var y=now.getFullYear(); var m=String(now.getMonth()+1).padStart(2,'0');
+  var payments=[
+    {date:y+'-'+m+'-11',desc:'Uplift Canada',amount:65.40},
+    {date:y+'-'+m+'-13',desc:'Rogers phone 4700',amount:145},
+    {date:y+'-'+m+'-13',desc:'Amex Personal Loan',amount:461.41},
+    {date:y+'-'+m+'-25',desc:'RBC Loan',amount:1285.42}
+  ].sort(function(a,b){return a.date.localeCompare(b.date);});
+  payments.forEach(function(p){
+    var isPast=p.date<today;
+    var diff=(new Date(p.date)-new Date())/(1000*60*60*24);
+    var isUrgent=!isPast&&diff<=3;
+    var row=mk('div',''); row.style.cssText='padding:7px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;';
+    var left=mk('div','');
+    var dateEl=mk('div','',fmtDate(p.date)); dateEl.style.cssText='font-size:10px;color:var(--text3);font-family:var(--font-mono);';
+    var descEl=mk('div','',p.desc); descEl.style.cssText='font-size:13px;'+(isPast?'text-decoration:line-through;color:var(--text3);':'');
+    left.appendChild(dateEl); left.appendChild(descEl);
+    var amt=mk('div','','-'+fmt(p.amount)); amt.style.cssText='font-family:var(--font-mono);font-size:13px;font-weight:600;color:'+(isUrgent?'var(--red)':'var(--text2)')+';';
+    row.appendChild(left); row.appendChild(amt);
+    c.appendChild(row);
+  });
+}
+
+// ---- TRANSACTIONS ----
+var sortTxnState={field:'date',dir:'desc'};
+var importBuffer=[];
+
+function renderTransactions(){
+  var fa=el('filter-account');
+  var curAcc=fa.value;
+  fa.innerHTML='';
+  var optAll=mk('option'); optAll.value=''; optAll.textContent='All accounts';
+  fa.appendChild(optAll);
+  db.accounts.forEach(function(a){
+    var o=mk('option'); o.value=a.id; o.textContent=a.name;
+    if(a.id===curAcc) o.selected=true;
+    fa.appendChild(o);
+  });
+  // Repopulate filter-cat preserving current selection
+  var curCat=el('filter-cat').value;
+  fillCatSelect('filter-cat',true,curCat);
+  var acc=fa.value,cat=el('filter-cat').value,mo=el('filter-month').value,tp=el('filter-type').value,q=el('filter-search').value.toLowerCase();
+  var txns=db.transactions.slice();
+  if(acc) txns=txns.filter(function(t){return t.account===acc;});
+  if(cat) txns=txns.filter(function(t){return t.category===cat;});
+  if(mo) txns=txns.filter(function(t){return t.date.startsWith(mo);});
+  if(tp) txns=txns.filter(function(t){return t.type===tp;});
+  if(q) txns=txns.filter(function(t){return t.description.toLowerCase().includes(q)||t.category.toLowerCase().includes(q)||t.notes.toLowerCase().includes(q);});
+  var f=sortTxnState.field,d=sortTxnState.dir;
+  txns.sort(function(a,b){
+    var va=a[f],vb=b[f];
+    if(f==='amount'){va=parseFloat(va);vb=parseFloat(vb);}
+    return d==='asc'?(va<vb?-1:va>vb?1:0):(va>vb?-1:va<vb?1:0);
+  });
+  el('txn-count').textContent=txns.length+' shown - '+db.transactions.length+' total';
+  var cut=db.cutDate||'2026-04-14';
+  var showRunning=!!acc&&f==='date';
+  var tbody=el('txn-body'); tbody.innerHTML='';
+  if(!txns.length){
+    var emptyRow=document.createElement('tr');
+    var emptyCell=document.createElement('td'); emptyCell.colSpan=7; emptyCell.textContent='No transactions match filters';
+    emptyCell.style.cssText='color:var(--text3);text-align:center;padding:24px;';
+    emptyRow.appendChild(emptyCell); tbody.appendChild(emptyRow);
+  }else{
+    txns.forEach(function(t){
+      var a=db.accounts.find(function(x){return x.id===t.account;});
+      var tr=document.createElement('tr');
+      var tdDate=mk('td','',t.date); tdDate.style.cssText='font-family:var(--font-mono);font-size:11px;';
+      var tdDesc=mk('td','');
+      var descDiv=mk('div','',t.description);
+      if(t.linkedId){var lb=mk('span','linked-badge','Transfer');descDiv.appendChild(lb);}
+      tdDesc.appendChild(descDiv);
+      if(t.notes){var notesDiv=mk('div','',t.notes);notesDiv.style.cssText='font-size:11px;color:var(--text3);';tdDesc.appendChild(notesDiv);}
+      var tdAcc=mk('td','',a?a.name:t.account); tdAcc.style.cssText='font-size:12px;color:var(--text3);';
+      var tdCat=mk('td',''); var catTag=mk('span','tag tag-gray',t.category); tdCat.appendChild(catTag);
+      var tdAmt=mk('td','amount',(t.type==='income'?'+':'-')+fmt(t.amount));
+      tdAmt.style.color=t.type==='income'?'var(--green)':'var(--red)';
+      var tdBal=mk('td','');
+      if(showRunning&&t.date>=cut){
+        var rb=computeRunningBalance(t.account,t.id);
+        tdBal.textContent=fmt(rb); tdBal.style.cssText='text-align:right;font-family:var(--font-mono);font-size:12px;color:'+(rb<0?'var(--red)':rb<200?'var(--amber)':'var(--text3)')+';';
+      }
+      var tdAct=mk('td','');
+      var btnEdit=mk('button','btn btn-ghost btn-sm','Edit'); btnEdit.style.marginRight='4px';
+      btnEdit.addEventListener('click',function(){openEditTxn(t.id);});
+      var btnDel=mk('button','btn btn-danger btn-sm','X');
+      btnDel.addEventListener('click',function(){deleteTxn(t.id);});
+      tdAct.appendChild(btnEdit); tdAct.appendChild(btnDel);
+      tr.appendChild(tdDate); tr.appendChild(tdDesc); tr.appendChild(tdAcc);
+      tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdBal); tr.appendChild(tdAct);
+      tbody.appendChild(tr);
+    });
+  }
+  var totalIn=txns.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+  var totalOut=txns.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var summary=el('txn-summary'); summary.innerHTML='';
+  var s1=mk('span','','In: '+fmt(totalIn)+' / Out: '+fmt(totalOut)+' / Net: '+fmt(totalIn-totalOut));
+  s1.style.color=(totalIn-totalOut>=0)?'var(--green)':'var(--red)';
+  var s2=mk('span','',showRunning?'Running balance shown':'Filter to one account to see running balance');
+  s2.style.color='var(--text3)';
+  summary.appendChild(s1); summary.appendChild(s2);
+}
+
+// Sort table headers
+document.querySelectorAll('[data-sort]').forEach(function(th){
+  th.addEventListener('click',function(){
+    var f=th.getAttribute('data-sort');
+    if(sortTxnState.field===f) sortTxnState.dir=sortTxnState.dir==='asc'?'desc':'asc';
+    else{sortTxnState.field=f;sortTxnState.dir='desc';}
+    renderTransactions();
+  });
+});
+
+// Filters
+['filter-account','filter-cat','filter-month','filter-type'].forEach(function(id){
+  el(id).addEventListener('change',renderTransactions);
+});
+el('filter-search').addEventListener('input',renderTransactions);
+
+// Add transaction modal
+function openAddTxnModal(){
+  el('txn-date').value=new Date().toISOString().split('T')[0];
+  el('txn-amount').value=''; el('txn-desc').value=''; el('txn-notes').value='';
+  var sel=el('txn-account'); sel.innerHTML='';
+  db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;sel.appendChild(o);});
+  fillCatSelect('txn-category',false,'Groceries');
+  openModal('modal-add-txn');
+}
+el('btn-open-add-txn').addEventListener('click',openAddTxnModal);
+el('btn-add-txn2').addEventListener('click',openAddTxnModal);
+el('btn-cancel-txn').addEventListener('click',function(){closeModal('modal-add-txn');});
+el('btn-save-txn').addEventListener('click',function(){
+  var date=el('txn-date').value, amount=parseFloat(el('txn-amount').value);
+  var desc=el('txn-desc').value.trim(), account=el('txn-account').value;
+  var category=el('txn-category').value, type=document.querySelector('input[name="txn-type"]:checked').value;
+  var notes=el('txn-notes').value.trim();
+  if(!date||!amount||!desc||!account){showToast('Please fill required fields');return;}
+  db.transactions.push({id:'t'+Date.now(),date:date,description:desc,account:account,category:category,amount:Math.abs(amount),type:type,notes:notes,linkedId:null});
+  saveData(); closeModal('modal-add-txn'); showToast('Transaction added');
+  renderTransactions(); renderDashboard();
+});
+
+// Edit transaction
+function openEditTxn(id){
+  var t=db.transactions.find(function(x){return x.id===id;}); if(!t) return;
+  el('edit-txn-id').value=t.id; el('edit-txn-date').value=t.date;
+  el('edit-txn-amount').value=t.amount; el('edit-txn-desc').value=t.description;
+  el('edit-txn-notes').value=t.notes||'';
+  var sel=el('edit-txn-account'); sel.innerHTML='';
+  db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;if(a.id===t.account)o.selected=true;sel.appendChild(o);});
+  fillCatSelect('edit-txn-category',false,t.category);
+  document.querySelectorAll('input[name="edit-txn-type"]').forEach(function(r){r.checked=r.value===t.type;});
+  openModal('modal-edit-txn');
+}
+el('btn-cancel-edit-txn').addEventListener('click',function(){closeModal('modal-edit-txn');});
+el('btn-save-edit-txn').addEventListener('click',function(){
+  var id=el('edit-txn-id').value;
+  var t=db.transactions.find(function(x){return x.id===id;}); if(!t) return;
+  t.date=el('edit-txn-date').value; t.amount=Math.abs(parseFloat(el('edit-txn-amount').value)||0);
+  t.description=el('edit-txn-desc').value.trim(); t.account=el('edit-txn-account').value;
+  t.category=el('edit-txn-category').value; t.notes=el('edit-txn-notes').value.trim();
+  t.type=document.querySelector('input[name="edit-txn-type"]:checked').value;
+  saveData(); closeModal('modal-edit-txn'); showToast('Transaction updated');
+  renderTransactions(); renderDashboard();
+});
+
+// Delete transaction
+function deleteTxn(id){
+  if(!confirm('Delete this transaction?')) return;
+  var t=db.transactions.find(function(x){return x.id===id;}); if(!t) return;
+  if(t.linkedId) db.transactions=db.transactions.filter(function(x){return x.linkedId!==t.linkedId;});
+  else db.transactions=db.transactions.filter(function(x){return x.id!==id;});
+  saveData(); renderTransactions(); renderDashboard(); showToast('Deleted');
+}
+
+// Transfer modal
+function openTransferModal(){
+  el('tr-date').value=new Date().toISOString().split('T')[0];
+  el('tr-amount').value=''; el('tr-desc').value='';
+  ['tr-from','tr-to'].forEach(function(sid){
+    var sel=el(sid); sel.innerHTML='';
+    db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;sel.appendChild(o);});
+  });
+  fillCatSelect('tr-category',false,'Credit card payment');
+  openModal('modal-transfer');
+}
+el('btn-open-transfer').addEventListener('click',openTransferModal);
+el('btn-cancel-transfer').addEventListener('click',function(){closeModal('modal-transfer');});
+el('btn-save-transfer').addEventListener('click',function(){
+  var date=el('tr-date').value, amount=parseFloat(el('tr-amount').value);
+  var fromId=el('tr-from').value, toId=el('tr-to').value;
+  var desc=el('tr-desc').value.trim(), cat=el('tr-category').value;
+  if(!date||!amount||!fromId||!toId||!desc){showToast('Please fill all fields');return;}
+  if(fromId===toId){showToast('Source and destination must differ');return;}
+  var lid='link'+Date.now();
+  db.transactions.push({id:'t'+Date.now()+'a',date:date,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
+  db.transactions.push({id:'t'+Date.now()+'b',date:date,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
+  saveData(); closeModal('modal-transfer'); showToast('Transfer recorded');
+  renderTransactions(); renderDashboard();
+});
+
+// Export CSV
+function exportCSV(){
+  var mo=el('report-month')?el('report-month').value:'';
+  var txns=db.transactions.slice();
+  if(mo) txns=txns.filter(function(t){return t.date.startsWith(mo);});
+  var rows=['Date,Description,Account,Category,Type,Amount,Notes'];
+  txns.sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(t){
+    var a=db.accounts.find(function(x){return x.id===t.account;});
+    rows.push([t.date,'"'+t.description+'"',a?a.name:t.account,t.category,t.type,(t.type==='income'?'+':'-')+t.amount.toFixed(2),'"'+(t.notes||'')+'"'].join(','));
+  });
+  var blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download='wealthtrack-'+( mo||'all')+'.csv'; a.click();
+  showToast('CSV exported');
+}
+el('btn-export-csv').addEventListener('click',exportCSV);
+el('btn-export-csv2').addEventListener('click',exportCSV);
+
+// ---- BUDGET ----
+
+var _uncappedOpen = false;
+
+function getCurrentMonth(){
+  return new Date().toISOString().substring(0,7);
+}
+
+function getSpentByCategory(yearMonth){
+  var spent={};
+  db.transactions
+    .filter(function(t){return t.date.startsWith(yearMonth)&&t.type==='expense';})
+    .forEach(function(t){spent[t.category]=(spent[t.category]||0)+t.amount;});
+  return spent;
+}
+
+function openSetLimit(catName){
+  el('set-limit-title').textContent='Set limit: '+catName;
+  el('set-limit-cat').value=catName;
+  var existing=db.flexBudgets[catName];
+  el('set-limit-amount').value=existing?existing.toFixed(2):'';
+  openModal('modal-set-limit');
+}
+
+el('btn-cancel-limit').addEventListener('click',function(){closeModal('modal-set-limit');});
+el('btn-save-limit').addEventListener('click',function(){
+  var cat=el('set-limit-cat').value;
+  var amount=parseFloat(el('set-limit-amount').value);
+  if(!cat) return;
+  if(!amount||amount<=0){
+    delete db.flexBudgets[cat];
+    showToast('Limit removed for '+cat);
+  }else{
+    db.flexBudgets[cat]=amount;
+    showToast('Limit set: '+fmt(amount)+' / month for '+cat);
+  }
+  saveData(null,'flexBudgets'); closeModal('modal-set-limit'); renderBudget(); renderDashboard();
+});
+
+function makeBudgetProgressCard(catName, spent, limit, showEditBtn){
+  var pct=Math.min(100,(spent/limit)*100);
+  var over=spent>limit;
+  var warn=pct>=80&&!over;
+  var color=over?'var(--red)':warn?'var(--amber)':'var(--green)';
+
+  var card=mk('div','card'); card.style.marginBottom='10px';
+  var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;';
+
+  var left=mk('div',''); left.style.flex='1';
+  var dot=mk('span',''); dot.style.cssText='display:inline-block;width:9px;height:9px;border-radius:50%;background:'+catColor(catName)+';margin-right:8px;';
+  var nameEl=mk('span','',catName); nameEl.style.cssText='font-size:14px;font-weight:500;';
+  left.appendChild(dot); left.appendChild(nameEl);
+
+  // Warning badge
+  if(over){var badge=mk('span','tag tag-red','OVER'); badge.style.marginLeft='8px'; left.appendChild(badge);}
+  else if(warn){var badge=mk('span','tag tag-amber','80%'); badge.style.marginLeft='8px'; left.appendChild(badge);}
+
+  var right=mk('div',''); right.style.cssText='display:flex;align-items:center;gap:10px;flex-shrink:0;';
+  var amtEl=mk('span','',fmt(spent)+' / '+fmt(limit));
+  amtEl.style.cssText='font-family:var(--font-mono);font-size:12px;font-weight:600;color:'+color+';';
+  right.appendChild(amtEl);
+
+  if(showEditBtn){
+    var editBtn=mk('button','btn btn-ghost btn-sm','Edit limit');
+    editBtn.style.fontSize='11px';
+    editBtn.addEventListener('click',function(){openSetLimit(catName);});
+    right.appendChild(editBtn);
+  }
+
+  top.appendChild(left); top.appendChild(right);
+
+  var pw=mk('div','progress-wrap');
+  var pb=mk('div','progress-bar');
+  pb.style.width=pct+'%'; pb.style.background=color;
+  pw.appendChild(pb);
+
+  var sub=mk('div','');
+  sub.style.cssText='font-size:11px;color:var(--text3);margin-top:6px;';
+  if(over){
+    sub.textContent=fmt(spent-limit)+' over budget';
+    sub.style.color='var(--red)';
+  }else{
+    sub.textContent=fmt(limit-spent)+' remaining';
+  }
+
+  card.appendChild(top); card.appendChild(pw); card.appendChild(sub);
+  return card;
+}
+
+function renderBudget(){
+  var month=getCurrentMonth();
+  var now=new Date();
+  el('budget-month-label').textContent=now.toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+  var spent=getSpentByCategory(month);
+
+  // ---- FIXED OBLIGATIONS ----
+  var fixedList=el('fixed-obligations-list'); fixedList.innerHTML='';
+  var fixedTotal=0;
+  var fixedPaid=0;
+  var yearMonth=month;
+
+  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp){
+    fixedTotal+=rp.amount;
+    var status=getPaymentStatus(rp,yearMonth);
+    if(status.paid) fixedPaid+=rp.amount;
+
+    var card=mk('div','card'); card.style.cssText='margin-bottom:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;';
+    var left=mk('div',''); left.style.flex='1';
+    var nameRow=mk('div',''); nameRow.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;';
+    var statusIcon=mk('span','',status.paid?'v':'o');
+    statusIcon.style.cssText='color:'+(status.paid?'var(--green)':'var(--text3)')+';font-size:14px;';
+    var nameEl=mk('span','',rp.name);
+    if(status.paid) nameEl.style.textDecoration='line-through';
+    nameEl.style.color=status.paid?'var(--text3)':'var(--text)';
+    nameRow.appendChild(statusIcon); nameRow.appendChild(nameEl);
+    var dueEl=mk('div','','Due ~'+rp.expectedDay+'th'); dueEl.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
+    left.appendChild(nameRow); left.appendChild(dueEl);
+    var amtEl=mk('span','',fmt(rp.amount));
+    amtEl.style.cssText='font-family:var(--font-mono);font-size:13px;font-weight:600;color:'+(status.paid?'var(--green)':'var(--text2)')+';flex-shrink:0;';
+    card.appendChild(left); card.appendChild(amtEl);
+    fixedList.appendChild(card);
+  });
+
+  // Fixed total badge
+  var ftb=el('fixed-total-badge'); ftb.innerHTML='';
+  var ftCard=mk('div',''); ftCard.style.cssText='text-align:right;';
+  var ftAmt=mk('div','',fmt(fixedPaid)+' paid / '+fmt(fixedTotal)+' total');
+  ftAmt.style.cssText='font-family:var(--font-mono);font-size:13px;color:var(--text2);';
+  var ftPct=fixedTotal>0?Math.round((fixedPaid/fixedTotal)*100):0;
+  var ftBar=mk('div',''); ftBar.style.cssText='font-size:11px;color:'+(ftPct===100?'var(--green)':'var(--text3)')+';margin-top:2px;';
+  ftBar.textContent=ftPct+'% paid this month';
+  ftCard.appendChild(ftAmt); ftCard.appendChild(ftBar); ftb.appendChild(ftCard);
+
+  // ---- FLEXIBLE BUDGET — categories WITH limits ----
+  var flexList=el('flex-budget-list'); flexList.innerHTML='';
+  var flexEntries=Object.entries(db.flexBudgets).sort(function(a,b){
+    // Sort by % used descending (most critical first)
+    var pctA=(spent[a[0]]||0)/a[1];
+    var pctB=(spent[b[0]]||0)/b[1];
+    return pctB-pctA;
+  });
+
+  if(!flexEntries.length){
+    var none=mk('div','card');
+    var noneText=mk('p','','No flexible budget limits set yet.');
+    noneText.style.cssText='color:var(--text3);font-size:13px;margin-bottom:10px;';
+    var hintText=mk('p','','Use the "Set limit" button in the uncapped section below to start tracking a category.');
+    hintText.style.cssText='color:var(--text3);font-size:12px;';
+    none.appendChild(noneText); none.appendChild(hintText);
+    flexList.appendChild(none);
+  }else{
+    var flexSpent=0, flexBudgeted=0;
+    flexEntries.forEach(function(e){
+      var catName=e[0], limit=e[1], s=spent[catName]||0;
+      flexSpent+=s; flexBudgeted+=limit;
+      flexList.appendChild(makeBudgetProgressCard(catName,s,limit,true));
+    });
+    // Flex total badge
+    var ftb2=el('flex-total-badge'); ftb2.innerHTML='';
+    var pctFlex=flexBudgeted>0?Math.min(100,Math.round((flexSpent/flexBudgeted)*100)):0;
+    var flexColor=pctFlex>=100?'var(--red)':pctFlex>=80?'var(--amber)':'var(--green)';
+    var fb=mk('div',''); fb.style.cssText='text-align:right;';
+    var fbAmt=mk('div','',fmt(flexSpent)+' / '+fmt(flexBudgeted));
+    fbAmt.style.cssText='font-family:var(--font-mono);font-size:13px;color:'+flexColor+';';
+    var fbPct=mk('div','',pctFlex+'% of flexible budget used');
+    fbPct.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
+    fb.appendChild(fbAmt); fb.appendChild(fbPct); ftb2.appendChild(fb);
+  }
+
+  // ---- UNCAPPED — categories without limits ----
+  var catsWithLimit=Object.keys(db.flexBudgets);
+  var fixedCatNames=db.recurringPayments.map(function(r){return r.category;});
+  // Get all categories that have actual spending this month OR exist in custom list
+  var allCatNames=db.customCategories.map(function(c){return c.name;});
+  // Also include any categories from transactions not in the custom list
+  Object.keys(spent).forEach(function(cat){if(!allCatNames.includes(cat)) allCatNames.push(cat);});
+
+  var uncapped=allCatNames.filter(function(cat){
+    return !catsWithLimit.includes(cat);
+  }).filter(function(cat){
+    // Only show if there's actual spending OR it's a meaningful category
+    return (spent[cat]||0)>0 || db.customCategories.find(function(c){return c.name===cat;});
+  }).sort(function(a,b){
+    return (spent[b]||0)-(spent[a]||0);
+  });
+
+  var uncappedSubtext=el('uncapped-subtext');
+  var totalUncapped=uncapped.reduce(function(s,c){return s+(spent[c]||0);},0);
+  uncappedSubtext.textContent=uncapped.length+' categories - '+fmt(totalUncapped)+' spent this month';
+
+  var uncappedList=el('uncapped-list'); uncappedList.innerHTML='';
+  uncapped.forEach(function(cat){
+    var s=spent[cat]||0;
+    var row=mk('div','card'); row.style.cssText='margin-bottom:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;';
+    var left=mk('div',''); left.style.cssText='display:flex;align-items:center;gap:10px;flex:1;';
+    var dot=mk('span',''); dot.style.cssText='display:inline-block;width:9px;height:9px;border-radius:50%;background:'+catColor(cat)+';flex-shrink:0;';
+    var nameEl=mk('span','',cat); nameEl.style.fontSize='13px';
+    left.appendChild(dot); left.appendChild(nameEl);
+    var right=mk('div',''); right.style.cssText='display:flex;align-items:center;gap:10px;flex-shrink:0;';
+    if(s>0){
+      var amtEl=mk('span','',fmt(s)+' this month');
+      amtEl.style.cssText='font-family:var(--font-mono);font-size:12px;color:var(--text3);';
+      right.appendChild(amtEl);
+    }
+    var limitBtn=mk('button','btn btn-ghost btn-sm','Set limit');
+    limitBtn.style.fontSize='11px';
+    limitBtn.addEventListener('click',function(){openSetLimit(cat);});
+    right.appendChild(limitBtn);
+    row.appendChild(left); row.appendChild(right);
+    uncappedList.appendChild(row);
+  });
+
+  // Wire toggle
+  var toggleBtn=el('btn-toggle-uncapped');
+  toggleBtn.textContent=_uncappedOpen?'Hide':'Show';
+  uncappedList.style.display=_uncappedOpen?'block':'none';
+
+  // ---- BUDGET ALERTS (over 100%) ----
+  renderBudgetAlerts(spent);
+}
+
+function renderBudgetAlerts(spent){
+  var c=el('budget-alerts'); if(!c) return;
+  c.innerHTML='';
+  Object.entries(db.flexBudgets).forEach(function(e){
+    var cat=e[0], limit=e[1], s=spent[cat]||0;
+    if(s>=limit){
+      var d=mk('div','alert alert-red');
+      d.style.cssText='display:flex;justify-content:space-between;align-items:center;';
+      var txt=mk('span','',cat+': '+fmt(s)+' spent vs '+fmt(limit)+' limit ('+fmt(s-limit)+' over)');
+      d.appendChild(txt); c.appendChild(d);
+    }
+  });
+}
+
+// Toggle uncapped section
+el('btn-toggle-uncapped').addEventListener('click',function(){
+  _uncappedOpen=!_uncappedOpen;
+  el('uncapped-list').style.display=_uncappedOpen?'block':'none';
+  el('btn-toggle-uncapped').textContent=_uncappedOpen?'Hide':'Show';
+});
+
+
+// ---- ACCOUNTS ----
+function renderAccounts(){
+  el('cut-date-display').textContent=fmtDate(db.cutDate);
+  var c=el('accounts-list'); c.innerHTML='';
+  var types=[...new Set(db.accounts.map(function(a){return a.type;}))];
+  var tc={Chequing:'blue',Savings:'green','Credit card':'red',Loan:'red',Investment:'purple',TFSA:'green',FHSA:'green'};
+  types.forEach(function(type){
+    var section=mk('div',''); section.style.marginBottom='20px';
+    var hdr=mk('div','',type); hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;';
+    section.appendChild(hdr);
+    var grid=mk('div','grid2');
+    db.accounts.filter(function(a){return a.type===type;}).forEach(function(a){
+      var live=computeLiveBalance(a.id);
+      var isD=a.type==='Credit card'||a.type==='Loan';
+      var displayBal=isD?Math.abs(live):live;
+      var isZero=Math.abs(live)<0.01;
+      var bc=isD?(isZero?'var(--green)':'var(--red)'):(live>=0?'var(--green)':'var(--red)');
+      var change=live-(a.openingBalance||0);
+      var card=mk('div','card');
+      var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;';
+      var left=mk('div','');
+      left.appendChild(mk('div','',a.name));
+      var sub=mk('div','',a.type+' - CAD'); sub.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;'; left.appendChild(sub);
+      var tag=mk('span','tag tag-'+(tc[type]||'gray'),type);
+      top.appendChild(left); top.appendChild(tag);
+      var balEl=mk('div','',(isD&&!isZero?'-':'')+fmt(displayBal));
+      balEl.style.cssText='font-family:var(--font-mono);font-size:22px;font-weight:600;color:'+bc+';';
+      var changeEl=mk('div','',(change>=0?'+':'')+fmt(change)+' since cut date');
+      changeEl.style.cssText='font-size:11px;color:'+(change>=0?'var(--green)':'var(--red)')+';margin-top:3px;';
+      card.appendChild(top); card.appendChild(balEl); card.appendChild(changeEl);
+      if(a.limit){
+        var util=Math.min(100,(Math.abs(live)/a.limit)*100);
+        var pw=mk('div','progress-wrap'); pw.style.marginTop='10px';
+        var pb=mk('div','progress-bar'); pb.style.width=util+'%'; pb.style.background=util>80?'var(--red)':util>50?'var(--amber)':'var(--green)';
+        pw.appendChild(pb); card.appendChild(pw);
+        var uLabel=mk('div','',Math.round(util)+'% of '+fmt(a.limit)); uLabel.style.cssText='font-size:11px;color:var(--text3);margin-top:4px;'; card.appendChild(uLabel);
+      }
+      var footer=mk('div',''); footer.style.cssText='margin-top:10px;display:flex;justify-content:space-between;align-items:center;';
+      var openLabel=mk('span','','Opening: '+fmt(a.openingBalance||0)); openLabel.style.cssText='font-size:11px;color:var(--text3);';
+      var delBtn=mk('button','btn btn-danger btn-sm','Remove');
+      delBtn.addEventListener('click',function(){if(!confirm('Remove this account?')) return; db.accounts=db.accounts.filter(function(x){return x.id!==a.id;}); saveData(); renderAccounts();});
+      footer.appendChild(openLabel); footer.appendChild(delBtn);
+      card.appendChild(footer); grid.appendChild(card);
+    });
+    section.appendChild(grid); c.appendChild(section);
+  });
+  setTimeout(function(){
+    var cut=db.cutDate||'2026-04-14';
+    var acc=db.accounts.find(function(a){return a.id==='ws-chq';});
+    if(!acc) return;
+    var txns=db.transactions.filter(function(t){return t.account==='ws-chq'&&t.date>=cut;}).sort(function(a,b){return a.date.localeCompare(b.date);});
+    if(!txns.length) return;
+    var bal=acc.openingBalance||0, labels=[cut.substring(5)], values=[bal];
+    txns.forEach(function(t){bal+=t.type==='income'?t.amount:-t.amount;labels.push(t.date.substring(5));values.push(parseFloat(bal.toFixed(2)));});
+    drawLineChart('chart-bal-history',labels,values);
+  },50);
+}
+
+el('btn-add-account').addEventListener('click',function(){openModal('modal-add-account');});
+el('btn-cancel-account').addEventListener('click',function(){closeModal('modal-add-account');});
+el('btn-save-account').addEventListener('click',function(){
+  var name=el('acc-name').value.trim(), type=el('acc-type').value;
+  var balance=parseFloat(el('acc-balance').value)||0, limit=parseFloat(el('acc-limit').value)||null;
+  if(!name){showToast('Enter account name');return;}
+  var isD=type==='Credit card'||type==='Loan';
+  db.accounts.push({id:'acc'+Date.now(),name:name,type:type,openingBalance:isD?-balance:balance,limit:limit,currency:'CAD'});
+  saveData(null,'accounts'); closeModal('modal-add-account'); renderAccounts(); showToast('Account added');
+  el('acc-name').value=''; el('acc-balance').value=''; el('acc-limit').value='';
+});
+
+el('btn-edit-balances').addEventListener('click',function(){
+  el('cut-date-input').value=db.cutDate;
+  var c=el('opening-bal-fields'); c.innerHTML='';
+  db.accounts.forEach(function(a){
+    var row=mk('div',''); row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);gap:12px;';
+    row.appendChild(mk('span','',a.name));
+    var inp=mk('input','form-input'); inp.type='number'; inp.step='0.01'; inp.id='ob-'+a.id;
+    inp.value=(a.openingBalance||0).toFixed(2); inp.style.width='120px';
+    row.appendChild(inp); c.appendChild(row);
+  });
+  openModal('modal-cut-date');
+});
+el('btn-cancel-cut-date').addEventListener('click',function(){closeModal('modal-cut-date');});
+el('btn-save-cut-date').addEventListener('click',function(){
+  var nd=el('cut-date-input').value; if(nd) db.cutDate=nd;
+  db.accounts.forEach(function(a){var inp=el('ob-'+a.id);if(inp) a.openingBalance=parseFloat(inp.value)||0;});
+  saveData(null,'accounts'); closeModal('modal-cut-date'); renderAccounts(); renderDashboard(); showToast('Opening balances saved');
+});
+
+// ---- DEBTS & INSTALLMENTS ----
+
+// PC assignment based on payment date day
+function dateToPC(dateStr){
+  var day=parseInt(dateStr.split('-')[2]);
+  return day<=13?1:2;
+}
+
+// Months to payoff for regular debts (used for sorting)
+function monthsToPayoff(balance,monthly){
+  if(!monthly||monthly<=0||balance<=0) return 9999;
+  return Math.ceil(balance/monthly);
+}
+
+// Auto-detect installment payment from transactions
+function detectInstPayment(inst,payment){
+  if(payment.paid) return true;
+  var keywords=(inst.keywords||[]).map(function(k){return k.toLowerCase();});
+  var tolerance=payment.amount*0.05;
+  // Search within 5 days of due date
+  var due=new Date(payment.dueDate+'T12:00:00');
+  var dateMin=new Date(due); dateMin.setDate(due.getDate()-5);
+  var dateMax=new Date(due); dateMax.setDate(due.getDate()+5);
+  var dMin=dateMin.toISOString().split('T')[0];
+  var dMax=dateMax.toISOString().split('T')[0];
+  return db.transactions.some(function(t){
+    if(t.type!=='expense') return false;
+    if(t.date<dMin||t.date>dMax) return false;
+    if(Math.abs(t.amount-payment.amount)>tolerance) return false;
+    if(!keywords.length) return true;
+    var desc=t.description.toLowerCase();
+    return keywords.some(function(k){return desc.includes(k);});
+  });
+}
+
+function toggleInstPayment(instId,paymentId,forcePaid){
+  var inst=db.installmentPlans.find(function(x){return x.id===instId;});
+  if(!inst) return;
+  var p=inst.payments.find(function(x){return x.id===paymentId;});
+  if(!p) return;
+  p.paid=forcePaid!==undefined?forcePaid:!p.paid;
+  p.paidDate=p.paid?new Date().toISOString().split('T')[0]:null;
+  saveData(null,'installmentPlans'); renderDebts(); renderPaycheque();
+  showToast(p.paid?'Payment marked as paid':'Payment unmarked');
+}
+
+function deleteInstallment(id){
+  if(!confirm('Remove this installment plan?')) return;
+  // Archive instead of delete — move to completed with all paid
+  var inst=db.installmentPlans.find(function(x){return x.id===id;});
+  if(!inst) return;
+  inst.active=false;
+  saveData(null,'installmentPlans'); renderDebts(); showToast('Plan archived');
+}
+
+function openEditDebt(accountId){
+  var a=db.accounts.find(function(x){return x.id===accountId;});
+  if(!a) return;
+  el('edit-debt-title').textContent='Edit: '+a.name;
+  el('edit-debt-id').value=accountId;
+  el('edit-debt-rate').value=a.rate||'';
+  el('edit-debt-payment').value=a.monthlyPayment||'';
+  el('edit-debt-note').value=a.rateNote||'';
+  openModal('modal-edit-debt');
+}
+
+el('btn-cancel-edit-debt').addEventListener('click',function(){closeModal('modal-edit-debt');});
+el('btn-save-edit-debt').addEventListener('click',function(){
+  var id=el('edit-debt-id').value;
+  var a=db.accounts.find(function(x){return x.id===id;});
+  if(!a) return;
+  a.rate=el('edit-debt-rate').value.trim();
+  a.monthlyPayment=parseFloat(el('edit-debt-payment').value)||0;
+  a.rateNote=el('edit-debt-note').value.trim();
+  saveData(null,'accounts'); closeModal('modal-edit-debt'); renderDebts(); showToast('Debt updated');
+});
+
+// Add installment plan
+el('btn-add-installment').addEventListener('click',function(){
+  el('inst-first-date').value=new Date().toISOString().split('T')[0];
+  el('inst-first-paid').checked=false;
+  el('inst-name').value=''; el('inst-provider').value='';
+  el('inst-total').value=''; el('inst-count').value='4';
+  el('inst-payment-amt').value=''; el('inst-keywords').value='';
+  openModal('modal-add-installment');
+});
+el('btn-cancel-installment').addEventListener('click',function(){closeModal('modal-add-installment');});
+el('btn-save-installment').addEventListener('click',function(){
+  var name=el('inst-name').value.trim();
+  var provider=el('inst-provider').value.trim();
+  var total=parseFloat(el('inst-total').value)||0;
+  var count=parseInt(el('inst-count').value)||4;
+  var pmtAmt=parseFloat(el('inst-payment-amt').value)||(total/count);
+  var firstDate=el('inst-first-date').value;
+  var freq=el('inst-frequency').value;
+  var keywords=el('inst-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  var firstPaid=el('inst-first-paid').checked;
+  if(!name||!total||!firstDate){showToast('Fill name, total and first date');return;}
+
+  // Build payment schedule
+  var payments=[];
+  var cur=new Date(firstDate+'T12:00:00');
+  for(var i=0;i<count;i++){
+    var dStr=cur.toISOString().split('T')[0];
+    payments.push({
+      id:'p'+(i+1)+Date.now(),
+      amount:parseFloat(pmtAmt.toFixed(2)),
+      dueDate:dStr,
+      paid:i===0&&firstPaid,
+      paidDate:i===0&&firstPaid?firstDate:null
+    });
+    if(freq==='14') cur.setDate(cur.getDate()+14);
+    else if(freq==='7') cur.setDate(cur.getDate()+7);
+    else if(freq==='30') cur.setMonth(cur.getMonth()+1);
+  }
+
+  db.installmentPlans.push({
+    id:'inst'+Date.now(),name:name,merchant:name,
+    totalAmount:total,payments:payments,
+    provider:provider,keywords:keywords,active:true
+  });
+  saveData(null,'installmentPlans'); closeModal('modal-add-installment'); renderDebts();
+  showToast('Installment plan added');
+});
+
+// ---- DEBT IDENTITY ----
+// Each debt gets a unique color + initials badge for instant visual recognition
+var DEBT_IDENTITY = {
+  'mbna-amazon': { initials:'MB', color:'#b84040', bg:'#faeaea' },
+  'bmo-cc':      { initials:'BM', color:'#b07020', bg:'#fef3e0' },
+  'scotia-visa': { initials:'SC', color:'#6b44a8', bg:'#f0eafa' },
+  'rogers-mc':   { initials:'RG', color:'#2e6ea6', bg:'#e5eef8' },
+  'amex-simple': { initials:'AX', color:'#c17f3a', bg:'rgba(193,127,58,.1)' },
+  'amex-loan':   { initials:'AL', color:'#3a6a8a', bg:'rgba(58,106,138,.08)' },
+  'rbc-loan':    { initials:'RB', color:'#3a7d52', bg:'#e8f4ed' },
+};
+
+// For installment plans — color by provider
+var PROVIDER_IDENTITY = {
+  'klarna':   { initials:'K',  color:'#6b44a8', bg:'#f0eafa' },
+  'affirm':   { initials:'AF', color:'#2e6ea6', bg:'#e5eef8' },
+  'afterpay': { initials:'AP', color:'#3a7d52', bg:'#e8f4ed' },
+  'default':  { initials:'$',  color:'#b07020', bg:'#fef3e0' },
+};
+
+function getDebtIdentity(accountId){
+  return DEBT_IDENTITY[accountId]||{initials:accountId.substring(0,2).toUpperCase(),color:'#8a7a6a',bg:'var(--bg3)'};
+}
+
+function getInstIdentity(inst){
+  var provider=(inst.provider||'').toLowerCase();
+  return PROVIDER_IDENTITY[provider]||PROVIDER_IDENTITY['default'];
+}
+
+function makeIdentityBadge(initials, color, bg){
+  var badge = mk('div','');
+  badge.style.cssText = 'width:44px;height:44px;border-radius:12px;background:'+bg+';border:2px solid '+color+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:'+color+';flex-shrink:0;letter-spacing:.5px;font-family:var(--font-mono);';
+  badge.textContent = initials;
+  return badge;
+}
+
+function rateColor(rate){
+  if(!rate||rate==='?') return 'gray';
+  var r=rate.toLowerCase();
+  if(r.includes('0%')) return 'green';
+  if(r.includes('paid in full')) return 'green';
+  if(r.includes('fixed')) return 'blue';
+  if(parseFloat(r)>20) return 'red';
+  return 'amber';
+}
+
+function renderDebts(){
+  var today=new Date().toISOString().split('T')[0];
+
+  // ---- BUILD UNIFIED ITEM LIST ----
+  var items=[];
+
+  // 1. Active installment plans
+  db.installmentPlans.filter(function(inst){return inst.active;}).forEach(function(inst){
+    // Auto-detect payments
+    inst.payments.forEach(function(p){
+      if(!p.paid&&detectInstPayment(inst,p)){p.paid=true;p.paidDate=today;}
+    });
+    var total=inst.payments.length;
+    var paid=inst.payments.filter(function(p){return p.paid;}).length;
+    var remaining=total-paid;
+    var nextPmt=inst.payments.find(function(p){return !p.paid;});
+    var daysToNext=nextPmt?Math.ceil((new Date(nextPmt.dueDate+'T12:00:00')-new Date())/(1000*60*60*24)):9999;
+    var amtRemaining=inst.payments.filter(function(p){return !p.paid;}).reduce(function(s,p){return s+p.amount;},0);
+    var allDone=remaining===0;
+    items.push({
+      type:'installment',inst:inst,
+      remaining:remaining,total:total,paid:paid,
+      nextPmt:nextPmt,daysToNext:daysToNext,
+      amtRemaining:amtRemaining,allDone:allDone,
+      sortKey:allDone?99999:remaining*1000+Math.max(0,daysToNext)
+    });
+  });
+
+  // 2. Regular debt accounts
+  var debts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
+  debts.forEach(function(d){
+    var bal=Math.abs(computeLiveBalance(d.id));
+    var monthly=d.monthlyPayment||0;
+    var mtp=monthsToPayoff(bal,monthly);
+    var isPaidOff=bal<0.01;
+    items.push({
+      type:'debt',account:d,bal:bal,monthly:monthly,
+      mtp:mtp,isPaidOff:isPaidOff,
+      sortKey:isPaidOff?99999:mtp*10000
+    });
+  });
+
+  // Sort: lowest sortKey first (fewest remaining / months to payoff), paid-off at bottom
+  items.sort(function(a,b){return a.sortKey-b.sortKey;});
+
+  // Stats
+  // Only sum accounts with actual debt (balance < 0)
+  var totalDebt=debts.filter(function(d){return computeLiveBalance(d.id)<0;}).reduce(function(s,d){return s+Math.abs(computeLiveBalance(d.id));},0);
+  var instDebt=db.installmentPlans.filter(function(i){return i.active;})
+    .reduce(function(s,i){return s+i.payments.filter(function(p){return !p.paid;}).reduce(function(ss,p){return ss+p.amount;},0);},0);
+  var zeroDebt=debts.filter(function(d){return d.rate&&d.rate.toLowerCase().includes('0%');})
+    .reduce(function(s,d){return s+Math.abs(computeLiveBalance(d.id));},0);
+  el('total-debt-val').textContent=fmt(totalDebt+instDebt);
+  el('zero-debt-val').textContent=fmt(zeroDebt);
+
+  var c=el('debt-list'); c.innerHTML='';
+  var completedItems=items.filter(function(i){
+    return (i.type==='debt'&&i.isPaidOff)||(i.type==='installment'&&i.allDone);
+  });
+  var activeItems=items.filter(function(i){
+    return !((i.type==='debt'&&i.isPaidOff)||(i.type==='installment'&&i.allDone));
+  });
+
+  // ---- RENDER ACTIVE ITEMS ----
+  activeItems.forEach(function(item){
+    if(item.type==='installment') c.appendChild(buildInstCard(item,today));
+    else c.appendChild(buildDebtCard(item));
+  });
+
+  // ---- COMPLETED / PAID OFF (collapsible) ----
+  if(completedItems.length){
+    var compWrap=mk('div',''); compWrap.style.marginTop='20px';
+    var compHdr=mk('div',''); compHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;cursor:pointer;';
+    var compTitle=mk('div',''); compTitle.style.cssText='font-size:13px;font-weight:600;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;';
+    compTitle.textContent='Completed / Paid off ('+completedItems.length+')';
+    var compToggle=mk('button','btn btn-ghost btn-sm','Show');
+    compToggle.style.fontSize='11px';
+    var compList=mk('div',''); compList.style.display='none';
+    compToggle.addEventListener('click',function(){
+      var open=compList.style.display!=='none';
+      compList.style.display=open?'none':'block';
+      compToggle.textContent=open?'Show':'Hide';
+    });
+    compHdr.appendChild(compTitle); compHdr.appendChild(compToggle);
+    completedItems.forEach(function(item){
+      if(item.type==='installment') compList.appendChild(buildInstCard(item,today));
+      else compList.appendChild(buildDebtCard(item));
+    });
+    compWrap.appendChild(compHdr); compWrap.appendChild(compList);
+    c.appendChild(compWrap);
+  }
+}
+
+function buildInstCard(item,today){
+  var inst=item.inst;
+  var ident=getInstIdentity(inst);
+  var card=mk('div','debt-card');
+  card.style.borderLeft='4px solid '+ident.color;
+  card.style.background=item.allDone?'var(--bg3)':ident.bg;
+  if(item.allDone) card.style.opacity='0.65';
+
+  // Header row with badge
+  var hdr=mk('div',''); hdr.style.cssText='display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;';
+  hdr.appendChild(makeIdentityBadge(ident.initials,ident.color,item.allDone?'var(--bg3)':ident.bg));
+
+  var mid=mk('div',''); mid.style.flex='1';
+  var providerTag=mk('span','tag tag-purple',inst.provider||'Installment');
+  providerTag.style.cssText='background:'+ident.bg+';color:'+ident.color+';border:1px solid '+ident.color+'40;margin-bottom:4px;display:inline-block;';
+  var nameEl=mk('div','',inst.name); nameEl.style.cssText='font-size:14px;font-weight:600;color:var(--text);';
+  mid.appendChild(providerTag); mid.appendChild(nameEl);
+
+  var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+  var amtEl=mk('div','',item.allDone?'PAID OFF':fmt(item.amtRemaining)+' left');
+  amtEl.style.cssText='font-family:var(--font-mono);font-size:18px;font-weight:600;color:'+(item.allDone?'var(--green)':ident.color)+';';
+  var progEl=mk('div','',item.paid+' / '+item.total+' payments');
+  progEl.style.cssText='font-size:11px;color:var(--text3);margin-top:3px;';
+  right.appendChild(amtEl); right.appendChild(progEl);
+  hdr.appendChild(mid); hdr.appendChild(right);
+  card.appendChild(hdr);
+
+  // Progress bar
+  var pct=item.total>0?(item.paid/item.total)*100:0;
+  var pw=mk('div','progress-wrap'); var pb=mk('div','progress-bar');
+  pb.style.width=pct+'%'; pb.style.background=item.allDone?'var(--green)':ident.color;
+  pw.appendChild(pb); card.appendChild(pw);
+
+  // Payment timeline
+  var timeline=mk('div',''); timeline.style.cssText='display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;';
+  inst.payments.forEach(function(p){
+    var isNext=!p.paid&&p===item.nextPmt;
+    var tileBg=p.paid?'var(--green-bg)':isNext?ident.bg:'var(--bg3)';
+    var tileBorder=p.paid?'rgba(58,125,82,.2)':isNext?ident.color+'60':'var(--border)';
+    var tileColor=p.paid?'var(--green)':isNext?ident.color:'var(--text2)';
+    var pCard=mk('div','');
+    pCard.style.cssText='flex:1;min-width:70px;text-align:center;padding:8px 6px;border-radius:var(--radius-sm);background:'+tileBg+';border:1px solid '+tileBorder+';cursor:pointer;transition:all .15s;';
+    if(isNext) pCard.style.fontWeight='600';
+    pCard.title=p.paid?'Click to unmark':'Click to mark paid';
+    var dateEl=mk('div','',fmtDate(p.dueDate)); dateEl.style.cssText='font-size:10px;color:var(--text3);margin-bottom:3px;';
+    var amtEl2=mk('div','',fmt(p.amount)); amtEl2.style.cssText='font-size:12px;font-weight:600;font-family:var(--font-mono);color:'+tileColor+';';
+    var statusEl=mk('div','',p.paid?'Paid':isNext?'Next':'Upcoming');
+    statusEl.style.cssText='font-size:10px;margin-top:3px;color:'+tileColor+';font-weight:'+(isNext?'600':'400')+';';
+    pCard.appendChild(dateEl); pCard.appendChild(amtEl2); pCard.appendChild(statusEl);
+    (function(pid,curPaid){
+      pCard.addEventListener('click',function(){toggleInstPayment(inst.id,pid,!curPaid);});
+    })(p.id,p.paid);
+    timeline.appendChild(pCard);
+  });
+  card.appendChild(timeline);
+
+  var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:space-between;align-items:center;';
+  if(item.nextPmt&&!item.allDone){
+    var daysEl=mk('span','',item.daysToNext<=0?'Due today':item.daysToNext===1?'Due tomorrow':'Due in '+item.daysToNext+' days');
+    daysEl.style.cssText='font-size:12px;font-weight:'+(item.daysToNext<=3?'600':'400')+';color:'+(item.daysToNext<=3?'var(--red)':'var(--text3)')+';';
+    footer.appendChild(daysEl);
+  }else{ footer.appendChild(mk('span','')); }
+  var delBtn=mk('button','btn btn-ghost btn-sm',item.allDone?'Archive':'Remove');
+  delBtn.style.fontSize='11px';
+  delBtn.addEventListener('click',function(){deleteInstallment(inst.id);});
+  footer.appendChild(delBtn);
+  card.appendChild(footer);
+  return card;
+}
+
+function buildDebtCard(item){
+  var d=item.account, bal=item.bal, monthly=item.monthly, mtp=item.mtp;
+  var rate=d.rate||'?';
+  var rcolor=rateColor(rate);
+  var ident=getDebtIdentity(d.id);
+
+  var card=mk('div','debt-card');
+  card.style.borderLeft='4px solid '+ident.color;
+  if(item.isPaidOff){ card.style.opacity='0.6'; card.style.background='var(--bg3)'; }
+  else{ card.style.background=ident.bg; }
+
+  // Header row with identity badge
+  var hdr=mk('div',''); hdr.style.cssText='display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;';
+  hdr.appendChild(makeIdentityBadge(ident.initials, ident.color, item.isPaidOff?'var(--bg3)':ident.bg));
+
+  var mid=mk('div',''); mid.style.flex='1';
+  var typeLabel=mk('div','',d.type.toUpperCase()); typeLabel.style.cssText='font-size:9px;font-weight:700;letter-spacing:.1em;color:'+ident.color+';margin-bottom:3px;opacity:0.7;';
+  var nameEl=mk('div','',d.name); nameEl.style.cssText='font-size:14px;font-weight:600;color:var(--text);';
+  mid.appendChild(typeLabel); mid.appendChild(nameEl);
+  if(d.rateNote){
+    var noteEl=mk('div','',d.rateNote); noteEl.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
+    mid.appendChild(noteEl);
+  }
+
+  var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+  var balEl=mk('div','',item.isPaidOff?'PAID OFF':fmt(bal));
+  balEl.style.cssText='font-family:var(--font-mono);font-size:20px;font-weight:600;color:'+(item.isPaidOff?'var(--green)':ident.color)+';';
+  var rateTag=mk('span','tag tag-'+rcolor,rate);
+  rateTag.style.display='inline-block'; rateTag.style.marginTop='4px';
+  right.appendChild(balEl); right.appendChild(rateTag);
+  hdr.appendChild(mid); hdr.appendChild(right);
+  card.appendChild(hdr);
+
+  // Stats row
+  var stats=mk('div',''); stats.style.cssText='display:flex;gap:20px;margin-bottom:12px;flex-wrap:wrap;';
+  function statItem(label,value,col){
+    var si=mk('div','');
+    var lbl=mk('div','',label); lbl.style.cssText='font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;';
+    var val=mk('div','',value); val.style.cssText='font-size:13px;font-weight:600;font-family:var(--font-mono);color:'+(col||'var(--text)')+';margin-top:2px;';
+    si.appendChild(lbl); si.appendChild(val); return si;
+  }
+  if(monthly>0) stats.appendChild(statItem('Monthly',fmt(monthly),'var(--text2)'));
+  if(!item.isPaidOff&&mtp<9999) stats.appendChild(statItem('Months left',mtp+'mo',mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--red)'));
+  if(d.limit) stats.appendChild(statItem('Limit',fmt(d.limit),'var(--text3)'));
+  card.appendChild(stats);
+
+  // Utilization bar
+  if(d.limit&&!item.isPaidOff){
+    var pct=Math.min(100,(bal/d.limit)*100);
+    var pw=mk('div','progress-wrap'); var pb=mk('div','progress-bar');
+    pb.style.width=pct+'%'; pb.style.background=pct>80?'var(--red)':pct>50?'var(--amber)':ident.color;
+    pw.appendChild(pb);
+    var ul=mk('div','',Math.round(pct)+'% utilized'); ul.style.cssText='font-size:11px;color:var(--text3);margin-top:4px;';
+    card.appendChild(pw); card.appendChild(ul);
+  }
+
+  var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:flex-end;';
+  var editBtn=mk('button','btn btn-ghost btn-sm','Edit rate / payment'); editBtn.style.fontSize='11px';
+  editBtn.addEventListener('click',function(){openEditDebt(d.id);});
+  footer.appendChild(editBtn); card.appendChild(footer);
+  return card;
+}
+
+
+
+// ---- PAYCHEQUE PLAN ----
+function getPaymentStatus(rp,yearMonth){
+  var overrideKey=rp.id+'-'+yearMonth;
+  if(db.manualOverrides[overrideKey]==='paid') return{paid:true,manual:true,txn:null};
+  if(db.manualOverrides[overrideKey]==='unpaid') return{paid:false,manual:true,txn:null};
+  var parts=yearMonth.split('-');
+  var yr=parseInt(parts[0]),mo=parseInt(parts[1]);
+  var daysInMonth=new Date(yr,mo,0).getDate();
+  var dayMin=Math.max(1,rp.expectedDay-(rp.tolerance||5));
+  var dayMax=Math.min(daysInMonth,rp.expectedDay+(rp.tolerance||5));
+  var dateMin=yearMonth+'-'+String(dayMin).padStart(2,'0');
+  var dateMax=yearMonth+'-'+String(dayMax).padStart(2,'0');
+  var keywords=(rp.keywords||[]).map(function(k){return k.toLowerCase();});
+  var txn=db.transactions.find(function(t){
+    if(t.type!=='expense') return false;
+    if(t.date<dateMin||t.date>dateMax) return false;
+    if(Math.abs(t.amount-rp.amount)>(rp.amount*0.2)) return false;
+    if(!keywords.length) return true;
+    var desc=t.description.toLowerCase();
+    return keywords.some(function(k){return desc.includes(k);});
+  });
+  if(txn) return{paid:true,manual:false,txn:txn};
+  var txnLoose=db.transactions.find(function(t){
+    if(t.type!=='expense') return false;
+    if(!t.date.startsWith(yearMonth)) return false;
+    if(Math.abs(t.amount-rp.amount)>(rp.amount*0.2)) return false;
+    var desc=t.description.toLowerCase();
+    return !keywords.length||keywords.some(function(k){return desc.includes(k);});
+  });
+  return{paid:!!txnLoose,manual:false,txn:txnLoose||null};
+}
+
+function toggleManual(rpId,yearMonth,markPaid){
+  var key=rpId+'-'+yearMonth;
+  var current=db.manualOverrides[key];
+  if(markPaid) db.manualOverrides[key]=(current==='paid'?undefined:'paid');
+  else db.manualOverrides[key]=(current==='unpaid'?undefined:'unpaid');
+  if(db.manualOverrides[key]===undefined) delete db.manualOverrides[key];
+  saveData(null,'manualOverrides'); renderPaycheque(); showToast(markPaid?'Marked as paid':'Marked as unpaid');
+}
+
+function renderPaycheque(){
+  var today=new Date(), day=today.getDate();
+  var yearMonth=today.toISOString().substring(0,7);
+  var inPC1=day>=1&&day<=13, activePC=inPC1?1:2;
+  var c=el('paycheque-plan'); c.innerHTML='';
+  var pc1=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===1;});
+  var pc2=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===2;});
+
+  // Add upcoming installment payments to the right PC
+  var instPmts=[];
+  db.installmentPlans.filter(function(i){return i.active;}).forEach(function(inst){
+    inst.payments.filter(function(p){return !p.paid;}).forEach(function(p){
+      var pc=dateToPC(p.dueDate);
+      // Only show payments due this month or next
+      var dueMonth=p.dueDate.substring(0,7);
+      var thisMonth=new Date().toISOString().substring(0,7);
+      var nextMonth=new Date(new Date().setMonth(new Date().getMonth()+1)).toISOString().substring(0,7);
+      if(dueMonth===thisMonth||dueMonth===nextMonth){
+        instPmts.push({
+          id:'inst-'+inst.id+'-'+p.id,
+          name:inst.name+' ('+fmtDate(p.dueDate)+')',
+          amount:p.amount,
+          expectedDay:parseInt(p.dueDate.split('-')[2]),
+          tolerance:3,
+          keywords:inst.keywords,
+          paycheque:pc,
+          active:true,
+          category:'Buy now pay later',
+          isInstallment:true,
+          instId:inst.id,
+          pmtId:p.id
+        });
+      }
+    });
+  });
+  instPmts.filter(function(p){return p.paycheque===1;}).forEach(function(p){pc1.push(p);});
+  instPmts.filter(function(p){return p.paycheque===2;}).forEach(function(p){pc2.push(p);});
+  var pc1Paid=pc1.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).length;
+  var pc2Paid=pc2.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).length;
+  // Period indicator
+  var periodRow=mk('div',''); periodRow.style.cssText='display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;';
+  [1,2].forEach(function(pc){
+    var isActive=(pc===activePC);
+    var badge=mk('div',''); badge.style.cssText='font-size:13px;padding:8px 14px;border-radius:var(--radius-sm);background:'+(isActive?'rgba(193,127,58,.12)':'var(--bg3)')+';border:1px solid '+(isActive?'var(--accent)':'var(--border)')+';color:'+(isActive?'var(--accent)':'var(--text3)')+';';
+    badge.textContent=(isActive?'Active now - ':'Upcoming - ')+'Paycheque '+pc+(pc===1?' (days 1-13)':' (days 14-31)');
+    periodRow.appendChild(badge);
+  });
+  var dateLabel=mk('div','','Today: '+today.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}));
+  dateLabel.style.cssText='font-size:12px;color:var(--text3);';
+  periodRow.appendChild(dateLabel);
+  c.appendChild(periodRow);
+  // Two columns
+  var grid=mk('div','grid2'); c.appendChild(grid);
+  function buildPCCard(items,pcNum,paid,total,isActive){
+    var card=mk('div','card'); card.className='card '+(isActive?'pc-active':'pc-dim');
+    var hdr=mk('div',''); hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;';
+    var title=mk('div','card-title','Paycheque '+pcNum+' - '+(pcNum===1?'~13th-15th':'~27th-30th'));
+    title.style.marginBottom='0';
+    var counter=mk('span','',paid+'/'+items.length+' paid');
+    counter.style.cssText='font-size:11px;color:'+(paid===items.length?'var(--green)':'var(--text3)')+';';
+    hdr.appendChild(title); hdr.appendChild(counter); card.appendChild(hdr);
+    if(isActive){
+      var alert=mk('div','alert alert-amber','Active period - click circle to mark items paid manually');
+      alert.style.marginBottom='12px'; card.appendChild(alert);
+    }
+    items.forEach(function(rp){
+      var status=getPaymentStatus(rp,yearMonth);
+      var row=mk('div','pc-row');
+      var left=mk('div',''); left.style.flex='1';
+      var nameRow=mk('div',''); nameRow.style.cssText='display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;';
+      var circle=mk('button','');
+      circle.style.cssText='background:none;border:none;cursor:pointer;font-size:15px;padding:0;color:'+(status.paid?'var(--green)':'var(--text3)')+';';
+      circle.textContent=status.paid?'v':'o';
+      circle.title=status.paid?'Click to mark unpaid':'Click to mark paid';
+      circle.addEventListener('click',function(){toggleManual(rp.id,yearMonth,!status.paid);});
+      var nameEl=mk('span','',rp.name); if(status.paid) nameEl.style.textDecoration='line-through';
+      if(status.manual){var mTag=mk('span','','(manual)');mTag.style.cssText='font-size:10px;color:var(--text3);';nameRow.appendChild(mTag);}
+      nameRow.appendChild(circle); nameRow.appendChild(nameEl);
+      var dueEl=mk('div','','Due ~'+rp.expectedDay+'th +/-'+( rp.tolerance||5)+' days');
+      dueEl.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;margin-left:22px;';
+      if(status.paid&&status.txn){
+        var matchEl=mk('div','','Matched: '+status.txn.date+' '+fmt(status.txn.amount));
+        matchEl.style.cssText='font-size:10px;color:var(--green);margin-left:22px;'; left.appendChild(nameRow); left.appendChild(dueEl); left.appendChild(matchEl);
+      }else{left.appendChild(nameRow); left.appendChild(dueEl);}
+      var right=mk('div',''); right.style.cssText='display:flex;align-items:center;gap:8px;flex-shrink:0;';
+      var amtEl=mk('span','',status.paid?'paid':'-'+fmt(rp.amount));
+      amtEl.style.cssText='font-family:var(--font-mono);font-size:13px;color:'+(status.paid?'var(--green)':'var(--red)')+';';
+      var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
+      editBtn.style.fontSize='11px';
+      editBtn.addEventListener('click',function(){openEditRecurring(rp.id);});
+      right.appendChild(amtEl); right.appendChild(editBtn);
+      row.appendChild(left); row.appendChild(right); card.appendChild(row);
+    });
+    var totalRow=mk('div',''); totalRow.style.cssText='display:flex;justify-content:space-between;padding:9px 0;font-weight:600;font-size:14px;border-top:1px solid var(--border);margin-top:4px;';
+    if(pcNum===2){totalRow.style.color='var(--green)'; totalRow.appendChild(mk('span','','Cushion after obligations')); var cushion=mk('span','','+$182'); cushion.style.fontFamily='var(--font-mono)'; totalRow.appendChild(cushion);}
+    else{totalRow.appendChild(mk('span','','Total obligations')); var totEl=mk('span','','-'+fmt(total+346)); totEl.style.cssText='font-family:var(--font-mono);color:var(--red);'; totalRow.appendChild(totEl);}
+    card.appendChild(totalRow);
+    return card;
+  }
+  var pc1Total=pc1.reduce(function(s,r){return s+r.amount;},0);
+  var pc2Total=pc2.reduce(function(s,r){return s+r.amount;},0);
+  grid.appendChild(buildPCCard(pc1,1,pc1Paid,pc1Total,activePC===1));
+  grid.appendChild(buildPCCard(pc2,2,pc2Paid,pc2Total,activePC===2));
+  var rules=mk('div','alert alert-amber','3 rules: (1) Never spend the $346 buffer. (2) Pay everything when paycheque lands. (3) Do not use BMO 9207 for purchases.');
+  rules.style.marginTop='16px'; c.appendChild(rules);
+}
+el('btn-go-recurring').addEventListener('click',function(){nav('recurring');});
+
+// ---- RECURRING ----
+function renderRecurring(){
+  var yearMonth=new Date().toISOString().substring(0,7);
+  var c=el('recurring-list'); c.innerHTML='';
+  [1,2].forEach(function(pcNum){
+    var items=db.recurringPayments.filter(function(r){return r.paycheque===pcNum;});
+    var hdr=mk('div','','Paycheque '+pcNum+' payments'); hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin:16px 0 8px;';
+    c.appendChild(hdr);
+    if(!items.length){var none=mk('div','','None');none.style.cssText='color:var(--text3);font-size:13px;padding:8px 0;';c.appendChild(none);return;}
+    items.forEach(function(rp){
+      var status=getPaymentStatus(rp,yearMonth);
+      var card=mk('div','card'); card.style.cssText='margin-bottom:10px;'+(rp.active?'':'opacity:0.5;');
+      var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;';
+      var left=mk('div',''); left.style.flex='1';
+      var title=mk('div',''); title.style.cssText='font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;';
+      var statusIcon=mk('span','',status.paid?'v':'o'); statusIcon.style.color=status.paid?'var(--green)':'var(--text3)';
+      var nameEl=mk('span','',rp.name);
+      var pcTag=mk('span','tag tag-'+(rp.paycheque===1?'blue':'green'),'PC'+rp.paycheque);
+      if(!rp.active){var inact=mk('span','tag tag-gray','inactive');title.appendChild(inact);}
+      title.appendChild(statusIcon); title.appendChild(nameEl); title.appendChild(pcTag);
+      var sub=mk('div','',fmt(rp.amount)+' - Due ~'+rp.expectedDay+'th +/-'+(rp.tolerance||5)+' days - '+( rp.category||'Other'));
+      sub.style.cssText='font-size:12px;color:var(--text3);margin-top:4px;';
+      left.appendChild(title); left.appendChild(sub);
+      if(status.txn){var match=mk('div','','Matched: '+status.txn.date+' - '+status.txn.description+' ('+fmt(status.txn.amount)+')'); match.style.cssText='font-size:11px;color:var(--green);margin-top:3px;'; left.appendChild(match);}
+      var right=mk('div',''); right.style.cssText='display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;';
+      var markBtn=mk('button','btn btn-ghost btn-sm',status.paid?'Mark unpaid':'Mark paid');
+      markBtn.style.fontSize='11px';
+      markBtn.addEventListener('click',function(){toggleManual(rp.id,yearMonth,!status.paid);renderRecurring();renderPaycheque();});
+      var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
+      editBtn.addEventListener('click',function(){openEditRecurring(rp.id);});
+      var toggleBtn=mk('button','btn btn-ghost btn-sm',rp.active?'Deactivate':'Activate');
+      toggleBtn.style.fontSize='11px';
+      toggleBtn.addEventListener('click',function(){rp.active=!rp.active;saveData(null,'recurringPayments');renderRecurring();renderPaycheque();showToast(rp.active?'Activated':'Deactivated');});
+      var delBtn=mk('button','btn btn-danger btn-sm','X');
+      delBtn.addEventListener('click',function(){if(!confirm('Remove?')) return; db.recurringPayments=db.recurringPayments.filter(function(x){return x.id!==rp.id;}); saveData(); renderRecurring(); renderPaycheque(); showToast('Removed');});
+      right.appendChild(markBtn); right.appendChild(editBtn); right.appendChild(toggleBtn); right.appendChild(delBtn);
+      top.appendChild(left); top.appendChild(right); card.appendChild(top); c.appendChild(card);
+    });
+  });
+}
+
+el('btn-add-recurring').addEventListener('click',function(){
+  fillCatSelect('rp-category',false,'Loan payment');
+  openModal('modal-add-recurring');
+});
+el('btn-cancel-rp').addEventListener('click',function(){closeModal('modal-add-recurring');});
+el('btn-save-rp').addEventListener('click',function(){
+  var name=el('rp-name').value.trim(), amount=parseFloat(el('rp-amount').value);
+  var day=parseInt(el('rp-day').value), tolerance=parseInt(el('rp-tolerance').value)||5;
+  var paycheque=parseInt(el('rp-paycheque').value);
+  var keywords=el('rp-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  var category=el('rp-category').value;
+  if(!name||!amount||!day){showToast('Fill name, amount and day');return;}
+  db.recurringPayments.push({id:'rp'+Date.now(),name:name,amount:amount,expectedDay:day,tolerance:tolerance,keywords:keywords,paycheque:paycheque,active:true,category:category});
+  saveData(null,'recurringPayments'); closeModal('modal-add-recurring'); renderRecurring(); renderPaycheque(); showToast('Added');
+  el('rp-name').value=''; el('rp-amount').value=''; el('rp-day').value=''; el('rp-keywords').value='';
+});
+
+function openEditRecurring(id){
+  var rp=db.recurringPayments.find(function(r){return r.id===id;}); if(!rp) return;
+  el('edit-rp-id').value=rp.id; el('edit-rp-name').value=rp.name; el('edit-rp-amount').value=rp.amount;
+  el('edit-rp-day').value=rp.expectedDay; el('edit-rp-tolerance').value=rp.tolerance||5;
+  el('edit-rp-keywords').value=(rp.keywords||[]).join(', '); el('edit-rp-paycheque').value=rp.paycheque;
+  fillCatSelect('edit-rp-category',false,rp.category||'Other');
+  openModal('modal-edit-recurring');
+}
+el('btn-cancel-edit-rp').addEventListener('click',function(){closeModal('modal-edit-recurring');});
+el('btn-save-edit-rp').addEventListener('click',function(){
+  var id=el('edit-rp-id').value;
+  var rp=db.recurringPayments.find(function(r){return r.id===id;}); if(!rp) return;
+  rp.name=el('edit-rp-name').value.trim(); rp.amount=parseFloat(el('edit-rp-amount').value)||rp.amount;
+  rp.expectedDay=parseInt(el('edit-rp-day').value)||rp.expectedDay; rp.tolerance=parseInt(el('edit-rp-tolerance').value)||5;
+  rp.keywords=el('edit-rp-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  rp.paycheque=parseInt(el('edit-rp-paycheque').value); rp.category=el('edit-rp-category').value;
+  saveData(null,'recurringPayments'); closeModal('modal-edit-recurring'); renderRecurring(); renderPaycheque(); showToast('Updated');
+});
+
+// ---- CATEGORIES ----
+var COLOR_PALETTE=['#3a7d52','#b84040','#2e6ea6','#6b44a8','#b07020','#c17f3a','#3a6a8a','#7a4a7a','#5a8a3a','#a04040','#4a7a9a','#8a6a2a','#7a7a7a','#4a4a8a','#8a4a5a'];
+
+function buildColorPicker(containerId, selectedColor, onPick){
+  var c=el(containerId); if(!c) return;
+  c.innerHTML='';
+  COLOR_PALETTE.forEach(function(color){
+    var swatch=mk('div','');
+    swatch.style.cssText='width:24px;height:24px;border-radius:50%;background:'+color+';cursor:pointer;border:3px solid '+(color===selectedColor?'var(--text)':'transparent')+';transition:border-color .15s;flex-shrink:0;';
+    swatch.title=color;
+    swatch.addEventListener('click',function(){
+      c.querySelectorAll('div').forEach(function(s){s.style.borderColor='transparent';});
+      swatch.style.borderColor='var(--text)';
+      onPick(color);
+    });
+    c.appendChild(swatch);
+  });
+}
+
+var _addCatColor='#3a7d52';
+var _editCatColor='#3a7d52';
+
+function renderCategories(){
+  var c=el('categories-list'); c.innerHTML='';
+  var groups=[...new Set(db.customCategories.map(function(x){return x.group;}))];
+  groups.forEach(function(grp){
+    var sec=mk('div',''); sec.style.marginBottom='20px';
+    var hdr=mk('div',''); hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;';
+    hdr.appendChild(mk('span','',grp));
+    var count=mk('span','',db.customCategories.filter(function(x){return x.group===grp;}).length+' categories');
+    count.style.cssText='font-size:11px;color:var(--text3);font-weight:400;';
+    hdr.appendChild(count);
+    sec.appendChild(hdr);
+    var grid=mk('div',''); grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;';
+    db.customCategories.filter(function(x){return x.group===grp;}).forEach(function(cat){
+      var card=mk('div','card'); card.style.cssText='padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+      var left=mk('div',''); left.style.cssText='display:flex;align-items:center;gap:10px;flex:1;min-width:0;';
+      var dot=mk('div',''); dot.style.cssText='width:12px;height:12px;border-radius:50%;background:'+cat.color+';flex-shrink:0;';
+      var name=mk('div','',cat.name); name.style.cssText='font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      left.appendChild(dot); left.appendChild(name);
+      var btns=mk('div',''); btns.style.cssText='display:flex;gap:4px;flex-shrink:0;';
+      var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
+      editBtn.addEventListener('click',function(){openEditCategory(cat.id);});
+      var delBtn=mk('button','btn btn-danger btn-sm','X');
+      delBtn.addEventListener('click',function(){
+        if(!confirm('Delete "'+cat.name+'"? Existing transactions keep this label.')) return;
+        db.customCategories=db.customCategories.filter(function(x){return x.id!==cat.id;});
+        saveData(); renderCategories();
+        showToast('Category deleted');
+      });
+      btns.appendChild(editBtn); btns.appendChild(delBtn);
+      card.appendChild(left); card.appendChild(btns);
+      grid.appendChild(card);
+    });
+    sec.appendChild(grid); c.appendChild(sec);
+  });
+}
+
+function openAddCategoryModal(){
+  el('cat-name').value=''; el('cat-newgroup').value='';
+  _addCatColor='#3a7d52';
+  buildColorPicker('cat-color-picker',_addCatColor,function(c){_addCatColor=c;});
+  // populate existing groups in the select
+  var grpSel=el('cat-group');
+  var existingGroups=[...new Set(db.customCategories.map(function(x){return x.group;}))];
+  grpSel.innerHTML='';
+  existingGroups.forEach(function(g){var o=mk('option',null,g);grpSel.appendChild(o);});
+  openModal('modal-add-category');
+}
+
+function openEditCategory(id){
+  var cat=db.customCategories.find(function(x){return x.id===id;}); if(!cat) return;
+  el('edit-cat-id').value=cat.id;
+  el('edit-cat-name').value=cat.name;
+  _editCatColor=cat.color;
+  // populate groups
+  var grpSel=el('edit-cat-group');
+  var existingGroups=[...new Set(db.customCategories.map(function(x){return x.group;}))];
+  grpSel.innerHTML='';
+  existingGroups.forEach(function(g){var o=mk('option',null,g);if(g===cat.group)o.selected=true;grpSel.appendChild(o);});
+  buildColorPicker('edit-cat-color-picker',_editCatColor,function(c){_editCatColor=c;});
+  openModal('modal-edit-category');
+}
+
+el('btn-add-category').addEventListener('click',openAddCategoryModal);
+
+el('btn-cancel-category').addEventListener('click',function(){closeModal('modal-add-category');});
+el('btn-save-category').addEventListener('click',function(){
+  var name=el('cat-name').value.trim();
+  var newGrp=el('cat-newgroup').value.trim();
+  var group=newGrp||el('cat-group').value;
+  if(!name){showToast('Enter a category name');return;}
+  if(db.customCategories.find(function(x){return x.name.toLowerCase()===name.toLowerCase();})){showToast('Category already exists');return;}
+  db.customCategories.push({id:'cat'+Date.now(),name:name,group:group,color:_addCatColor});
+  saveData(null,'customCategories'); closeModal('modal-add-category'); renderCategories();
+  // refresh all dropdowns
+  fillCatSelect('filter-cat',true);
+  showToast('Category added');
+});
+
+el('btn-cancel-edit-category').addEventListener('click',function(){closeModal('modal-edit-category');});
+el('btn-save-edit-category').addEventListener('click',function(){
+  var id=el('edit-cat-id').value;
+  var cat=db.customCategories.find(function(x){return x.id===id;}); if(!cat) return;
+  var name=el('edit-cat-name').value.trim();
+  if(!name){showToast('Enter a category name');return;}
+  cat.name=name;
+  cat.group=el('edit-cat-group').value;
+  cat.color=_editCatColor;
+  saveData(null,'customCategories'); closeModal('modal-edit-category'); renderCategories();
+  fillCatSelect('filter-cat',true);
+  showToast('Category updated');
+});
+
+// ---- REPORTS ----
+function renderReport(){
+  var mo=el('report-month').value, grp=el('report-group').value;
+  var txns=db.transactions.slice();
+  if(mo) txns=txns.filter(function(t){return t.date.startsWith(mo);});
+  var totalIn=txns.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+  var totalOut=txns.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var net=totalIn-totalOut;
+  el('report-income').innerHTML=''; var inc=mk('div',''); inc.appendChild(mk('div','stat-label','Total income')); var incV=mk('div','stat-val',fmt(totalIn)); incV.style.color='var(--green)'; inc.appendChild(incV); el('report-income').appendChild(inc);
+  el('report-expenses').innerHTML=''; var exp=mk('div',''); exp.appendChild(mk('div','stat-label','Total expenses')); var expV=mk('div','stat-val',fmt(totalOut)); expV.style.color='var(--red)'; exp.appendChild(expV); el('report-expenses').appendChild(exp);
+  el('report-net').innerHTML=''; var netD=mk('div',''); netD.appendChild(mk('div','stat-label','Net')); var netV=mk('div','stat-val',(net>=0?'+':'')+fmt(net)); netV.style.color=net>=0?'var(--green)':'var(--red)'; netD.appendChild(netV); el('report-net').appendChild(netD);
+  var groups={};
+  txns.forEach(function(t){
+    var key;
+    if(grp==='category') key=t.category;
+    else if(grp==='account'){var a=db.accounts.find(function(x){return x.id===t.account;});key=a?a.name:t.account;}
+    else key=t.type;
+    if(!groups[key]) groups[key]={out:0,in:0,count:0};
+    if(t.type==='expense') groups[key].out+=t.amount; else groups[key].in+=t.amount;
+    groups[key].count++;
+  });
+  var tbody=el('report-body'); tbody.innerHTML='';
+  Object.entries(groups).sort(function(a,b){return b[1].out-a[1].out;}).forEach(function(e){
+    var tr=document.createElement('tr');
+    tr.appendChild(mk('td','',e[0]));
+    var td1=mk('td','',e[1].out>0?'-'+fmt(e[1].out):'-'); td1.style.textAlign='right'; td1.style.color='var(--red)'; tr.appendChild(td1);
+    var td2=mk('td','',e[1].in>0?'+'+fmt(e[1].in):'-'); td2.style.textAlign='right'; td2.style.color='var(--green)'; tr.appendChild(td2);
+    var td3=mk('td','',e[1].count); td3.style.textAlign='right'; td3.style.color='var(--text3)'; tr.appendChild(td3);
+    tbody.appendChild(tr);
+  });
+}
+el('report-month').addEventListener('change',renderReport);
+el('report-group').addEventListener('change',renderReport);
+
+// ---- IMPORT ----
+function renderImportPage(){
+  var sel=el('import-account-select'); sel.innerHTML='';
+  db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;sel.appendChild(o);});
+}
+
+el('universal-file-input').addEventListener('change',function(event){handleUniversalImport(event);});
+
+function setImportStep(steps,i,status,text){
+  if(steps[i]){
+    steps[i].className='import-step '+status;
+    steps[i].textContent=(status==='done'?'OK: ':status==='active'?'...: ':'   ')+text;
+  }
+}
+
+async function handleUniversalImport(event){
+  var file=event.target.files[0]; if(!file) return;
+  var stepsEl=el('import-ai-steps');
+  stepsEl.style.display='block';
+  el('import-preview').style.display='none';
+  el('import-ai-summary').innerHTML='';
+  var stepLabels=['Detecting file type','Reading content','AI extracting transactions','Checking duplicates','Generating summary'];
+  stepsEl.innerHTML='';
+  var stepEls=stepLabels.map(function(s,i){var d=mk('div','import-step '+(i===0?'active':'pending'),s);stepsEl.appendChild(d);return d;});
+  await new Promise(function(r){setTimeout(r,50);});
+  var ext=file.name.split('.').pop().toLowerCase();
+  var isCSV=ext==='csv'||file.type==='text/csv';
+  var isImage=file.type.startsWith('image/')||['png','jpg','jpeg','webp','heic','gif'].includes(ext);
+  var isPDF=ext==='pdf'||file.type==='application/pdf';
+  setImportStep(stepEls,0,'done',(isCSV?'CSV':isImage?'Image':isPDF?'PDF':'File')+' - '+(file.size/1024).toFixed(0)+'KB');
+  setImportStep(stepEls,1,'active','Reading...');
+  var rawText='', base64Data='', mediaType=file.type||'image/png';
+  try{
+    if(isCSV){rawText=await file.text();setImportStep(stepEls,1,'done','CSV - '+rawText.split('\n').length+' lines');}
+    else{
+      base64Data=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
+      setImportStep(stepEls,1,'done','File read - sending to AI');
+    }
+  }catch(e){setImportStep(stepEls,1,'done','Read error: '+e.message);return;}
+  setImportStep(stepEls,2,'active','Extracting...');
+  if(!getApiKey()){
+    setImportStep(stepEls,2,'done','No API key - using pattern matching');
+    if(isCSV) importBuffer=parseCSVFallback(rawText);
+    else{showToast('API key required for image/PDF import');return;}
+  }else{
+    try{
+      var aiResponse;
+      if(isCSV){
+        aiResponse=await callClaude([{role:'user',content:'Extract ALL transactions from this CSV. Return ONLY a JSON array: [{date:"YYYY-MM-DD",description:"string",amount:number,type:"income or expense",category:"one of: Salary / Employment|Freelance / Side income|Interest earned|Transfer received|Rent|Utilities|Loan payment|Credit card payment|Buy now pay later|Groceries|Dining out|Personal care|Clothing|Health / Pharmacy|Transit / TTC|Ride share|Gas / Parking|Streaming|Phone bill|Software / Apps|Insurance|Internal transfer|Sent to family|Emergency / One-time|Other",notes:"string"}]. CSV:\n'+rawText.substring(0,8000)}],'Return ONLY valid JSON array. No markdown.',2000);
+      }else{
+        aiResponse=await callClaudeVision(base64Data,mediaType,'Extract ALL transactions from this bank statement image. Return ONLY a JSON array: [{date:"YYYY-MM-DD",description:"string",amount:positive number,type:"income or expense",category:"...",notes:"..."}]. If you see a closing balance add {isClosingBalance:true,amount:number}. Return ONLY the JSON array.');
+      }
+      var parsed=[];
+      try{parsed=JSON.parse(aiResponse.replace(/```json|```/g,'').trim());}
+      catch(e){var m=aiResponse.match(/\[[\s\S]*\]/);if(m) parsed=JSON.parse(m[0]); else throw new Error('Cannot parse AI response');}
+      var closingObj=parsed.find(function(p){return p.isClosingBalance;});
+      if(closingObj){
+        var cb=el('import-closing-bal');
+        if(cb&&!cb.value){cb.value=closingObj.amount.toFixed(2);}
+      }
+      importBuffer=parsed.filter(function(p){return !p.isClosingBalance&&p.date&&p.amount;}).map(function(p){return{date:p.date,description:p.description||'Transaction',amount:Math.abs(parseFloat(p.amount)||0),type:p.type||'expense',category:p.category||'Other',notes:p.notes||'',duplicate:false};});
+      setImportStep(stepEls,2,'done','Found '+importBuffer.length+' transactions');
+    }catch(e){
+      setImportStep(stepEls,2,'done','AI error - using pattern matching');
+      if(isCSV) importBuffer=parseCSVFallback(rawText);
+      else{showToast('AI failed: '+e.message.substring(0,80));return;}
+    }
+  }
+  setImportStep(stepEls,3,'active','Checking...');
+  importBuffer.forEach(function(r){
+    r.duplicate=db.transactions.some(function(t){
+      return t.date===r.date&&Math.abs(t.amount-r.amount)<0.02&&t.description.toLowerCase().includes(r.description.toLowerCase().substring(0,10));
+    });
+  });
+  var dupes=importBuffer.filter(function(r){return r.duplicate;}).length;
+  setImportStep(stepEls,3,'done',dupes+' duplicates, '+(importBuffer.length-dupes)+' new');
+  setImportStep(stepEls,4,'active','Summarising...');
+  if(getApiKey()&&importBuffer.length>0){
+    try{
+      var nr=importBuffer.filter(function(r){return !r.duplicate;});
+      var tIn=nr.filter(function(r){return r.type==='income';}).reduce(function(s,r){return s+r.amount;},0);
+      var tOut=nr.filter(function(r){return r.type==='expense';}).reduce(function(s,r){return s+r.amount;},0);
+      var summary=await callClaude([{role:'user',content:'Importing '+nr.length+' transactions. Income: '+fmt(tIn)+', expenses: '+fmt(tOut)+'. 2-sentence summary and one risk.'}]);
+      var sumEl=mk('div','alert alert-purple','AI: '+summary);
+      el('import-ai-summary').appendChild(sumEl);
+      setImportStep(stepEls,4,'done','Summary ready');
+    }catch(e){setImportStep(stepEls,4,'done','Done');}
+  }else{setImportStep(stepEls,4,'done','Done');}
+  // Preview
+  el('import-preview').style.display='block';
+  el('import-preview-meta').textContent=importBuffer.length+' rows - '+dupes+' duplicates - '+(importBuffer.length-dupes)+' new';
+  var accId=el('import-account-select').value;
+  var accForBalance=db.accounts.find(function(a){return a.id===accId;});
+  var runBal=accForBalance?computeLiveBalance(accId):0;
+  var tbody=el('import-preview-body'); tbody.innerHTML='';
+  importBuffer.sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(r){
+    var tr=document.createElement('tr'); tr.style.opacity=r.duplicate?'0.5':'1';
+    var tdDate=mk('td','',r.date); tdDate.style.cssText='font-family:var(--font-mono);font-size:12px;';
+    var tdDesc=mk('td','',r.description);
+    var tdAmt=mk('td','amount',(r.type==='income'?'+':'-')+fmt(r.amount));
+    tdAmt.style.color=r.type==='income'?'var(--green)':'var(--red)';
+    var tdCat=mk('td',''); tdCat.appendChild(mk('span','tag tag-gray',r.category));
+    var tdBal=mk('td','');
+    if(!r.duplicate){runBal+=r.type==='income'?r.amount:-r.amount;var balEl=mk('td','',fmt(runBal));balEl.style.cssText='text-align:right;font-family:var(--font-mono);font-size:12px;color:'+(runBal<0?'var(--red)':runBal<200?'var(--amber)':'var(--text3)')+';'; tr.appendChild(tdDate);tr.appendChild(tdDesc);tr.appendChild(tdAmt);tr.appendChild(tdCat);tr.appendChild(balEl);}
+    else{tr.appendChild(tdDate);tr.appendChild(tdDesc);tr.appendChild(tdAmt);tr.appendChild(tdCat);tr.appendChild(tdBal);}
+    var tdStatus=mk('td',''); tdStatus.appendChild(mk('span','tag '+(r.duplicate?'tag-amber':'tag-green'),r.duplicate?'Duplicate':'New'));
+    tr.appendChild(tdStatus); tbody.appendChild(tr);
+  });
+}
+
+function parseCSVFallback(text){
+  var lines=text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim();});
+  if(lines.length<2) return [];
+  var header=lines[0].toLowerCase();
+  var isNewWS=header.includes('transaction_date')&&header.includes('activity_type');
+  var rows=[];
+  lines.slice(1).forEach(function(row){
+    if(!row.trim()) return;
+    var cols=row.split(',').map(function(c){return c.replace(/^"|"$/g,'').trim();});
+    if(isNewWS&&cols.length>=6){
+      var date=cols[0],act=cols[2],sub=cols[3],amount=parseFloat(cols[5]);
+      if(!date||isNaN(amount)) return;
+      var descMap={'AFT_IN':'Direct deposit payroll','AFT_OUT':'Pre-authorized debit','E_TRFIN':'e-Transfer received','E_TRFOUT':'e-Transfer out','OBP_OUT':'Online bill payment','TRANSFER':'Internal transfer','TRFOUT':'Transfer out','TRFIN':'Transfer in'};
+      var desc=(act.toLowerCase()==='interest')?'Interest earned':(descMap[sub.toUpperCase()]||sub||act||'Transaction');
+      var cat=amount>=0?'Salary / Employment':(sub==='AFT_OUT'?'Loan payment':sub==='E_TRFOUT'?'Internal transfer':sub==='OBP_OUT'?'Credit card payment':'Other');
+      rows.push({date:date,description:desc,amount:Math.abs(amount),type:amount>=0?'income':'expense',category:cat,notes:sub?'Type: '+sub:'',duplicate:false});
+    }else if(cols.length>=4){
+      var date=cols[0],desc=cols[2]||cols[1]||'Transaction',amount=parseFloat(cols[3])||parseFloat(cols[cols.length-1]);
+      if(!date||isNaN(amount)) return;
+      rows.push({date:date,description:desc,amount:Math.abs(amount),type:amount>=0?'income':'expense',category:'Other',notes:'',duplicate:false});
+    }
+  });
+  return rows;
+}
+
+el('btn-cancel-import').addEventListener('click',function(){
+  importBuffer=[];
+  el('import-preview').style.display='none';
+  el('import-ai-steps').style.display='none';
+  el('import-ai-summary').innerHTML='';
+  el('universal-file-input').value='';
+  el('import-closing-bal').value='';
+});
+
+el('btn-confirm-import').addEventListener('click',function(){
+  var accId=el('import-account-select').value;
+  var nr=importBuffer.filter(function(r){return !r.duplicate;});
+  nr.forEach(function(r){
+    db.transactions.push({id:'t'+Date.now()+Math.random(),date:r.date,description:r.description,account:accId,category:r.category,amount:r.amount,type:r.type,notes:(r.notes?r.notes+' - ':'')+'Imported',linkedId:null});
+  });
+  var cb=parseFloat(el('import-closing-bal').value);
+  if(!isNaN(cb)&&cb){var acc=db.accounts.find(function(a){return a.id===accId;});if(acc){acc.openingBalance=cb;showToast('Opening balance updated to '+fmt(cb));}}
+  saveData(); el('btn-cancel-import').click(); showToast(nr.length+' transactions imported'); nav('transactions');
+});
+
+// ---- AI ENGINE ----
+function buildFinancialContext(){
+  var cut=db.cutDate||'2026-04-14';
+  var months=['2026-01','2026-02','2026-03','2026-04'];
+  var stats=months.map(function(m){
+    var tx=db.transactions.filter(function(t){return t.date.startsWith(m);});
+    var inc=tx.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+    var exp=tx.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+    return m+': income $'+inc.toFixed(0)+', expenses $'+exp.toFixed(0)+', net $'+(inc-exp).toFixed(0);
+  });
+  var aprSpent={};
+  db.transactions.filter(function(t){return t.date.startsWith('2026-04')&&t.type==='expense';})
+    .forEach(function(t){aprSpent[t.category]=(aprSpent[t.category]||0)+t.amount;});
+  var balances=db.accounts.map(function(a){return a.name+': '+fmt(computeLiveBalance(a.id));}).join(', ');
+  return 'You are a personal financial advisor for William David Reyes Martinez, North York, Toronto.\n\nINCOME: Bi-weekly ~$2,859 from AIC. Monthly ~$5,719 CAD.\n\nACCOUNT BALANCES (cut date '+cut+'): '+balances+'\n\nMONTHLY OBLIGATIONS: RBC Loan $1,285.42 (~25th), Amex Personal Loan $461.41 (~13th, ~5 months left), Rogers phone $145, Uplift $65.40, BMO e-transfer $620, Rogers MC BT $130, Scotia Visa rent $1,383.80, Rent $1,360. Cushion ~$182.\n\nDEBT NOTES: MBNA paid off Apr 9. Rogers BT ~$1,554 at 0% 12mo. BMO 0% promo at risk. Affirm and Klarna paid off March 2026.\n\nMONTHLY STATS: '+stats.join('; ')+'\n\nAPRIL SPENDING: '+Object.entries(aprSpent).map(function(e){return e[0]+' $'+e[1].toFixed(0);}).join(', ')+'\n\nBe direct, use actual numbers, give short actionable alerts.';
+}
+
+async function callClaude(messages,systemExtra,maxTokens){
+  var key=getApiKey(); if(!key) throw new Error('NO_KEY');
+  var system=buildFinancialContext()+(systemExtra?'\n\n'+systemExtra:'');
+  var resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens||1000,system:system,messages:messages})
+  });
+  if(!resp.ok){var e=await resp.json();throw new Error(e.error&&e.error.message?e.error.message:'API error '+resp.status);}
+  var data=await resp.json();
+  return data.content.map(function(c){return c.text||'';}).join('');
+}
+
+async function callClaudeVision(base64Data,mediaType,prompt){
+  var key=getApiKey(); if(!key) throw new Error('NO_KEY');
+  var resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:base64Data}},{type:'text',text:prompt}]}]})
+  });
+  if(!resp.ok){var e=await resp.json();throw new Error('Vision error '+resp.status);}
+  var data=await resp.json();
+  return data.content.map(function(c){return c.text||'';}).join('');
+}
+
+// AI Chat
+function renderAIChat(){
+  var el2=el('ai-messages'); if(!el2) return;
+  el2.innerHTML='';
+  if(!db.aiHistory.length){
+    var msg=mk('div','ai-msg assistant');
+    var av=mk('div','ai-avatar','*');
+    var bub=mk('div','ai-bubble','Hello William! I have full access to your financial data. You have made solid progress - Affirm paid off, MBNA balance transferred to Rogers at 0%, Klarna cleared. Your cushion is tight at $182/month but improving. What would you like to work on?');
+    msg.appendChild(av); msg.appendChild(bub); el2.appendChild(msg);
+  }else{
+    db.aiHistory.forEach(function(m){
+      var msgEl=mk('div','ai-msg '+m.role);
+      var av=mk('div','ai-avatar',m.role==='user'?'W':'*');
+      var bub=mk('div','ai-bubble',m.content.substring(0,2000));
+      msgEl.appendChild(av); msgEl.appendChild(bub); el2.appendChild(msgEl);
+    });
+  }
+  el2.scrollTop=el2.scrollHeight;
+}
+
+function addTyping(id){
+  var container=el(id); if(!container) return;
+  var d=mk('div','ai-msg assistant'); d.id='typing-'+id;
+  var av=mk('div','ai-avatar','*');
+  var bub=mk('div','ai-bubble');
+  var d1=mk('span','ai-dot'); var d2=mk('span','ai-dot'); var d3=mk('span','ai-dot');
+  bub.appendChild(d1); bub.appendChild(d2); bub.appendChild(d3);
+  d.appendChild(av); d.appendChild(bub); container.appendChild(d); container.scrollTop=container.scrollHeight;
+}
+function removeTyping(id){var e=el('typing-'+id);if(e) e.remove();}
+
+async function sendAIMessage(){
+  var input=el('ai-input'), text=input.value.trim(); if(!text) return;
+  if(!getApiKey()){showToast('Set API key in AI Settings');openModal('modal-ai-settings');return;}
+  input.value='';
+  db.aiHistory.push({role:'user',content:text}); saveData(); renderAIChat();
+  addTyping('ai-messages'); el('ai-send-btn').disabled=true;
+  try{
+    var reply=await callClaude(db.aiHistory.map(function(m){return{role:m.role,content:m.content};}));
+    removeTyping('ai-messages'); db.aiHistory.push({role:'assistant',content:reply}); saveData(); renderAIChat();
+  }catch(e){
+    removeTyping('ai-messages');
+    var msg=e.message==='NO_KEY'?'Please set your API key in Settings.':'Error: '+e.message;
+    db.aiHistory.push({role:'assistant',content:msg}); saveData(); renderAIChat();
+  }
+  el('ai-send-btn').disabled=false;
+}
+
+el('ai-send-btn').addEventListener('click',sendAIMessage);
+el('ai-input').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAIMessage();}});
+el('btn-clear-ai').addEventListener('click',function(){db.aiHistory=[];saveData();renderAIChat();});
+
+function askAI(prompt){nav('ai');setTimeout(function(){el('ai-input').value=prompt;sendAIMessage();},100);}
+
+async function loadAIInsights(){
+  if(!getApiKey()) return;
+  try{
+    var reply=await callClaude([{role:'user',content:'Give me 3 short proactive financial alerts. Return ONLY a JSON array: [{alert:"string",severity:"high|medium|low"}]. No markdown.'}],'Return ONLY valid JSON array.',500);
+    var alerts=[];
+    try{alerts=JSON.parse(reply.replace(/```json|```/g,'').trim());}catch(e){}
+    if(!alerts.length) return;
+    var colors={high:'red',medium:'amber',low:'green'};
+    var section=el('ai-proactive-section');
+    if(!section) return;
+    var list=el('ai-proactive-list');
+    if(!list) return;
+    list.innerHTML='';
+    alerts.forEach(function(a,idx){
+      var wrapper=mk('div',''); wrapper.id='insight-'+idx;
+      var d=mk('div','alert alert-'+(colors[a.severity]||'blue'));
+      d.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:0;';
+      var left=mk('div',''); left.style.flex='1';
+      var badge=mk('span','tag tag-'+(colors[a.severity]||'blue'),a.severity.toUpperCase()); badge.style.marginRight='8px';
+      left.appendChild(badge);
+      left.appendChild(document.createTextNode(a.alert));
+      var moreBtn=mk('button','btn btn-sm','Tell me more');
+      moreBtn.style.cssText='background:var(--purple-bg);color:var(--purple);border:none;font-size:11px;margin-top:6px;display:block;';
+      moreBtn.addEventListener('click',function(){askAI('Tell me more about: '+a.alert);});
+      left.appendChild(document.createElement('br'));
+      left.appendChild(moreBtn);
+      var xBtn=mk('button','','x');
+      xBtn.title='Dismiss';
+      xBtn.style.cssText='background:none;border:none;cursor:pointer;font-size:16px;color:inherit;opacity:0.5;padding:0;line-height:1;flex-shrink:0;margin-top:2px;';
+      xBtn.addEventListener('click',function(){
+        wrapper.remove();
+        // If no more insights visible, hide the whole section
+        if(!list.querySelector('[id^="insight-"]')){
+          section.style.display='none';
+        }
+      });
+      d.appendChild(left); d.appendChild(xBtn);
+      wrapper.appendChild(d);
+      wrapper.style.marginBottom='8px';
+      list.appendChild(wrapper);
+    });
+    section.style.display='block';
+  }catch(e){}
+}
+
+// Quick prompts
+var quickPrompts=[
+  ['Health check','Give me a full financial health check. How am I doing overall?'],
+  ['Biggest risk','What is my biggest financial risk right now and what should I do?'],
+  ['Debt payoff','What is the fastest way to pay off all my debts given my income?'],
+  ['Budget check','Am I on track with my budget this month? Where am I overspending?'],
+  ['Move planning','When can I realistically afford to move? What do I need to save?']
+];
+var qc=el('ai-quick-btns');
+quickPrompts.forEach(function(p){
+  var btn=mk('button','btn btn-sm',p[0]); btn.style.cssText='background:var(--purple-bg);color:var(--purple);border:1px solid rgba(107,68,168,.2);';
+  btn.addEventListener('click',function(){askAI(p[1]);});
+  qc.appendChild(btn);
+});
+
+el('btn-ai-settings').addEventListener('click',function(){
+  el('settings-key').value=getApiKey()||'';
+  el('key-status-label').textContent=getApiKey()?'API key is configured':'No API key set';
+  openModal('modal-ai-settings');
+});
+el('btn-cancel-ai-settings').addEventListener('click',function(){closeModal('modal-ai-settings');});
+el('btn-save-ai-settings').addEventListener('click',function(){
+  var k=el('settings-key').value.trim();
+  if(k){if(!k.startsWith('sk-ant-')){showToast('Invalid key format');return;}setApiKey(k);showToast('API key updated');}
+  closeModal('modal-ai-settings');
+});
+
+// AI shortcuts from other pages
+el('btn-ai-txn').addEventListener('click',function(){askAI('Analyse my recent transactions. Any unusual patterns or risks?');});
+el('btn-ai-budget').addEventListener('click',function(){askAI('Review my budget. Are my limits realistic?');});
+el('btn-ai-debts').addEventListener('click',function(){askAI('What is the best order to pay off my debts? Compare avalanche and snowball, factor in 0% deadlines.');});
+el('btn-ai-report').addEventListener('click',function(){askAI('Generate my weekly financial summary comparing this month to last month.');});
+el('btn-ask-payments').addEventListener('click',function(){askAI('What payments are coming up this month and do I have enough to cover them?');});
+
+// Float panel
+var floatOpen=false;
+el('ai-fab').addEventListener('click',function(){
+  floatOpen=!floatOpen;
+  el('ai-float-panel').classList.toggle('open',floatOpen);
+  if(floatOpen) renderFloatChat();
+});
+el('btn-close-float').addEventListener('click',function(){floatOpen=false;el('ai-float-panel').classList.remove('open');});
+
+function renderFloatChat(){
+  var container=el('ai-float-messages'); container.innerHTML='';
+  if(!db.floatHistory.length){
+    var msg=mk('div','ai-msg assistant');
+    var av=mk('div','ai-avatar','*'); av.style.cssText='width:24px;height:24px;font-size:10px;';
+    var bub=mk('div','ai-bubble','Quick question? I am here.'); bub.style.fontSize='12px;';
+    msg.appendChild(av); msg.appendChild(bub); container.appendChild(msg);
+  }else{
+    db.floatHistory.forEach(function(m){
+      var msgEl=mk('div','ai-msg '+m.role);
+      var av=mk('div','ai-avatar',m.role==='user'?'W':'*'); av.style.cssText='width:24px;height:24px;font-size:10px;';
+      var bub=mk('div','ai-bubble',m.content.substring(0,400)); bub.style.fontSize='12px;';
+      msgEl.appendChild(av); msgEl.appendChild(bub); container.appendChild(msgEl);
+    });
+  }
+  container.scrollTop=container.scrollHeight;
+}
+
+async function sendFloatMessage(){
+  var input=el('ai-float-input'), text=input.value.trim(); if(!text) return;
+  if(!getApiKey()){showToast('Set API key first');return;}
+  input.value=''; db.floatHistory.push({role:'user',content:text}); saveData(); renderFloatChat();
+  addTyping('ai-float-messages');
+  try{
+    var reply=await callClaude(db.floatHistory.slice(-6).map(function(m){return{role:m.role,content:m.content};}),'Keep responses to 2-3 paragraphs max.');
+    removeTyping('ai-float-messages'); db.floatHistory.push({role:'assistant',content:reply}); saveData(); renderFloatChat();
+  }catch(e){removeTyping('ai-float-messages'); db.floatHistory.push({role:'assistant',content:'Error: '+e.message}); saveData(); renderFloatChat();}
+}
+el('btn-float-send').addEventListener('click',sendFloatMessage);
+el('ai-float-input').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendFloatMessage();}});
+
+// AI proactive section placeholder
+var proactiveSection=mk('div',''); proactiveSection.id='ai-proactive-section'; proactiveSection.style.display='none'; proactiveSection.style.marginBottom='16px';
+var proactiveHdr=mk('div',''); proactiveHdr.style.cssText='font-size:11px;font-weight:600;color:var(--purple);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;';
+proactiveHdr.textContent='AI Insights';
+var proactiveList=mk('div',''); proactiveList.id='ai-proactive-list';
+proactiveSection.appendChild(proactiveHdr); proactiveSection.appendChild(proactiveList);
+var dashPage=el('page-dashboard');
+dashPage.insertBefore(proactiveSection,dashPage.querySelector('.grid4'));
+
+// ---- INIT ----
+async function init(){
+  // Populate all category selects on startup
+  fillCatSelect('filter-cat',true);
+  fillCatSelect('txn-category',false,'Groceries');
+  fillCatSelect('edit-txn-category',false);
+  fillCatSelect('tr-category',false,'Credit card payment');
+  fillCatSelect('rp-category',false,'Loan payment');
+  fillCatSelect('edit-rp-category',false);
+  renderImportPage();
+  renderDashboard();
+
+  // Cloud sync
+  if(syncState.online){
+    setSyncStatus('syncing','Connecting...');
+    try{
+      // Check if cloud has data
+      var cloudTxns=await sbGet('wealthtrack_transactions','deleted=eq.false&limit=1');
+      var cloudSettings=await sbGet('wealthtrack_settings','limit=1');
+      var cloudHasData=cloudTxns.length>0||cloudSettings.length>0;
+      var localHasData=db.transactions.length>0;
+
+      if(cloudHasData&&localHasData){
+        // Both have data - merge
+        setSyncStatus('syncing','Merging...');
+        var merged=await pullAndMerge();
+        await pushAllToCloud();
+        if(merged){ renderDashboard(); showToast('Data merged from cloud'); }
+      } else if(cloudHasData&&!localHasData){
+        // Cloud has data, local is empty - pull
+        setSyncStatus('syncing','Downloading your data...');
+        await pullAndMerge();
+        saveLocalOnly();
+        renderDashboard();
+        showToast('Data loaded from cloud');
+      } else if(localHasData&&!cloudHasData){
+        // Local has data, cloud is empty - push (migration)
+        setSyncStatus('syncing','Uploading your data...');
+        await pushAllToCloud();
+        showToast('Data backed up to cloud');
+      }
+
+      // Replay any queued offline changes
+      if(syncState.queue.length) await replayQueue();
+
+      syncState.lastSync=new Date();
+      setSyncStatus('online','Synced');
+    }catch(e){
+      setSyncStatus('error','Sync error - working offline');
+      console.error('Sync error:',e);
+    }
+  }else{
+    setSyncStatus('offline','Offline');
+  }
+}
+
+document.addEventListener('DOMContentLoaded',function(){checkSetup();});
+</script>
+</body>
+</html>
