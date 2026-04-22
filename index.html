@@ -149,14 +149,77 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .pc-active{border:2px solid var(--accent);box-shadow:0 0 0 4px rgba(193,127,58,.1);}
 .pc-dim{opacity:0.6;}
 @media(max-width:768px){
+  /* Layout */
   .sidebar{transform:translateX(-100%);}
   .sidebar.open{transform:translateX(0);}
   .main{margin-left:0;}
   .hamburger{display:block;}
-  .grid2,.grid3,.grid4{grid-template-columns:1fr;}
+  .page{padding:12px;}
+  .topbar{padding:10px 14px;}
+
+  /* Grids - single column except stat cards */
+  .grid2,.grid3{grid-template-columns:1fr;}
+  .grid4{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .form-row{grid-template-columns:1fr;}
-  .page{padding:14px;}
-  .topbar{padding:12px 14px;}
+
+  /* Topbar - hide transfer button on mobile, keep + transaction */
+  #btn-open-transfer{display:none;}
+  #sync-label{display:none;}
+
+  /* Transactions table - hide less critical columns */
+  .tbl th.col-account,
+  .tbl td.col-account,
+  .tbl th.col-category,
+  .tbl td.col-category,
+  .tbl th.col-balance,
+  .tbl td.col-balance{display:none;}
+
+  /* Make table fit screen */
+  .tbl{font-size:12px;}
+  .tbl td,.tbl th{padding:8px 8px;}
+  .tbl td:first-child,.tbl th:first-child{min-width:60px;white-space:nowrap;}
+  /* Truncate description on mobile */
+  .tbl td:nth-child(2){max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* Filter bar - horizontal scroll */
+  .filter-bar{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+  .filter-bar .form-select,.filter-bar .form-input{min-width:110px;flex-shrink:0;}
+
+  /* Modals - full screen on mobile */
+  .modal-overlay{padding:0;align-items:flex-end;}
+  .modal{max-width:100%;width:100%;max-height:92vh;border-radius:var(--radius) var(--radius) 0 0;padding:20px 16px;}
+
+  /* Cards - reduce padding */
+  .card{padding:14px;}
+  .stat-card{padding:12px;}
+
+  /* Stat values smaller on mobile */
+  .stat-val{font-size:17px;}
+
+  /* Sec header stack on mobile */
+  .sec-header{flex-direction:column;align-items:flex-start;gap:10px;}
+  .sec-header > div:last-child{display:flex;flex-wrap:wrap;gap:6px;}
+
+  /* Debt cards - stack stats */
+  .debt-card{padding:12px;}
+
+  /* AI float panel full width */
+  .ai-float-panel{width:calc(100vw - 0px);right:0;bottom:0;height:70vh;border-radius:var(--radius) var(--radius) 0 0;}
+
+  /* Charts - reduce height */
+  canvas{max-height:160px;}
+
+  /* Page title smaller */
+  .topbar-title{font-size:16px;}
+
+  /* Button text shorter on mobile */
+  .btn-sm{padding:5px 8px;font-size:11px;}
+}
+
+/* Extra small phones */
+@media(max-width:380px){
+  .grid4{grid-template-columns:1fr 1fr;}
+  .stat-val{font-size:15px;}
 }
 </style>
 </head>
@@ -182,7 +245,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.1.9 - William R.M.</div>
+    <div class="logo-sub">v2.2.0 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -199,7 +262,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
   <div class="nav-section">AI</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.1.9<br>Cloud sync - Supabase<br>Apr 2026</div>
+  <div class="version-badge">WealthTrack v2.2.0<br>Mobile optimized<br>Apr 2026</div>
 </div>
 
 <div class="main">
@@ -272,9 +335,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <table class="tbl">
         <thead><tr>
           <th style="cursor:pointer;" data-sort="date">Date</th>
-          <th>Description</th><th>Account</th><th>Category</th>
+          <th>Description</th>
+          <th class="col-account">Account</th>
+          <th class="col-category">Category</th>
           <th style="text-align:right;cursor:pointer;" data-sort="amount">Amount</th>
-          <th style="text-align:right;">Balance</th>
+          <th class="col-balance" style="text-align:right;">Balance</th>
           <th></th>
         </tr></thead>
         <tbody id="txn-body"></tbody>
@@ -1554,14 +1619,16 @@ function renderTransactions(){
       if(t.linkedId){var lb=mk('span','linked-badge','Transfer');descDiv.appendChild(lb);}
       tdDesc.appendChild(descDiv);
       if(t.notes){var notesDiv=mk('div','',t.notes);notesDiv.style.cssText='font-size:11px;color:var(--text3);';tdDesc.appendChild(notesDiv);}
-      var tdAcc=mk('td','',a?a.name:t.account); tdAcc.style.cssText='font-size:12px;color:var(--text3);';
-      var tdCat=mk('td',''); var catTag=mk('span','tag tag-gray',t.category); tdCat.appendChild(catTag);
+      var tdAcc=mk('td','col-account',a?a.name:t.account); tdAcc.style.cssText='font-size:12px;color:var(--text3);';
+      var tdCat=mk('td','col-category'); var catTag=mk('span','tag tag-gray',t.category); tdCat.appendChild(catTag);
       var tdAmt=mk('td','amount',(t.type==='income'?'+':'-')+fmt(t.amount));
       tdAmt.style.color=t.type==='income'?'var(--green)':'var(--red)';
-      var tdBal=mk('td','');
+      var tdBal=mk('td','col-balance');
       if(showRunning&&t.date>=cut){
         var rb=computeRunningBalance(t.account,t.id);
-        tdBal.textContent=fmt(rb); tdBal.style.cssText='text-align:right;font-family:var(--font-mono);font-size:12px;color:'+(rb<0?'var(--red)':rb<200?'var(--amber)':'var(--text3)')+';';
+        tdBal.textContent=fmt(rb);
+        tdBal.className='col-balance';
+        tdBal.style.cssText='text-align:right;font-family:var(--font-mono);font-size:12px;color:'+(rb<0?'var(--red)':rb<200?'var(--amber)':'var(--text3)')+';';
       }
       var tdAct=mk('td','');
       var btnEdit=mk('button','btn btn-ghost btn-sm','Edit'); btnEdit.style.marginRight='4px';
