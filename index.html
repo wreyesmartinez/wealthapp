@@ -245,7 +245,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.0 - William R.M.</div>
+    <div class="logo-sub">v2.2.1 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -262,7 +262,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
   <div class="nav-section">AI</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.2.0<br>Mobile optimized<br>Apr 2026</div>
+  <div class="version-badge">WealthTrack v2.2.1<br>Live sync on nav - delete sync<br>Apr 2026</div>
 </div>
 
 <div class="main">
@@ -845,8 +845,8 @@ async function sbUpsert(table,rows){
 }
 
 // ---- SYNC: PUSH single transaction ----
-async function pushTransaction(txn){
-  var row={id:txn.id,data:txn,deleted:false,updated_at:new Date().toISOString()};
+async function pushTransaction(txn, deleted){
+  var row={id:txn.id, data:txn, deleted:deleted===true, updated_at:new Date().toISOString()};
   await sbUpsert('wealthtrack_transactions',[row]);
 }
 
@@ -858,14 +858,24 @@ async function pushSetting(key,value){
 
 // ---- SYNC: PULL and MERGE all data ----
 async function pullAndMerge(){
-  // Pull transactions
-  var rows=await sbGet('wealthtrack_transactions','deleted=eq.false&order=updated_at.asc');
   var changed=false;
+
+  // Pull ALL transactions (including deleted ones)
+  var rows=await sbGet('wealthtrack_transactions','order=updated_at.asc');
+
   rows.forEach(function(row){
-    var existing=db.transactions.find(function(t){return t.id===row.id;});
-    if(!existing){
-      db.transactions.push(row.data);
-      changed=true;
+    if(row.deleted){
+      // Remove from local if present
+      var before=db.transactions.length;
+      db.transactions=db.transactions.filter(function(t){return t.id!==row.id;});
+      if(db.transactions.length!==before) changed=true;
+    } else {
+      // Add if not present locally
+      var existing=db.transactions.find(function(t){return t.id===row.id;});
+      if(!existing){
+        db.transactions.push(row.data);
+        changed=true;
+      }
     }
   });
 
@@ -874,7 +884,6 @@ async function pullAndMerge(){
   settings.forEach(function(row){
     var key=row.key;
     var val=row.value;
-    // Only overwrite if cloud is newer than our local updated_at
     var localTs=db._settingsTs&&db._settingsTs[key]?db._settingsTs[key]:'1970-01-01';
     var cloudTs=row.updated_at||'1970-01-01';
     if(cloudTs>localTs){
@@ -885,11 +894,8 @@ async function pullAndMerge(){
     }
   });
 
-  if(changed){
-    saveLocalOnly();
-    return true;
-  }
-  return false;
+  if(changed) saveLocalOnly();
+  return changed;
 }
 
 // ---- SYNC: PUSH all local data to cloud (initial migration) ----
@@ -914,7 +920,8 @@ async function replayQueue(){
   for(var i=0;i<syncState.queue.length;i++){
     var item=syncState.queue[i];
     try{
-      if(item.type==='txn') await pushTransaction(item.data);
+      if(item.type==='txn') await pushTransaction(item.data, false);
+      else if(item.type==='txn_delete') await pushTransaction(item.data, true);
       else if(item.type==='setting') await pushSetting(item.key,item.value);
     }catch(e){ failed.push(item); }
   }
@@ -1287,6 +1294,22 @@ function nav(page){
   if(ni) ni.classList.add('active');
   el('page-title').textContent=PAGE_TITLES[page]||page;
   if(window.innerWidth<768) el('sidebar').classList.remove('open');
+
+  // Render immediately with local data
+  renderPage(page);
+
+  // Then silently pull remote changes and re-render if anything changed
+  if(syncState.online){
+    pullAndMerge().then(function(changed){
+      if(changed){
+        renderPage(page);
+        setSyncStatus('online','Synced');
+      }
+    }).catch(function(){});
+  }
+}
+
+function renderPage(page){
   if(page==='dashboard') renderDashboard();
   else if(page==='transactions') renderTransactions();
   else if(page==='accounts') renderAccounts();
@@ -1718,9 +1741,31 @@ el('btn-save-edit-txn').addEventListener('click',function(){
 function deleteTxn(id){
   if(!confirm('Delete this transaction?')) return;
   var t=db.transactions.find(function(x){return x.id===id;}); if(!t) return;
-  if(t.linkedId) db.transactions=db.transactions.filter(function(x){return x.linkedId!==t.linkedId;});
-  else db.transactions=db.transactions.filter(function(x){return x.id!==id;});
-  saveData(); renderTransactions(); renderDashboard(); showToast('Deleted');
+  var toDelete=[];
+  if(t.linkedId){
+    toDelete=db.transactions.filter(function(x){return x.linkedId===t.linkedId;});
+    db.transactions=db.transactions.filter(function(x){return x.linkedId!==t.linkedId;});
+  } else {
+    toDelete=[t];
+    db.transactions=db.transactions.filter(function(x){return x.id!==id;});
+  }
+  saveLocalOnly();
+  // Soft delete in Supabase
+  if(syncState.online){
+    toDelete.forEach(function(td){
+      pushTransaction(td, true).catch(function(e){
+        // Queue for retry
+        syncState.queue.push({type:'txn_delete',id:td.id,data:td,ts:new Date().toISOString()});
+        saveSyncQueue();
+      });
+    });
+  } else {
+    toDelete.forEach(function(td){
+      syncState.queue.push({type:'txn_delete',id:td.id,data:td,ts:new Date().toISOString()});
+    });
+    saveSyncQueue();
+  }
+  renderTransactions(); renderDashboard(); showToast('Deleted');
 }
 
 // Transfer modal
