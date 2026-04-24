@@ -245,7 +245,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.1 - William R.M.</div>
+    <div class="logo-sub">v2.2.2 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -257,6 +257,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="paycheque"><span class="nav-icon">&#8853;</span>Paycheque Plan</div>
   <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
   <div class="nav-item" data-page="categories"><span class="nav-icon">&#9632;</span>Categories</div>
+  <div class="nav-item" data-page="recategorize"><span class="nav-icon">&#8635;</span>Re-categorize</div>
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
   <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
@@ -423,6 +424,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </div>
     <div class="alert alert-blue" style="margin-bottom:16px;">Categories are used going forward. Existing transactions keep their original labels.</div>
     <div id="categories-list"></div>
+  </div>
+
+  <div class="page" id="page-recategorize">
+    <div class="sec-header">
+      <div><div class="sec-title">Re-categorize Transactions</div><div class="sec-sub">Preview and apply new categories to historical transactions</div></div>
+      <button class="btn btn-primary btn-sm" id="btn-apply-recat">Apply all changes</button>
+    </div>
+    <div class="alert alert-amber" style="margin-bottom:16px;">This will re-label your existing transactions using the new category system. Review the preview below before applying.</div>
+    <div id="recat-stats" style="margin-bottom:16px;"></div>
+    <div id="recat-preview"></div>
   </div>
 
   <div class="page" id="page-reports">
@@ -1138,31 +1149,66 @@ function buildDefaultData(){
       }
     ],
     customCategories:[
-      {id:'cat-sal',  name:'Salary / Employment',  group:'Income',                color:'#3a7d52'},
-      {id:'cat-free', name:'Freelance / Side income',group:'Income',              color:'#3a7d52'},
-      {id:'cat-int',  name:'Interest earned',       group:'Income',               color:'#3a7d52'},
-      {id:'cat-trfin',name:'Transfer received',     group:'Income',               color:'#3a7d52'},
-      {id:'cat-rent', name:'Rent',                  group:'Housing',              color:'#6b44a8'},
-      {id:'cat-util', name:'Utilities',             group:'Housing',              color:'#6b44a8'},
-      {id:'cat-loan', name:'Loan payment',          group:'Debt payments',        color:'#b84040'},
-      {id:'cat-cc',   name:'Credit card payment',   group:'Debt payments',        color:'#b84040'},
-      {id:'cat-bnpl', name:'Buy now pay later',     group:'Debt payments',        color:'#b84040'},
-      {id:'cat-groc', name:'Groceries',             group:'Living expenses',      color:'#2e6ea6'},
-      {id:'cat-dine', name:'Dining out',            group:'Living expenses',      color:'#c17f3a'},
-      {id:'cat-care', name:'Personal care',         group:'Living expenses',      color:'#c17f3a'},
-      {id:'cat-clth', name:'Clothing',              group:'Living expenses',      color:'#c17f3a'},
-      {id:'cat-hlth', name:'Health / Pharmacy',     group:'Living expenses',      color:'#c17f3a'},
-      {id:'cat-tran', name:'Transit / TTC',         group:'Transport',            color:'#3a6a8a'},
-      {id:'cat-ride', name:'Ride share',            group:'Transport',            color:'#3a6a8a'},
-      {id:'cat-gas',  name:'Gas / Parking',         group:'Transport',            color:'#3a6a8a'},
-      {id:'cat-strm', name:'Streaming',             group:'Subscriptions',        color:'#b07020'},
-      {id:'cat-phon', name:'Phone bill',            group:'Subscriptions',        color:'#b07020'},
-      {id:'cat-soft', name:'Software / Apps',       group:'Subscriptions',        color:'#b07020'},
-      {id:'cat-ins',  name:'Insurance',             group:'Subscriptions',        color:'#b07020'},
-      {id:'cat-itrf', name:'Internal transfer',     group:'Transfers',            color:'#7a7a7a'},
-      {id:'cat-fam',  name:'Sent to family',        group:'Transfers',            color:'#7a7a7a'},
-      {id:'cat-emrg', name:'Emergency / One-time',  group:'Transfers',            color:'#7a7a7a'},
-      {id:'cat-othr', name:'Other',                 group:'Transfers',            color:'#7a7a7a'},
+      // Income
+      {id:'cat-sal',  name:'Salary / Employment',  group:'Income',         color:'#3a7d52'},
+      {id:'cat-side', name:'Side hustles',         group:'Income',         color:'#3a7d52'},
+      {id:'cat-drop', name:'Dropshipping',         group:'Income',         color:'#3a7d52'},
+      {id:'cat-trad', name:'Trading',              group:'Income',         color:'#3a7d52'},
+      {id:'cat-lott', name:'Lotto max',            group:'Income',         color:'#3a7d52'},
+      {id:'cat-lret', name:'Lend (returned)',      group:'Income',         color:'#3a7d52'},
+      // Housing
+      {id:'cat-rent', name:'Rent',                 group:'Housing',        color:'#6b44a8'},
+      {id:'cat-util', name:'Utilities',            group:'Housing',        color:'#6b44a8'},
+      {id:'cat-hdwr', name:'Hardware store',       group:'Housing',        color:'#6b44a8'},
+      {id:'cat-move', name:'Moving',               group:'Housing',        color:'#6b44a8'},
+      {id:'cat-stor', name:'Storage',              group:'Housing',        color:'#6b44a8'},
+      {id:'cat-laun', name:'Laundry',              group:'Housing',        color:'#6b44a8'},
+      // Debt payments
+      {id:'cat-loan', name:'Loan payment',         group:'Debt payments',  color:'#b84040'},
+      {id:'cat-cc',   name:'Credit card payment',  group:'Debt payments',  color:'#b84040'},
+      {id:'cat-bnpl', name:'Buy now pay later',    group:'Debt payments',  color:'#b84040'},
+      {id:'cat-bint', name:'BMO interest',         group:'Debt payments',  color:'#b84040'},
+      {id:'cat-aint', name:'AMEX interest',        group:'Debt payments',  color:'#b84040'},
+      {id:'cat-amzi', name:'AMZ interest',         group:'Debt payments',  color:'#b84040'},
+      // Food
+      {id:'cat-groc', name:'Groceries',            group:'Food',           color:'#2e6ea6'},
+      {id:'cat-hype', name:'Hypermarket',          group:'Food',           color:'#2e6ea6'},
+      {id:'cat-dine', name:'Eat and Drink out',    group:'Food',           color:'#c17f3a'},
+      {id:'cat-work', name:'Food at work',         group:'Food',           color:'#c17f3a'},
+      // Transport
+      {id:'cat-tran', name:'Public transport',     group:'Transport',      color:'#3a6a8a'},
+      {id:'cat-car',  name:'Car',                  group:'Transport',      color:'#3a6a8a'},
+      {id:'cat-gas',  name:'Gas',                  group:'Transport',      color:'#3a6a8a'},
+      {id:'cat-park', name:'Parking',              group:'Transport',      color:'#3a6a8a'},
+      // Health & Personal
+      {id:'cat-hlth', name:'Health',               group:'Health & Personal', color:'#5a8a3a'},
+      {id:'cat-gym',  name:'Gym',                  group:'Health & Personal', color:'#5a8a3a'},
+      {id:'cat-care', name:'Personal Care',        group:'Health & Personal', color:'#5a8a3a'},
+      {id:'cat-hair', name:'Haircut',              group:'Health & Personal', color:'#5a8a3a'},
+      // Shopping
+      {id:'cat-mall', name:'Shopping Mall',        group:'Shopping',       color:'#7a4a7a'},
+      {id:'cat-amzn', name:'Amazon',               group:'Shopping',       color:'#7a4a7a'},
+      {id:'cat-onln', name:'Online',               group:'Shopping',       color:'#7a4a7a'},
+      {id:'cat-gift', name:'Gifts',                group:'Shopping',       color:'#7a4a7a'},
+      // Entertainment
+      {id:'cat-hang', name:'Hanging out',          group:'Entertainment',  color:'#b07020'},
+      {id:'cat-wond', name:'Wonderland',           group:'Entertainment',  color:'#b07020'},
+      {id:'cat-stdy', name:'Study',                group:'Entertainment',  color:'#b07020'},
+      // Subscriptions
+      {id:'cat-subs', name:'Subscriptions',        group:'Subscriptions',  color:'#8a5020'},
+      // Social
+      {id:'cat-dona', name:'Donations',            group:'Social',         color:'#4a7a9a'},
+      {id:'cat-lend', name:'Lend',                 group:'Social',         color:'#4a7a9a'},
+      {id:'cat-borr', name:'Borrow',               group:'Social',         color:'#4a7a9a'},
+      {id:'cat-nmine',name:'Not mine',             group:'Social',         color:'#4a7a9a'},
+      // Other
+      {id:'cat-tax',  name:'Taxes',                group:'Other',          color:'#7a7a7a'},
+      {id:'cat-ins',  name:'Insurance',            group:'Other',          color:'#7a7a7a'},
+      {id:'cat-misc', name:'Miscellaneous',        group:'Other',          color:'#7a7a7a'},
+      {id:'cat-pers', name:'Personal',             group:'Other',          color:'#7a7a7a'},
+      {id:'cat-idrm', name:"I don't remember",   group:'Other',          color:'#7a7a7a'},
+      {id:'cat-frau', name:'Fraud',                group:'Other',          color:'#7a7a7a'},
+      {id:'cat-itrf', name:'Internal transfer',    group:'Other',          color:'#7a7a7a'},
     ],
     aiHistory:[],floatHistory:[],
     sortTxn:{field:'date',dir:'desc'}
@@ -1173,7 +1219,13 @@ function migrateData(d){
   if(!d.cutDate) d.cutDate='2026-04-14';
   if(!d.manualOverrides) d.manualOverrides={};
   if(!d.recurringPayments) d.recurringPayments=buildDefaultData().recurringPayments;
-  if(!d.customCategories) d.customCategories=buildDefaultData().customCategories;
+  // Always refresh customCategories to pick up new additions
+  // Merge: keep any user-added cats (id starts with 'cat-' + timestamp), replace built-ins
+  var defaults=buildDefaultData().customCategories;
+  var userAdded=(d.customCategories||[]).filter(function(c){return !defaults.find(function(x){return x.id===c.id;});});
+  d.customCategories=defaults.concat(userAdded);
+  // Mark if recategorization has been run
+  if(!d.recatDone) d.recatDone=false;
   if(!d.dismissedAlerts) d.dismissedAlerts={};
   if(!d.installmentPlans) d.installmentPlans=[];
   if(!d.installmentPlans.find(function(x){return x.id==='inst1';})){
@@ -1283,7 +1335,7 @@ function checkSetup(){
 }
 
 // ---- NAVIGATION ----
-var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',paycheque:'Paycheque Plan',recurring:'Recurring Payments',categories:'Categories',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
+var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',paycheque:'Paycheque Plan',recurring:'Recurring Payments',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
 
 function nav(page){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -1318,6 +1370,7 @@ function renderPage(page){
   else if(page==='paycheque') renderPaycheque();
   else if(page==='recurring') renderRecurring();
   else if(page==='categories') renderCategories();
+  else if(page==='recategorize') renderRecategorize();
   else if(page==='reports') renderReport();
   else if(page==='import') renderImportPage();
   else if(page==='ai'){renderAIChat();if(getApiKey()&&!db.aiHistory.length) loadAIInsights();}
@@ -2883,7 +2936,179 @@ el('btn-save-edit-category').addEventListener('click',function(){
   showToast('Category updated');
 });
 
-// ---- REPORTS ----
+// ---- RE-CATEGORIZATION ----
+
+// Rules: each rule has keywords to match in description (lowercase) and old categories
+// Returns new category name or null if no match
+var RECAT_RULES = [
+  // INCOME
+  {keywords:['direct deposit','aic','payroll'],          oldCats:['Income','Transfer'],         newCat:'Salary / Employment'},
+  {keywords:['interest earned'],                          oldCats:['Income','Other'],             newCat:'Salary / Employment'},
+  {keywords:['e-transfer received','transfer received'], oldCats:['Income','Transfer'],          newCat:'Salary / Employment'},
+
+  // LOAN PAYMENTS
+  {keywords:['rbc loan','rbc'],                          oldCats:['Debt payment','Transfer'],    newCat:'Loan payment'},
+  {keywords:['amex personal loan','01004'],              oldCats:['Debt payment'],               newCat:'Loan payment'},
+
+  // BUY NOW PAY LATER
+  {keywords:['affirm','uplift','klarna'],                oldCats:['Debt payment'],               newCat:'Buy now pay later'},
+
+  // CREDIT CARD PAYMENTS
+  {keywords:['bmo','e-transfer to bmo'],                 oldCats:['Debt payment','Transfer'],    newCat:'Credit card payment'},
+  {keywords:['rogers','1113'],                           oldCats:['Debt payment'],               newCat:'Credit card payment'},
+  {keywords:['amex','simplycash','54001'],               oldCats:['Debt payment'],               newCat:'Credit card payment'},
+  {keywords:['scotia','visa','9565'],                    oldCats:['Debt payment','Rent'],         newCat:'Credit card payment'},
+  {keywords:['mbna'],                                    oldCats:['Debt payment'],               newCat:'Credit card payment'},
+
+  // RENT
+  {keywords:['rent','chexy'],                            oldCats:['Rent','Debt payment'],        newCat:'Rent'},
+
+  // SUBSCRIPTIONS
+  {keywords:['netflix','spotify','norton','cineplex','cineclub','streaming'], oldCats:['Subscription','Other','Subscriptions'], newCat:'Subscriptions'},
+  {keywords:['phone','rogers 4700','144'],               oldCats:['Subscription'],               newCat:'Subscriptions'},
+
+  // TRANSPORT
+  {keywords:['ttc','presto','transit'],                  oldCats:['Transit','Transit / TTC'],    newCat:'Public transport'},
+  {keywords:['uber','lyft','ride'],                      oldCats:['Transit','Other'],             newCat:'Public transport'},
+
+  // FOOD
+  {keywords:['eggsmart','restaurant','dining'],          oldCats:['Dining','Dining out','Other'], newCat:'Eat and Drink out'},
+  {keywords:['grocery','metro','loblaws','sobeys','nofrills'], oldCats:['Groceries'],            newCat:'Groceries'},
+
+  // SOCIAL / TRANSFERS TO PEOPLE
+  {keywords:['colombia'],                                oldCats:['Other','Transfer'],           newCat:'Lend'},
+
+  // INTERNAL TRANSFERS
+  {keywords:['internal transfer','non-reg','wealthsimple transfer'], oldCats:['Transfer'],       newCat:'Internal transfer'},
+
+  // DEBT INTERESTS
+  {keywords:['interest charges bmo'],                   oldCats:['Other','Debt payment'],       newCat:'BMO interest'},
+  {keywords:['interest charges amex'],                  oldCats:['Other','Debt payment'],       newCat:'AMEX interest'},
+  {keywords:['interest charges mbna','interest charges amazon'], oldCats:['Other'],             newCat:'AMZ interest'},
+
+  // HEALTH
+  {keywords:['pharmacy','shoppers','rexall','health'],  oldCats:['Personal','Other'],           newCat:'Health'},
+
+  // PERSONAL CARE
+  {keywords:['haircut','barbershop','salon'],            oldCats:['Personal','Personal care'],   newCat:'Haircut'},
+
+  // CATCH-ALLS
+  {keywords:['e-transfer out'],                          oldCats:['Transfer'],                   newCat:'I don\'t remember'},
+  {keywords:['online bill payment'],                     oldCats:['Other'],                      newCat:'Credit card payment'},
+];
+
+function getReCatSuggestion(txn){
+  var desc = txn.description.toLowerCase();
+  for(var i=0; i<RECAT_RULES.length; i++){
+    var rule = RECAT_RULES[i];
+    // Check if current category matches rule's old categories (or rule has no oldCat filter)
+    var catMatch = !rule.oldCats || rule.oldCats.some(function(c){
+      return txn.category.toLowerCase()===c.toLowerCase();
+    });
+    if(!catMatch) continue;
+    // Check if any keyword matches description
+    var kwMatch = rule.keywords.some(function(kw){ return desc.includes(kw.toLowerCase()); });
+    if(kwMatch && rule.newCat !== txn.category) return rule.newCat;
+  }
+  // Map remaining old generic categories
+  var oldToNew = {
+    'Debt payment':'Credit card payment',
+    'Transfer':'Internal transfer',
+    'Other':'I don\'t remember',
+    'Subscription':'Subscriptions',
+    'Transit / TTC':'Public transport',
+    'Dining':'Eat and Drink out',
+    'Dining out':'Eat and Drink out',
+    'Personal care':'Personal Care',
+    'Health / Pharmacy':'Health',
+    'Sent to family':'Lend',
+    'Emergency / One-time':'I don\'t remember',
+    'Gas / Parking':'Gas',
+    'Ride share':'Public transport',
+    'Software / Apps':'Subscriptions',
+    'Streaming':'Subscriptions',
+    'Phone bill':'Subscriptions',
+    'Freelance / Side income':'Side hustles',
+    'Transfer received':'Salary / Employment',
+    'Interest earned':'Salary / Employment',
+  };
+  if(oldToNew[txn.category]) return oldToNew[txn.category];
+  return null;
+}
+
+function renderRecategorize(){
+  var suggestions=[];
+  db.transactions.forEach(function(t){
+    var newCat=getReCatSuggestion(t);
+    if(newCat) suggestions.push({txn:t, newCat:newCat});
+  });
+
+  var statsEl=el('recat-stats');
+  statsEl.innerHTML='';
+  var s=mk('div','alert alert-blue',suggestions.length+' transactions will be re-categorized out of '+db.transactions.length+' total.');
+  statsEl.appendChild(s);
+
+  // Group by change
+  var groups={};
+  suggestions.forEach(function(s){
+    var key=s.txn.category+' → '+s.newCat;
+    if(!groups[key]) groups[key]={from:s.txn.category,to:s.newCat,count:0,items:[]};
+    groups[key].count++;
+    groups[key].items.push(s);
+  });
+
+  var previewEl=el('recat-preview'); previewEl.innerHTML='';
+
+  Object.values(groups).sort(function(a,b){return b.count-a.count;}).forEach(function(g){
+    var card=mk('div','card'); card.style.marginBottom='10px';
+    var hdr=mk('div',''); hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;';
+    var left=mk('div','');
+    var arrow=mk('div','');
+    var fromEl=mk('span','tag tag-gray',g.from); arrow.appendChild(fromEl);
+    var sep=mk('span','','  →  '); sep.style.cssText='color:var(--text3);margin:0 6px;';arrow.appendChild(sep);
+    var toEl=mk('span','tag tag-green',g.to); arrow.appendChild(toEl);
+    left.appendChild(arrow);
+    var countEl=mk('div','',g.count+' transactions'); countEl.style.cssText='font-size:12px;color:var(--text3);margin-top:4px;';
+    left.appendChild(countEl);
+    // Show first 3 examples
+    var examples=g.items.slice(0,3).map(function(i){return i.txn.date+' '+i.txn.description.substring(0,35);}).join(' / ');
+    var exEl=mk('div','',examples); exEl.style.cssText='font-size:11px;color:var(--text3);margin-top:3px;font-style:italic;';
+    left.appendChild(exEl);
+    hdr.appendChild(left);
+    card.appendChild(hdr);
+    previewEl.appendChild(card);
+  });
+
+  if(!suggestions.length){
+    var none=mk('div','alert alert-green','All transactions already use the new categories. Nothing to change.');
+    previewEl.appendChild(none);
+    el('btn-apply-recat').style.display='none';
+  }
+}
+
+el('btn-apply-recat').addEventListener('click',function(){
+  if(!confirm('Apply re-categorization to '+db.transactions.length+' transactions? This cannot be undone.')) return;
+  var count=0;
+  db.transactions.forEach(function(t){
+    var newCat=getReCatSuggestion(t);
+    if(newCat){ t.category=newCat; count++; }
+  });
+  db.recatDone=true;
+  saveData(null,'transactions');
+  // Also push all transactions since categories changed
+  if(syncState.online){
+    setSyncStatus('syncing','Syncing re-categorization...');
+    var rows=db.transactions.map(function(t){return{id:t.id,data:t,deleted:false,updated_at:new Date().toISOString()};});
+    sbUpsert('wealthtrack_transactions',rows).then(function(){
+      setSyncStatus('online','Synced');
+    }).catch(function(){ setSyncStatus('error','Sync error'); });
+  }
+  showToast(count+' transactions re-categorized');
+  renderRecategorize();
+  renderDashboard();
+});
+
+
 function renderReport(){
   var mo=el('report-month').value, grp=el('report-group').value;
   var txns=db.transactions.slice();
