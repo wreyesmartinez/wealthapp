@@ -245,7 +245,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.4 - William R.M.</div>
+    <div class="logo-sub">v2.2.5 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2364,12 +2364,11 @@ function makeEnvelopeCard(env, spent, clickable){
   var warn=pct>=80&&!over;
   var barColor=over?'var(--red)':warn?'var(--amber)':env.color;
 
-  var card=mk('div','card'); card.style.cssText='margin-bottom:10px;border-left:4px solid '+env.color+';cursor:'+(clickable?'pointer':'default')+';';
-  if(clickable){
-    card.addEventListener('click',function(){openEnvelopeDetail(env.id);});
-    card.onmouseenter=function(){card.style.background='var(--bg3)';};
-    card.onmouseleave=function(){card.style.background='';};
-  }
+  var card=mk('div','card'); card.style.cssText='margin-bottom:10px;border-left:4px solid '+env.color+';cursor:pointer;';
+  // Always clickable — opens transaction detail
+  card.addEventListener('click',function(){openEnvelopeDetail(env.id);});
+  card.onmouseenter=function(){card.style.background='var(--bg3)';};
+  card.onmouseleave=function(){card.style.background='';};
 
   var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;';
   var left=mk('div',''); left.style.flex='1';
@@ -2406,12 +2405,12 @@ function makeEnvelopeCard(env, spent, clickable){
     hint.style.cssText='font-size:10px;color:var(--text3);margin-top:6px;text-align:right;';
     card.appendChild(top); card.appendChild(pw); card.appendChild(hint);
   }else{
+    // Budget page: show transactions hint + edit/remove buttons
     card.appendChild(top); card.appendChild(pw);
-  }
-
-  // Edit/delete buttons (non-clickable cards = budget page)
-  if(!clickable){
-    var footer=mk('div',''); footer.style.cssText='margin-top:10px;display:flex;justify-content:flex-end;gap:6px;';
+    var footer=mk('div',''); footer.style.cssText='margin-top:10px;display:flex;justify-content:space-between;align-items:center;';
+    var hint2=mk('div','','Tap card to see transactions');
+    hint2.style.cssText='font-size:10px;color:var(--text3);';
+    var btnGroup=mk('div',''); btnGroup.style.cssText='display:flex;gap:6px;';
     var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
     editBtn.style.fontSize='11px';
     editBtn.addEventListener('click',function(e){e.stopPropagation();openEditEnvelope(env.id);});
@@ -2423,7 +2422,8 @@ function makeEnvelopeCard(env, spent, clickable){
       db.budgetEnvelopes=db.budgetEnvelopes.filter(function(x){return x.id!==env.id;});
       saveData(null,'budgetEnvelopes'); renderBudget(); renderDashboard(); showToast('Removed');
     });
-    footer.appendChild(editBtn); footer.appendChild(delBtn);
+    btnGroup.appendChild(editBtn); btnGroup.appendChild(delBtn);
+    footer.appendChild(hint2); footer.appendChild(btnGroup);
     card.appendChild(footer);
   }
   return card;
