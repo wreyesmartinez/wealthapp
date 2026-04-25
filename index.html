@@ -245,7 +245,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.3 - William R.M.</div>
+    <div class="logo-sub">v2.2.4 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -289,6 +289,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
   <div class="page active" id="page-dashboard">
     <div id="dashboard-alerts" style="margin-bottom:16px;"></div>
+    <div id="monthly-review-banner" style="display:none;margin-bottom:16px;"></div>
     <div class="grid4" style="margin-bottom:18px;">
       <div class="stat-card"><div class="stat-label">Chequing balance</div><div class="stat-val" id="stat-chequing" style="color:var(--green);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">Wealthsimple live</div></div>
       <div class="stat-card"><div class="stat-label">Monthly income</div><div class="stat-val" style="color:var(--blue);">$5,719</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">2 paycheques/mo</div></div>
@@ -352,7 +353,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="page" id="page-budget">
     <div class="sec-header">
       <div><div class="sec-title">Budget</div><div class="sec-sub" id="budget-month-label">April 2026</div></div>
-      <button class="btn btn-sm btn-ai" id="btn-ai-budget">AI Budget Review</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm btn-ai" id="btn-monthly-review">Monthly Review</button>
+        <button class="btn btn-sm btn-ai" id="btn-ai-budget">AI Budget Review</button>
+      </div>
     </div>
     <div id="budget-alerts" style="margin-bottom:8px;"></div>
     <div style="margin-bottom:24px;">
@@ -694,6 +698,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-debt">Cancel</button>
       <button class="btn btn-primary" id="btn-save-edit-debt">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-monthly-review">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-title">Monthly Budget Review</div>
+    <div id="review-month-label" style="font-size:12px;color:var(--text3);margin-bottom:16px;"></div>
+    <div id="review-content"></div>
+    <div class="modal-footer" style="flex-wrap:wrap;gap:8px;">
+      <button class="btn btn-ghost" id="btn-close-review">Close</button>
+      <button class="btn btn-primary" id="btn-apply-review-suggestions">Apply suggested limits</button>
+      <button class="btn btn-ai" id="btn-ask-ai-review">Ask AI for deeper analysis</button>
     </div>
   </div>
 </div>
@@ -1269,6 +1286,7 @@ function migrateData(d){
   d.customCategories=defaults.concat(userAdded);
   // Mark if recategorization has been run
   if(!d.recatDone) d.recatDone=false;
+  if(!d.lastMonthlyReview) d.lastMonthlyReview=null;
   if(!d.dismissedAlerts) d.dismissedAlerts={};
   if(!d.installmentPlans) d.installmentPlans=[];
   if(!d.installmentPlans.find(function(x){return x.id==='inst1';})){
@@ -1575,6 +1593,8 @@ function renderDashboard(){
     .reduce(function(s,a){return s+Math.abs(computeLiveBalance(a.id));},0);
   el('stat-debt').textContent=fmt(totalDebt);
   renderAlerts(); renderBudgetProgress(); renderUpcoming();
+  // Check if monthly review should auto-trigger
+  if(getApiKey()) checkMonthlyReviewTrigger();
   setTimeout(function(){
     var cats={};
     db.transactions.filter(function(t){return t.date.startsWith('2026-04')&&t.type==='expense';})
@@ -1910,6 +1930,249 @@ function exportCSV(){
 }
 el('btn-export-csv').addEventListener('click',exportCSV);
 el('btn-export-csv2').addEventListener('click',exportCSV);
+
+// ---- MONTHLY REVIEW ----
+
+function getPrevMonth(){
+  var d=new Date();
+  d.setDate(1); d.setMonth(d.getMonth()-1);
+  return d.toISOString().substring(0,7);
+}
+
+function getPrevMonthLabel(){
+  var d=new Date();
+  d.setDate(1); d.setMonth(d.getMonth()-1);
+  return d.toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+}
+
+// Check if we should auto-show review (new month, not yet shown this month)
+function checkMonthlyReviewTrigger(){
+  var thisMonth=getCurrentMonth();
+  if(db.lastMonthlyReview===thisMonth) return; // already shown this month
+  var prevMonth=getPrevMonth();
+  // Only show if there's data from last month
+  var prevTxns=db.transactions.filter(function(t){return t.date.startsWith(prevMonth);});
+  if(!prevTxns.length) return;
+  // Show the banner after a short delay
+  setTimeout(function(){showMonthlyReviewBanner();},1500);
+}
+
+function showMonthlyReviewBanner(){
+  var banner=el('monthly-review-banner'); if(!banner) return;
+  banner.innerHTML='';
+  var card=mk('div',''); card.style.cssText='background:var(--purple-bg);border:1px solid rgba(107,68,168,.25);border-radius:var(--radius);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;';
+  var left=mk('div','');
+  var title=mk('div','','Monthly Budget Review Ready'); title.style.cssText='font-size:14px;font-weight:600;color:var(--purple);';
+  var sub=mk('div','',getPrevMonthLabel()+' is done. See how you did and get suggestions for this month.'); sub.style.cssText='font-size:12px;color:var(--text2);margin-top:3px;';
+  left.appendChild(title); left.appendChild(sub);
+  var btn=mk('button','btn btn-ai btn-sm','Review now');
+  btn.addEventListener('click',function(){openMonthlyReview();});
+  var dismissBtn=mk('button','btn btn-ghost btn-sm','Dismiss');
+  dismissBtn.style.fontSize='11px';
+  dismissBtn.addEventListener('click',function(){
+    db.lastMonthlyReview=getCurrentMonth();
+    saveData(null,'lastMonthlyReview');
+    banner.style.display='none';
+  });
+  var btns=mk('div',''); btns.style.cssText='display:flex;gap:6px;';
+  btns.appendChild(btn); btns.appendChild(dismissBtn);
+  card.appendChild(left); card.appendChild(btns);
+  banner.appendChild(card);
+  banner.style.display='block';
+}
+
+// Suggestions cache so we can apply them
+var _reviewSuggestions=[];
+
+function openMonthlyReview(){
+  var prevMonth=getPrevMonth();
+  var prevLabel=getPrevMonthLabel();
+  el('review-month-label').textContent='Reviewing: '+prevLabel;
+  var content=el('review-content'); content.innerHTML='';
+  _reviewSuggestions=[];
+
+  var spent=getSpentByCategory(prevMonth);
+
+  // Build analysis per envelope
+  var overBudget=[], underBudget=[], onTrack=[];
+  var totalFreeable=0;
+
+  db.budgetEnvelopes.forEach(function(env){
+    var s=getEnvelopeSpent(env,spent);
+    var pct=env.limit>0?(s/env.limit)*100:0;
+    if(s>env.limit){
+      overBudget.push({env:env, spent:s, pct:pct});
+    } else if(pct<70){
+      // Suggest lowering to 110% of actual spend (give 10% buffer)
+      var suggested=Math.max(10, Math.round(s*1.1/5)*5); // round to nearest $5
+      var saving=env.limit-suggested;
+      if(saving>=5){ // only suggest if saving is meaningful
+        underBudget.push({env:env, spent:s, pct:pct, suggested:suggested, saving:saving});
+        totalFreeable+=saving;
+        _reviewSuggestions.push({envId:env.id, newLimit:suggested});
+      } else {
+        onTrack.push({env:env, spent:s, pct:pct});
+      }
+    } else {
+      onTrack.push({env:env, spent:s, pct:pct});
+    }
+  });
+
+  // Find best debt to allocate freed money to
+  var debts=db.accounts.filter(function(a){return (a.type==='Credit card'||a.type==='Loan')&&computeLiveBalance(a.id)<0;});
+  debts.sort(function(a,b){
+    // Sort by rate desc (highest interest first)
+    var ra=parseFloat(a.rate)||0, rb=parseFloat(b.rate)||0;
+    return rb-ra;
+  });
+  var topDebt=debts[0];
+
+  // ---- RENDER OVER BUDGET ----
+  if(overBudget.length){
+    var sec=mk('div',''); sec.style.marginBottom='20px';
+    var hdr=mk('div',''); hdr.style.cssText='font-size:12px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px;';
+    hdr.appendChild(mk('span','','Over budget - reduce spending'));
+    sec.appendChild(hdr);
+    overBudget.forEach(function(item){
+      var card=mk('div','card'); card.style.cssText='margin-bottom:8px;border-left:4px solid var(--red);';
+      var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:center;';
+      var nameEl=mk('div',''); nameEl.style.cssText='font-size:14px;font-weight:600;';
+      var dot=mk('span',''); dot.style.cssText='display:inline-block;width:9px;height:9px;border-radius:50%;background:'+item.env.color+';margin-right:7px;';
+      nameEl.appendChild(dot); nameEl.appendChild(document.createTextNode(item.env.name));
+      var amtEl=mk('div',''); amtEl.style.cssText='text-align:right;';
+      var spent2=mk('div','',fmt(item.spent)+' spent / '+fmt(item.env.limit)+' limit'); spent2.style.cssText='font-family:var(--font-mono);font-size:12px;color:var(--red);';
+      var over=mk('div','',fmt(item.spent-item.env.limit)+' over ('+Math.round(item.pct)+'%)'); over.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
+      amtEl.appendChild(spent2); amtEl.appendChild(over);
+      top.appendChild(nameEl); top.appendChild(amtEl);
+      var advice=mk('div','','Consider reducing spending in: '+item.env.categories.join(', '));
+      advice.style.cssText='font-size:12px;color:var(--text2);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);';
+      card.appendChild(top); card.appendChild(advice);
+      sec.appendChild(card);
+    });
+    content.appendChild(sec);
+  }
+
+  // ---- RENDER UNDER BUDGET (suggestions) ----
+  if(underBudget.length){
+    var sec2=mk('div',''); sec2.style.marginBottom='20px';
+    var hdr2=mk('div',''); hdr2.style.cssText='font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;';
+    hdr2.textContent='Suggested limit reductions';
+    sec2.appendChild(hdr2);
+    underBudget.forEach(function(item){
+      var card=mk('div','card'); card.style.cssText='margin-bottom:8px;border-left:4px solid var(--green);';
+      var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;';
+      var left=mk('div',''); left.style.flex='1';
+      var nameEl=mk('div',''); nameEl.style.cssText='font-size:14px;font-weight:600;margin-bottom:4px;';
+      var dot=mk('span',''); dot.style.cssText='display:inline-block;width:9px;height:9px;border-radius:50%;background:'+item.env.color+';margin-right:7px;';
+      nameEl.appendChild(dot); nameEl.appendChild(document.createTextNode(item.env.name));
+      var detail=mk('div','','Spent '+fmt(item.spent)+' of '+fmt(item.env.limit)+' ('+Math.round(item.pct)+'%)');
+      detail.style.cssText='font-size:12px;color:var(--text3);';
+      left.appendChild(nameEl); left.appendChild(detail);
+      var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+      var arrow=mk('div',''); arrow.style.cssText='font-family:var(--font-mono);font-size:13px;';
+      var fromEl=mk('span','',fmt(item.env.limit)); fromEl.style.cssText='text-decoration:line-through;color:var(--text3);';
+      var toEl=mk('span','','  →  '+fmt(item.suggested)); toEl.style.color='var(--green)'; toEl.style.fontWeight='600';
+      arrow.appendChild(fromEl); arrow.appendChild(toEl);
+      var saving=mk('div','','Saves '+fmt(item.saving)+'/month'); saving.style.cssText='font-size:11px;color:var(--green);margin-top:3px;';
+      right.appendChild(arrow); right.appendChild(saving);
+      top.appendChild(left); top.appendChild(right);
+      card.appendChild(top);
+      sec2.appendChild(card);
+    });
+    // Total savings and debt allocation
+    if(totalFreeable>0&&topDebt){
+      var summary=mk('div',''); summary.style.cssText='background:var(--green-bg);border:1px solid rgba(58,125,82,.2);border-radius:var(--radius-sm);padding:14px;margin-top:12px;';
+      var s1=mk('div',''); s1.style.cssText='font-size:14px;font-weight:600;color:var(--green);margin-bottom:6px;';
+      s1.textContent='Total freed: '+fmt(totalFreeable)+'/month';
+      var s2=mk('div','','Recommended: put toward '+topDebt.name+' ('+topDebt.rate+')');
+      s2.style.cssText='font-size:13px;color:var(--text2);';
+      var bal=Math.abs(computeLiveBalance(topDebt.id));
+      var moSaved=topDebt.monthlyPayment>0?Math.ceil(bal/(topDebt.monthlyPayment+totalFreeable)):null;
+      if(moSaved){
+        var moNow=topDebt.monthlyPayment>0?Math.ceil(bal/topDebt.monthlyPayment):null;
+        if(moNow&&moSaved<moNow){
+          var s3=mk('div','','Pays off '+moNow+' months → '+moSaved+' months ('+(moNow-moSaved)+' months sooner)');
+          s3.style.cssText='font-size:12px;color:var(--green);margin-top:4px;font-weight:600;';
+          summary.appendChild(s1); summary.appendChild(s2); summary.appendChild(s3);
+        } else {
+          summary.appendChild(s1); summary.appendChild(s2);
+        }
+      } else {
+        summary.appendChild(s1); summary.appendChild(s2);
+      }
+      sec2.appendChild(summary);
+    }
+    content.appendChild(sec2);
+  }
+
+  // ---- ON TRACK ----
+  if(onTrack.length){
+    var sec3=mk('div',''); sec3.style.marginBottom='20px';
+    var hdr3=mk('div',''); hdr3.style.cssText='font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;';
+    hdr3.textContent='On track';
+    sec3.appendChild(hdr3);
+    var row=mk('div',''); row.style.cssText='display:flex;flex-wrap:wrap;gap:8px;';
+    onTrack.forEach(function(item){
+      var pill=mk('div','');
+      pill.style.cssText='padding:6px 12px;border-radius:20px;font-size:12px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;gap:6px;';
+      var dot=mk('span',''); dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+item.env.color+';';
+      pill.appendChild(dot);
+      pill.appendChild(document.createTextNode(item.env.name+' ('+Math.round(item.pct)+'%)'));
+      row.appendChild(pill);
+    });
+    sec3.appendChild(row);
+    content.appendChild(sec3);
+  }
+
+  if(!overBudget.length&&!underBudget.length&&!onTrack.length){
+    content.appendChild(mk('div','alert alert-blue','No budget envelopes set up yet. Go to Budget to create some.'));
+  }
+
+  // Show/hide apply button
+  el('btn-apply-review-suggestions').style.display=_reviewSuggestions.length?'inline-flex':'none';
+
+  openModal('modal-monthly-review');
+}
+
+el('btn-close-review').addEventListener('click',function(){
+  db.lastMonthlyReview=getCurrentMonth();
+  saveData(null,'lastMonthlyReview');
+  closeModal('modal-monthly-review');
+  el('monthly-review-banner').style.display='none';
+});
+
+el('btn-apply-review-suggestions').addEventListener('click',function(){
+  if(!_reviewSuggestions.length) return;
+  if(!confirm('Apply '+_reviewSuggestions.length+' limit changes?')) return;
+  _reviewSuggestions.forEach(function(s){
+    var env=db.budgetEnvelopes.find(function(e){return e.id===s.envId;});
+    if(env) env.limit=s.newLimit;
+  });
+  saveData(null,'budgetEnvelopes');
+  showToast(_reviewSuggestions.length+' budget limits updated');
+  _reviewSuggestions=[];
+  el('btn-apply-review-suggestions').style.display='none';
+  closeModal('modal-monthly-review');
+  el('monthly-review-banner').style.display='none';
+  db.lastMonthlyReview=getCurrentMonth();
+  saveData(null,'lastMonthlyReview');
+  renderBudget(); renderDashboard();
+});
+
+el('btn-ask-ai-review').addEventListener('click',function(){
+  var prevMonth=getPrevMonth();
+  var prevLabel=getPrevMonthLabel();
+  var spent=getSpentByCategory(prevMonth);
+  var summary=db.budgetEnvelopes.map(function(env){
+    var s=getEnvelopeSpent(env,spent);
+    return env.name+': spent '+fmt(s)+' of '+fmt(env.limit);
+  }).join(', ');
+  closeModal('modal-monthly-review');
+  askAI('Do a deep monthly budget review for '+prevLabel+'. Here is my spending vs limits: '+summary+'. Which envelopes should I adjust? How much money could I free up for debt payments? Be specific with numbers.');
+});
+
+el('btn-monthly-review').addEventListener('click',function(){openMonthlyReview();});
+el('btn-ai-budget').addEventListener('click',function(){askAI('Review my budget. Are my envelope limits realistic based on actual spending?');});
 
 // ---- BUDGET ----
 
@@ -3681,7 +3944,6 @@ el('btn-save-ai-settings').addEventListener('click',function(){
 
 // AI shortcuts from other pages
 el('btn-ai-txn').addEventListener('click',function(){askAI('Analyse my recent transactions. Any unusual patterns or risks?');});
-el('btn-ai-budget').addEventListener('click',function(){askAI('Review my budget. Are my limits realistic?');});
 el('btn-ai-debts').addEventListener('click',function(){askAI('What is the best order to pay off my debts? Compare avalanche and snowball, factor in 0% deadlines.');});
 el('btn-ai-report').addEventListener('click',function(){askAI('Generate my weekly financial summary comparing this month to last month.');});
 el('btn-ask-payments').addEventListener('click',function(){askAI('What payments are coming up this month and do I have enough to cover them?');});
