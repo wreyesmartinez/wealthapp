@@ -207,6 +207,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   .ai-float-panel{width:calc(100vw - 0px);right:0;bottom:0;height:70vh;border-radius:var(--radius) var(--radius) 0 0;}
 
   /* Charts - reduce height */
+  /* Recurring grid - 1 col on mobile */
+  #recurring-list > div > div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important;}
+
   canvas{max-height:160px;}
 
   /* Page title smaller */
@@ -245,7 +248,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.5 - William R.M.</div>
+    <div class="logo-sub">v2.2.6 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2492,22 +2495,23 @@ function renderBudget(){
   // ---- FIXED OBLIGATIONS ----
   var fixedList=el('fixed-obligations-list'); fixedList.innerHTML='';
   var fixedTotal=0, fixedPaid=0;
-  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp){
+  // Wrap in a single card as a list
+  var fixedWrap=mk('div','card'); fixedWrap.style.padding='0';
+  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp,idx,arr){
     fixedTotal+=rp.amount;
     var status=getPaymentStatus(rp,month);
     if(status.paid) fixedPaid+=rp.amount;
-    var card=mk('div','card'); card.style.cssText='margin-bottom:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;';
-    var left=mk('div',''); left.style.flex='1';
-    var nameRow=mk('div',''); nameRow.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;';
-    var icon=mk('span','',status.paid?'v':'o'); icon.style.cssText='color:'+(status.paid?'var(--green)':'var(--text3)')+';font-size:14px;';
-    var nameEl=mk('span','',rp.name); if(status.paid) nameEl.style.textDecoration='line-through'; nameEl.style.color=status.paid?'var(--text3)':'var(--text)';
-    nameRow.appendChild(icon); nameRow.appendChild(nameEl);
-    var dueEl=mk('div','','Due ~'+rp.expectedDay+'th'); dueEl.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
-    left.appendChild(nameRow); left.appendChild(dueEl);
+    var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:11px 16px;'+(idx<arr.length-1?'border-bottom:1px solid var(--border);':'');
+    var icon=mk('span','',status.paid?'✓':'○'); icon.style.cssText='font-size:14px;color:'+(status.paid?'var(--green)':'var(--text3)')+';flex-shrink:0;width:18px;';
+    var mid=mk('div',''); mid.style.flex='1';
+    var nameEl=mk('span','',rp.name); nameEl.style.cssText='font-size:13px;font-weight:500;color:'+(status.paid?'var(--text3)':'var(--text)')+(status.paid?';text-decoration:line-through':'');
+    var dueEl=mk('span','','  ·  Due ~'+rp.expectedDay+'th'); dueEl.style.cssText='font-size:11px;color:var(--text3);';
+    mid.appendChild(nameEl); mid.appendChild(dueEl);
     var amtEl=mk('span','',fmt(rp.amount)); amtEl.style.cssText='font-family:var(--font-mono);font-size:13px;font-weight:600;color:'+(status.paid?'var(--green)':'var(--text2)')+';flex-shrink:0;';
-    card.appendChild(left); card.appendChild(amtEl);
-    fixedList.appendChild(card);
+    row.appendChild(icon); row.appendChild(mid); row.appendChild(amtEl);
+    fixedWrap.appendChild(row);
   });
+  fixedList.appendChild(fixedWrap);
   var ftb=el('fixed-total-badge'); ftb.innerHTML='';
   var fb=mk('div',''); var fbAmt=mk('div','',fmt(fixedPaid)+' paid / '+fmt(fixedTotal)+' total'); fbAmt.style.cssText='font-family:var(--font-mono);font-size:13px;color:var(--text2);text-align:right;';
   var ftPct=fixedTotal>0?Math.round((fixedPaid/fixedTotal)*100):0;
@@ -3223,45 +3227,83 @@ function renderPaycheque(){
 el('btn-go-recurring').addEventListener('click',function(){nav('recurring');});
 
 // ---- RECURRING ----
+// Category color for recurring payments
+var RP_CAT_COLORS={
+  'Loan payment':'#b84040','Credit card payment':'#b84040','Buy now pay later':'#b84040',
+  'Rent':'#6b44a8','Utilities':'#6b44a8',
+  'Subscriptions':'#8a5020','Phone bill':'#8a5020',
+  'Transfer':'#2e6ea6','Internal transfer':'#2e6ea6',
+  'Debt payment':'#b84040'
+};
+function rpColor(cat){ return RP_CAT_COLORS[cat]||'#7a7a7a'; }
+
 function renderRecurring(){
   var yearMonth=new Date().toISOString().substring(0,7);
   var c=el('recurring-list'); c.innerHTML='';
   [1,2].forEach(function(pcNum){
     var items=db.recurringPayments.filter(function(r){return r.paycheque===pcNum;});
-    var hdr=mk('div','','Paycheque '+pcNum+' payments'); hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin:16px 0 8px;';
+    var hdr=mk('div','');
+    hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin:'+(pcNum===1?'0':'20px')+' 0 10px;';
+    hdr.textContent='Paycheque '+pcNum+' payments';
     c.appendChild(hdr);
-    if(!items.length){var none=mk('div','','None');none.style.cssText='color:var(--text3);font-size:13px;padding:8px 0;';c.appendChild(none);return;}
+    if(!items.length){
+      var none=mk('div','','None'); none.style.cssText='color:var(--text3);font-size:13px;padding:8px 0;';
+      c.appendChild(none); return;
+    }
+    // 2-column grid
+    var grid=mk('div',''); grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;';
     items.forEach(function(rp){
       var status=getPaymentStatus(rp,yearMonth);
-      var card=mk('div','card'); card.style.cssText='margin-bottom:10px;'+(rp.active?'':'opacity:0.5;');
-      var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;';
-      var left=mk('div',''); left.style.flex='1';
-      var title=mk('div',''); title.style.cssText='font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;';
-      var statusIcon=mk('span','',status.paid?'v':'o'); statusIcon.style.color=status.paid?'var(--green)':'var(--text3)';
-      var nameEl=mk('span','',rp.name);
-      var pcTag=mk('span','tag tag-'+(rp.paycheque===1?'blue':'green'),'PC'+rp.paycheque);
-      if(!rp.active){var inact=mk('span','tag tag-gray','inactive');title.appendChild(inact);}
-      title.appendChild(statusIcon); title.appendChild(nameEl); title.appendChild(pcTag);
-      var sub=mk('div','',fmt(rp.amount)+' - Due ~'+rp.expectedDay+'th +/-'+(rp.tolerance||5)+' days - '+( rp.category||'Other'));
-      sub.style.cssText='font-size:12px;color:var(--text3);margin-top:4px;';
-      left.appendChild(title); left.appendChild(sub);
-      if(status.txn){var match=mk('div','','Matched: '+status.txn.date+' - '+status.txn.description+' ('+fmt(status.txn.amount)+')'); match.style.cssText='font-size:11px;color:var(--green);margin-top:3px;'; left.appendChild(match);}
-      var right=mk('div',''); right.style.cssText='display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;';
-      var markBtn=mk('button','btn btn-ghost btn-sm',status.paid?'Mark unpaid':'Mark paid');
-      markBtn.style.fontSize='11px';
+      var color=rpColor(rp.category);
+      var card=mk('div','card');
+      card.style.cssText='padding:12px 14px;border-left:4px solid '+color+';'+(rp.active?'':'opacity:0.5;')+(status.paid?'background:var(--green-bg);':'');
+
+      // Header row: status icon + name + PC tag
+      var hdrRow=mk('div',''); hdrRow.style.cssText='display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;';
+      var icon=mk('span','',status.paid?'✓':'○');
+      icon.style.cssText='font-size:15px;color:'+(status.paid?'var(--green)':'var(--text3)')+';flex-shrink:0;margin-top:1px;';
+      var nameEl=mk('div','',rp.name);
+      nameEl.style.cssText='font-size:13px;font-weight:600;flex:1;color:'+(status.paid?'var(--text3)':'var(--text)')+(status.paid?';text-decoration:line-through':'');
+      hdrRow.appendChild(icon); hdrRow.appendChild(nameEl);
+      if(!rp.active){var inact=mk('span','tag tag-gray','off');inact.style.fontSize='9px';hdrRow.appendChild(inact);}
+      card.appendChild(hdrRow);
+
+      // Amount + due date row
+      var meta=mk('div',''); meta.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
+      var amtEl=mk('span','',fmt(rp.amount)); amtEl.style.cssText='font-family:var(--font-mono);font-size:14px;font-weight:700;color:'+(status.paid?'var(--green)':color)+';';
+      var dueEl=mk('span','','~'+rp.expectedDay+'th'); dueEl.style.cssText='font-size:11px;color:var(--text3);';
+      meta.appendChild(amtEl); meta.appendChild(dueEl);
+      card.appendChild(meta);
+
+      // Match info
+      if(status.txn){
+        var match=mk('div','','✓ '+status.txn.date+' '+fmt(status.txn.amount));
+        match.style.cssText='font-size:10px;color:var(--green);margin-bottom:8px;';
+        card.appendChild(match);
+      }
+
+      // Action buttons row
+      var btns=mk('div',''); btns.style.cssText='display:flex;gap:4px;flex-wrap:wrap;';
+      var markBtn=mk('button','btn btn-ghost btn-sm',status.paid?'Unmark':'Mark paid');
+      markBtn.style.cssText='font-size:10px;padding:3px 7px;';
       markBtn.addEventListener('click',function(){toggleManual(rp.id,yearMonth,!status.paid);renderRecurring();renderPaycheque();});
       var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
+      editBtn.style.cssText='font-size:10px;padding:3px 7px;';
       editBtn.addEventListener('click',function(){openEditRecurring(rp.id);});
-      var toggleBtn=mk('button','btn btn-ghost btn-sm',rp.active?'Deactivate':'Activate');
-      toggleBtn.style.fontSize='11px';
+      var toggleBtn=mk('button','btn btn-ghost btn-sm',rp.active?'Off':'On');
+      toggleBtn.style.cssText='font-size:10px;padding:3px 7px;';
       toggleBtn.addEventListener('click',function(){rp.active=!rp.active;saveData(null,'recurringPayments');renderRecurring();renderPaycheque();showToast(rp.active?'Activated':'Deactivated');});
-      var delBtn=mk('button','btn btn-danger btn-sm','X');
+      var delBtn=mk('button','btn btn-danger btn-sm','✕');
+      delBtn.style.cssText='font-size:10px;padding:3px 7px;';
       delBtn.addEventListener('click',function(){if(!confirm('Remove?')) return; db.recurringPayments=db.recurringPayments.filter(function(x){return x.id!==rp.id;}); saveData(); renderRecurring(); renderPaycheque(); showToast('Removed');});
-      right.appendChild(markBtn); right.appendChild(editBtn); right.appendChild(toggleBtn); right.appendChild(delBtn);
-      top.appendChild(left); top.appendChild(right); card.appendChild(top); c.appendChild(card);
+      btns.appendChild(markBtn); btns.appendChild(editBtn); btns.appendChild(toggleBtn); btns.appendChild(delBtn);
+      card.appendChild(btns);
+      grid.appendChild(card);
     });
+    c.appendChild(grid);
   });
 }
+
 
 el('btn-add-recurring').addEventListener('click',function(){
   fillCatSelect('rp-category',false,'Loan payment');
