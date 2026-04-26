@@ -239,7 +239,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.8 - William R.M.</div>
+    <div class="logo-sub">v2.2.9 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -256,7 +256,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
   <div class="nav-item" data-page="recategorize"><span class="nav-icon">&#8635;</span>Re-categorize</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.2.8<br>Accounts dense list + roadmap<br>Apr 2026</div>
+  <div class="version-badge">WealthTrack v2.2.9<br>Brand logos - split CC/loans<br>Apr 2026</div>
 </div>
 
 <div class="main">
@@ -2569,147 +2569,148 @@ el('btn-add-varbudget') && el('btn-add-varbudget').addEventListener('click',func
 
 // ---- ACCOUNTS ----
 
-function renderAccounts(){
-  el('cut-date-display').textContent=fmtDate(db.cutDate);
+function makeAssetRow(a, isLast){
+  var live=computeLiveBalance(a.id);
+  var change=live-(a.openingBalance||0);
+  var ident=getDebtIdentity(a.id)||{initials:a.name.substring(0,2).toUpperCase(),color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'};
+  var row=mk('div','');
+  row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(isLast?'':'border-bottom:0.5px solid var(--border);');
+  row.appendChild(makeLogoBadge(ident,38));
+  var mid=mk('div',''); mid.style.cssText='flex:1;min-width:0;';
+  var name=mk('div','',a.name); name.style.cssText='font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+  var sub=mk('div','',a.type+' · CAD'); sub.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;';
+  mid.appendChild(name); mid.appendChild(sub);
+  var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+  var bal=mk('div','',fmt(live)); bal.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(live>=0?'var(--green)':'var(--red)')+';';
+  var chg=mk('div','',(change>=0?'+':'')+fmt(change)+' since cut'); chg.style.cssText='font-size:10px;color:'+(change>=0?'var(--green)':'var(--red)')+';margin-top:2px;';
+  right.appendChild(bal); right.appendChild(chg);
+  row.appendChild(mid); row.appendChild(right);
+  return row;
+}
 
-  var c=el('accounts-list'); c.innerHTML='';
-
-  // Split accounts into assets and debts
-  var assets=db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';});
-  var debts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
-
-  // Sort debts: highest balance first
-  debts.sort(function(a,b){
-    return Math.abs(computeLiveBalance(b.id))-Math.abs(computeLiveBalance(a.id));
-  });
-
-  // ---- ASSETS ----
-  var assetsWrap=mk('div','');
-  var assetsHdr=mk('div',''); assetsHdr.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:0 0 8px;';
-  assetsHdr.textContent='Assets';
-  assetsWrap.appendChild(assetsHdr);
-
-  var assetList=mk('div','card'); assetList.style.padding='0';
-  assets.forEach(function(a,idx){
-    var live=computeLiveBalance(a.id);
-    var change=live-(a.openingBalance||0);
-    var ident=getDebtIdentity(a.id);
-    var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(idx<assets.length-1?'border-bottom:0.5px solid var(--border);':'');
-    var badge=mk('div',''); badge.style.cssText='width:36px;height:36px;border-radius:10px;background:'+ident.bg+';border:1.5px solid '+ident.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+ident.color+';flex-shrink:0;font-family:var(--font-mono);';
-    badge.textContent=ident.initials;
-    var mid=mk('div',''); mid.style.flex='1'; mid.style.minWidth='0';
-    var name=mk('div','',a.name); name.style.cssText='font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    var sub=mk('div','',a.type+' · CAD'); sub.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;';
-    mid.appendChild(name); mid.appendChild(sub);
-    var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
-    var bal=mk('div','',fmt(live)); bal.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(live>=0?'var(--green)':'var(--red)')+';';
-    var chg=mk('div','',(change>=0?'+':'')+fmt(change)+' since cut'); chg.style.cssText='font-size:10px;color:'+(change>=0?'var(--green)':'var(--red)')+';margin-top:2px;';
-    right.appendChild(bal); right.appendChild(chg);
-    row.appendChild(badge); row.appendChild(mid); row.appendChild(right);
-    assetList.appendChild(row);
-  });
-  assetsWrap.appendChild(assetList);
-  c.appendChild(assetsWrap);
-
-  // ---- DEBT ROADMAP BAR ----
+function makeDebtSection(title, debts){
+  if(!debts.length) return null;
   var totalDebt=debts.reduce(function(s,d){return s+Math.abs(computeLiveBalance(d.id));},0);
-  if(debts.length&&totalDebt>0){
-    var roadmapWrap=mk('div',''); roadmapWrap.style.marginTop='24px';
-    var dHdr=mk('div',''); dHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:0 0 8px;';
-    var dTitle=mk('div',''); dTitle.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;';
-    dTitle.textContent='Debts — sorted by balance';
-    var dTotal=mk('div','',fmt(totalDebt)+' total'); dTotal.style.cssText='font-size:11px;color:var(--text3);font-family:var(--font-mono);';
-    dHdr.appendChild(dTitle); dHdr.appendChild(dTotal);
-    roadmapWrap.appendChild(dHdr);
+  var wrap=mk('div',''); wrap.style.marginTop='24px';
 
-    // Proportional bar
-    var bar=mk('div',''); bar.style.cssText='display:flex;height:24px;border-radius:8px;overflow:hidden;margin-bottom:8px;gap:2px;';
+  // Section header
+  var hdr=mk('div',''); hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:0 0 8px;';
+  var htitle=mk('div','',title); htitle.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;';
+  var htotal=mk('div','',fmt(totalDebt)+' total'); htotal.style.cssText='font-size:11px;color:var(--text3);font-family:var(--font-mono);';
+  hdr.appendChild(htitle); hdr.appendChild(htotal);
+  wrap.appendChild(hdr);
+
+  // Proportional roadmap bar
+  if(totalDebt>0){
+    var bar=mk('div',''); bar.style.cssText='display:flex;height:22px;border-radius:8px;overflow:hidden;margin-bottom:8px;gap:2px;';
     debts.forEach(function(d){
       var bal=Math.abs(computeLiveBalance(d.id));
       var pct=(bal/totalDebt)*100;
       var ident=getDebtIdentity(d.id);
       if(pct<0.5) return;
-      var seg=mk('div',''); seg.style.cssText='height:100%;background:'+ident.color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;transition:flex .3s;';
+      var seg=mk('div',''); seg.style.cssText='height:100%;background:'+(ident.color||'#8a7a6a')+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;';
       seg.style.flex=pct.toFixed(1);
       if(pct>8) seg.textContent=ident.initials;
       seg.title=d.name+': '+fmt(bal);
       bar.appendChild(seg);
     });
-    roadmapWrap.appendChild(bar);
+    wrap.appendChild(bar);
 
     // Legend
-    var legend=mk('div',''); legend.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;';
+    var legend=mk('div',''); legend.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;';
     debts.forEach(function(d){
       var bal=Math.abs(computeLiveBalance(d.id));
       if(bal<0.01) return;
       var ident=getDebtIdentity(d.id);
       var item=mk('div',''); item.style.cssText='display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);';
-      var dot=mk('span',''); dot.style.cssText='width:8px;height:8px;border-radius:2px;background:'+ident.color+';flex-shrink:0;';
-      item.appendChild(dot);
-      item.appendChild(document.createTextNode(ident.initials+' '+fmt(bal)));
+      var dot=mk('span',''); dot.style.cssText='width:8px;height:8px;border-radius:2px;background:'+(ident.color||'#8a7a6a')+';flex-shrink:0;';
+      item.appendChild(dot); item.appendChild(document.createTextNode(ident.initials+' '+fmt(bal)));
       legend.appendChild(item);
     });
-    roadmapWrap.appendChild(legend);
-
-    // Dense debt rows
-    var debtList=mk('div','card'); debtList.style.padding='0';
-    debts.forEach(function(d,idx){
-      var bal=Math.abs(computeLiveBalance(d.id));
-      var live=computeLiveBalance(d.id);
-      var isPaidOff=bal<0.01;
-      var ident=getDebtIdentity(d.id);
-      var rate=d.rate||'?';
-      var rcolor=rateColor(rate);
-      var monthly=d.monthlyPayment||0;
-      var mtp=monthly>0&&!isPaidOff?Math.ceil(bal/monthly):null;
-
-      var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(idx<debts.length-1?'border-bottom:0.5px solid var(--border);':'')+(isPaidOff?'opacity:0.5;':'');
-
-      var badge=mk('div',''); badge.style.cssText='width:36px;height:36px;border-radius:10px;background:'+(isPaidOff?'var(--bg3)':ident.bg)+';border:1.5px solid '+(isPaidOff?'var(--border)':ident.color)+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+(isPaidOff?'var(--text3)':ident.color)+';flex-shrink:0;font-family:var(--font-mono);';
-      badge.textContent=ident.initials;
-
-      var mid=mk('div',''); mid.style.flex='1'; mid.style.minWidth='0';
-      var nameRow=mk('div',''); nameRow.style.cssText='display:flex;align-items:center;gap:6px;';
-      var name=mk('div','',d.name); name.style.cssText='font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-      var rateTag=mk('span','tag tag-'+rcolor,rate); rateTag.style.cssText='font-size:9px;padding:1px 5px;flex-shrink:0;';
-      nameRow.appendChild(name); nameRow.appendChild(rateTag);
-      mid.appendChild(nameRow);
-
-      // Utilization bar
-      if(d.limit&&!isPaidOff){
-        var pct=Math.min(100,(bal/d.limit)*100);
-        var barColor=pct>80?'var(--red)':pct>50?'var(--amber)':ident.color;
-        var pw=mk('div',''); pw.style.cssText='height:3px;background:var(--bg3);border-radius:2px;margin-top:5px;width:100%;';
-        var pb=mk('div',''); pb.style.cssText='height:100%;border-radius:2px;background:'+barColor+';width:'+pct+'%;';
-        pw.appendChild(pb); mid.appendChild(pw);
-        var utilLabel=mk('div','',Math.round(pct)+'% of '+fmt(d.limit)); utilLabel.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;';
-        mid.appendChild(utilLabel);
-      }
-      if(d.rateNote){
-        var note=mk('div','',d.rateNote); note.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-        mid.appendChild(note);
-      }
-
-      var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
-      var balEl=mk('div','',isPaidOff?'PAID OFF':fmt(bal)); balEl.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(isPaidOff?'var(--green)':'var(--red)')+';';
-      right.appendChild(balEl);
-      if(monthly>0&&!isPaidOff){ var mo=mk('div','',fmt(monthly)+'/mo'); mo.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;'; right.appendChild(mo); }
-      if(mtp){ var mtpEl=mk('div','',mtp+'mo left'); mtpEl.style.cssText='font-size:10px;color:'+(mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--text3)')+';margin-top:1px;'; right.appendChild(mtpEl); }
-      var editBtn=mk('button','btn btn-ghost btn-sm','Edit'); editBtn.style.cssText='font-size:10px;padding:3px 7px;margin-top:6px;display:block;margin-left:auto;';
-      editBtn.addEventListener('click',function(){openEditDebt(d.id);});
-      right.appendChild(editBtn);
-
-      row.appendChild(badge); row.appendChild(mid); row.appendChild(right);
-      debtList.appendChild(row);
-    });
-    roadmapWrap.appendChild(debtList);
-    c.appendChild(roadmapWrap);
+    wrap.appendChild(legend);
   }
+
+  // Dense rows
+  var list=mk('div','card'); list.style.padding='0';
+  debts.forEach(function(d,idx){
+    var bal=Math.abs(computeLiveBalance(d.id));
+    var isPaidOff=bal<0.01;
+    var ident=getDebtIdentity(d.id);
+    var rate=d.rate||'?';
+    var rcolor=rateColor(rate);
+    var monthly=d.monthlyPayment||0;
+    var mtp=monthly>0&&!isPaidOff?Math.ceil(bal/monthly):null;
+
+    var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(idx<debts.length-1?'border-bottom:0.5px solid var(--border);':'')+(isPaidOff?'opacity:0.5;':'');
+    row.appendChild(makeLogoBadge(isPaidOff?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident, 38));
+
+    var mid=mk('div',''); mid.style.cssText='flex:1;min-width:0;';
+    var nameRow=mk('div',''); nameRow.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap;';
+    var name=mk('div','',d.name); name.style.cssText='font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    var rateTag=mk('span','tag tag-'+rcolor,rate); rateTag.style.cssText='font-size:9px;padding:1px 5px;flex-shrink:0;';
+    nameRow.appendChild(name); nameRow.appendChild(rateTag);
+    mid.appendChild(nameRow);
+    if(d.rateNote){var note=mk('div','',d.rateNote);note.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';mid.appendChild(note);}
+    if(d.limit&&!isPaidOff){
+      var pct=Math.min(100,(bal/d.limit)*100);
+      var barColor=pct>80?'var(--red)':pct>50?'var(--amber)':'var(--green)';
+      var pw=mk('div',''); pw.style.cssText='height:3px;background:var(--bg3);border-radius:2px;margin-top:5px;';
+      var pb=mk('div',''); pb.style.cssText='height:100%;border-radius:2px;background:'+barColor+';width:'+pct+'%;';
+      pw.appendChild(pb); mid.appendChild(pw);
+      var util=mk('div','',Math.round(pct)+'% of '+fmt(d.limit)); util.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;';
+      mid.appendChild(util);
+    }
+
+    var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+    var balEl=mk('div','',isPaidOff?'PAID OFF':fmt(bal)); balEl.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(isPaidOff?'var(--green)':'var(--red)')+';';
+    right.appendChild(balEl);
+    if(monthly>0&&!isPaidOff){var mo=mk('div','',fmt(monthly)+'/mo');mo.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;';right.appendChild(mo);}
+    if(mtp){var mtpEl=mk('div','',mtp+'mo left');mtpEl.style.cssText='font-size:10px;color:'+(mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--text3)')+';margin-top:1px;';right.appendChild(mtpEl);}
+    var editBtn=mk('button','btn btn-ghost btn-sm','Edit');editBtn.style.cssText='font-size:10px;padding:3px 7px;margin-top:6px;display:block;margin-left:auto;';
+    editBtn.addEventListener('click',function(){openEditDebt(d.id);});
+    right.appendChild(editBtn);
+
+    row.appendChild(mid); row.appendChild(right);
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function renderAccounts(){
+  el('cut-date-display').textContent=fmtDate(db.cutDate);
+  var c=el('accounts-list'); c.innerHTML='';
+
+  var assets=db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';});
+  var creditCards=db.accounts.filter(function(a){return a.type==='Credit card';});
+  var loans=db.accounts.filter(function(a){return a.type==='Loan';});
+
+  // Sort debts highest first
+  function sortByBal(arr){ return arr.slice().sort(function(a,b){return Math.abs(computeLiveBalance(b.id))-Math.abs(computeLiveBalance(a.id));}); }
+  creditCards=sortByBal(creditCards);
+  loans=sortByBal(loans);
+
+  // Assets
+  var assetsWrap=mk('div','');
+  var assetsHdr=mk('div','ASSETS'); assetsHdr.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:0 0 8px;';
+  assetsWrap.appendChild(assetsHdr);
+  var assetList=mk('div','card'); assetList.style.padding='0';
+  assets.forEach(function(a,idx){ assetList.appendChild(makeAssetRow(a,idx===assets.length-1)); });
+  assetsWrap.appendChild(assetList);
+  c.appendChild(assetsWrap);
+
+  // Credit cards
+  var ccSection=makeDebtSection('Credit cards',creditCards);
+  if(ccSection) c.appendChild(ccSection);
+
+  // Loans
+  var loanSection=makeDebtSection('Loans',loans);
+  if(loanSection) c.appendChild(loanSection);
 
   // Balance history chart
   var chartCard=mk('div','card'); chartCard.style.marginTop='20px';
   var chartTitle=mk('div','card-title','Chequing balance history'); chartCard.appendChild(chartTitle);
-  var canvas=mk('canvas',''); canvas.id='chart-bal-history'; canvas.style.cssText='width:100%;height:160px;';
+  var canvas=document.createElement('canvas'); canvas.id='chart-bal-history'; canvas.style.cssText='width:100%;height:160px;';
   chartCard.appendChild(canvas); c.appendChild(chartCard);
 
   setTimeout(function(){
@@ -2718,7 +2719,7 @@ function renderAccounts(){
     if(!acc) return;
     var txns=db.transactions.filter(function(t){return t.account==='ws-chq'&&t.date>=cut;}).sort(function(a,b){return a.date.localeCompare(b.date);});
     if(!txns.length) return;
-    var bal=acc.openingBalance||0, labels=[cut.substring(5)], values=[bal];
+    var bal=acc.openingBalance||0,labels=[cut.substring(5)],values=[bal];
     txns.forEach(function(t){bal+=t.type==='income'?t.amount:-t.amount;labels.push(t.date.substring(5));values.push(parseFloat(bal.toFixed(2)));});
     drawLineChart('chart-bal-history',labels,values);
   },50);
@@ -2850,28 +2851,34 @@ el('btn-save-installment').addEventListener('click',function(){
   showToast('Installment plan added');
 });
 
-// ---- DEBT IDENTITY ----
-// Each debt gets a unique color + initials badge for instant visual recognition
+// ---- DEBT IDENTITY — brand colors ----
 var DEBT_IDENTITY = {
-  'mbna-amazon': { initials:'MB', color:'#b84040', bg:'#faeaea' },
-  'bmo-cc':      { initials:'BM', color:'#b07020', bg:'#fef3e0' },
-  'scotia-visa': { initials:'SC', color:'#6b44a8', bg:'#f0eafa' },
-  'rogers-mc':   { initials:'RG', color:'#2e6ea6', bg:'#e5eef8' },
-  'amex-simple': { initials:'AX', color:'#c17f3a', bg:'rgba(193,127,58,.1)' },
-  'amex-loan':   { initials:'AL', color:'#3a6a8a', bg:'rgba(58,106,138,.08)' },
-  'rbc-loan':    { initials:'RB', color:'#3a7d52', bg:'#e8f4ed' },
+  // Credit cards
+  'mbna-amazon': { initials:'MBNA', color:'#003A70', bg:'#e6eef5', textColor:'#fff' },  // MBNA dark blue
+  'bmo-cc':      { initials:'BMO',  color:'#0075BE', bg:'#e5f0fa', textColor:'#fff' },  // BMO blue
+  'scotia-visa': { initials:'SC',   color:'#EC111A', bg:'#fce8e9', textColor:'#fff' },  // Scotia red
+  'rogers-mc':   { initials:'R',    color:'#DA0000', bg:'#fce8e8', textColor:'#fff' },  // Rogers red
+  'amex-simple': { initials:'AMEX', color:'#016FD0', bg:'#e5f0fa', textColor:'#fff' },  // Amex blue
+  // Loans
+  'amex-loan':   { initials:'AMEX', color:'#016FD0', bg:'#e5f0fa', textColor:'#fff' },  // Amex blue
+  'rbc-loan':    { initials:'RBC',  color:'#005DAA', bg:'#e5edf7', textColor:'#fff' },  // RBC blue
+  // Assets
+  'ws-chq':      { initials:'WS',   color:'#000000', bg:'#ffffff', textColor:'#000', border:'#e0e0e0' },  // Wealthsimple white
+  'ws-tfsa':     { initials:'WS',   color:'#000000', bg:'#ffffff', textColor:'#000', border:'#e0e0e0' },
+  'ws-nonreg':   { initials:'WS',   color:'#000000', bg:'#ffffff', textColor:'#000', border:'#e0e0e0' },
+  'bmo-chq':     { initials:'BMO',  color:'#0075BE', bg:'#e5f0fa', textColor:'#fff' },
 };
 
-// For installment plans — color by provider
+// Installment providers
 var PROVIDER_IDENTITY = {
-  'klarna':   { initials:'K',  color:'#6b44a8', bg:'#f0eafa' },
-  'affirm':   { initials:'AF', color:'#2e6ea6', bg:'#e5eef8' },
-  'afterpay': { initials:'AP', color:'#3a7d52', bg:'#e8f4ed' },
-  'default':  { initials:'$',  color:'#b07020', bg:'#fef3e0' },
+  'klarna':   { initials:'K',    color:'#FFB3C7', bg:'#1A1A1A', textColor:'#1A1A1A', bgInner:'#FFB3C7' },
+  'affirm':   { initials:'AF',   color:'#4A4AF4', bg:'#eeeefe', textColor:'#fff' },
+  'afterpay': { initials:'AP',   color:'#B2FCE4', bg:'#0D3F2C', textColor:'#0D3F2C', bgInner:'#B2FCE4' },
+  'default':  { initials:'$',    color:'#b07020', bg:'#fef3e0', textColor:'#fff' },
 };
 
 function getDebtIdentity(accountId){
-  return DEBT_IDENTITY[accountId]||{initials:accountId.substring(0,2).toUpperCase(),color:'#8a7a6a',bg:'var(--bg3)'};
+  return DEBT_IDENTITY[accountId]||{initials:accountId.substring(0,2).toUpperCase(),color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'};
 }
 
 function getInstIdentity(inst){
@@ -2879,12 +2886,57 @@ function getInstIdentity(inst){
   return PROVIDER_IDENTITY[provider]||PROVIDER_IDENTITY['default'];
 }
 
-function makeIdentityBadge(initials, color, bg){
-  var badge = mk('div','');
-  badge.style.cssText = 'width:44px;height:44px;border-radius:12px;background:'+bg+';border:2px solid '+color+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:'+color+';flex-shrink:0;letter-spacing:.5px;font-family:var(--font-mono);';
-  badge.textContent = initials;
+// Build a brand-style logo badge
+function makeLogoBadge(ident, size){
+  size=size||40;
+  var radius=Math.round(size*0.28);
+  var fontSize=ident.initials.length>2?Math.round(size*0.26):Math.round(size*0.32);
+  var border=ident.border?'1.5px solid '+ident.border:'1.5px solid '+ident.color+'40';
+  var badge=mk('div','');
+  badge.style.cssText='width:'+size+'px;height:'+size+'px;border-radius:'+radius+'px;background:'+(ident.bgInner||ident.bg)+';border:'+border+';display:flex;align-items:center;justify-content:center;font-size:'+fontSize+'px;font-weight:700;color:'+(ident.bgInner?ident.textColor:ident.color)+';flex-shrink:0;font-family:var(--font-mono);letter-spacing:-0.5px;overflow:hidden;';
+  // Special styling per brand
+  if(ident.initials==='WS'){
+    // Wealthsimple: black text on white, clean
+    badge.style.background='#ffffff';
+    badge.style.color='#000000';
+    badge.style.fontFamily='var(--font)';
+    badge.style.fontWeight='600';
+  } else if(ident.initials==='BMO'){
+    badge.style.background='#0075BE';
+    badge.style.color='#ffffff';
+  } else if(ident.initials==='MBNA'){
+    badge.style.background='#003A70';
+    badge.style.color='#ffffff';
+    badge.style.fontSize=Math.round(size*0.22)+'px';
+  } else if(ident.initials==='AMEX'){
+    badge.style.background='#016FD0';
+    badge.style.color='#ffffff';
+    badge.style.fontSize=Math.round(size*0.22)+'px';
+  } else if(ident.initials==='RBC'){
+    badge.style.background='#005DAA';
+    badge.style.color='#ffffff';
+  } else if(ident.initials==='SC'){
+    badge.style.background='#EC111A';
+    badge.style.color='#ffffff';
+  } else if(ident.initials==='R'){
+    badge.style.background='#DA0000';
+    badge.style.color='#ffffff';
+    badge.style.fontSize=Math.round(size*0.38)+'px';
+  } else if(ident.initials==='K'){
+    badge.style.background='#1A1A1A';
+    badge.style.color='#FFB3C7';
+    badge.style.fontStyle='italic';
+  }
+  badge.textContent=ident.initials;
   return badge;
 }
+
+function makeIdentityBadge(initials, color, bg){
+  // Legacy wrapper — use makeLogoBadge where possible
+  var ident={initials:initials,color:color,bg:bg,textColor:'#fff'};
+  return makeLogoBadge(ident,44);
+}
+
 
 function rateColor(rate){
   if(!rate||rate==='?') return 'gray';
@@ -2999,7 +3051,7 @@ function buildInstCard(item,today){
 
   // Header row with badge
   var hdr=mk('div',''); hdr.style.cssText='display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;';
-  hdr.appendChild(makeIdentityBadge(ident.initials,ident.color,item.allDone?'var(--bg3)':ident.bg));
+  hdr.appendChild(makeLogoBadge(item.allDone?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident,44));
 
   var mid=mk('div',''); mid.style.flex='1';
   var providerTag=mk('span','tag tag-purple',inst.provider||'Installment');
@@ -3072,7 +3124,7 @@ function buildDebtCard(item){
 
   // Header row with identity badge
   var hdr=mk('div',''); hdr.style.cssText='display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;';
-  hdr.appendChild(makeIdentityBadge(ident.initials, ident.color, item.isPaidOff?'var(--bg3)':ident.bg));
+  hdr.appendChild(makeLogoBadge(item.isPaidOff?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident,44));
 
   var mid=mk('div',''); mid.style.flex='1';
   var typeLabel=mk('div','',d.type.toUpperCase()); typeLabel.style.cssText='font-size:9px;font-weight:700;letter-spacing:.1em;color:'+ident.color+';margin-bottom:3px;opacity:0.7;';
