@@ -239,7 +239,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.7 - William R.M.</div>
+    <div class="logo-sub">v2.2.8 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -256,7 +256,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
   <div class="nav-item" data-page="recategorize"><span class="nav-icon">&#8635;</span>Re-categorize</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.2.7<br>Sidebar scroll - AI in nav<br>Apr 2026</div>
+  <div class="version-badge">WealthTrack v2.2.8<br>Accounts dense list + roadmap<br>Apr 2026</div>
 </div>
 
 <div class="main">
@@ -2568,51 +2568,150 @@ el('btn-add-varbudget') && el('btn-add-varbudget').addEventListener('click',func
 
 
 // ---- ACCOUNTS ----
+
 function renderAccounts(){
   el('cut-date-display').textContent=fmtDate(db.cutDate);
+
   var c=el('accounts-list'); c.innerHTML='';
-  var types=[...new Set(db.accounts.map(function(a){return a.type;}))];
-  var tc={Chequing:'blue',Savings:'green','Credit card':'red',Loan:'red',Investment:'purple',TFSA:'green',FHSA:'green'};
-  types.forEach(function(type){
-    var section=mk('div',''); section.style.marginBottom='20px';
-    var hdr=mk('div','',type); hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;';
-    section.appendChild(hdr);
-    var grid=mk('div','grid2');
-    db.accounts.filter(function(a){return a.type===type;}).forEach(function(a){
-      var live=computeLiveBalance(a.id);
-      var isD=a.type==='Credit card'||a.type==='Loan';
-      var displayBal=isD?Math.abs(live):live;
-      var isZero=Math.abs(live)<0.01;
-      var bc=isD?(isZero?'var(--green)':'var(--red)'):(live>=0?'var(--green)':'var(--red)');
-      var change=live-(a.openingBalance||0);
-      var card=mk('div','card');
-      var top=mk('div',''); top.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;';
-      var left=mk('div','');
-      left.appendChild(mk('div','',a.name));
-      var sub=mk('div','',a.type+' - CAD'); sub.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;'; left.appendChild(sub);
-      var tag=mk('span','tag tag-'+(tc[type]||'gray'),type);
-      top.appendChild(left); top.appendChild(tag);
-      var balEl=mk('div','',(isD&&!isZero?'-':'')+fmt(displayBal));
-      balEl.style.cssText='font-family:var(--font-mono);font-size:22px;font-weight:600;color:'+bc+';';
-      var changeEl=mk('div','',(change>=0?'+':'')+fmt(change)+' since cut date');
-      changeEl.style.cssText='font-size:11px;color:'+(change>=0?'var(--green)':'var(--red)')+';margin-top:3px;';
-      card.appendChild(top); card.appendChild(balEl); card.appendChild(changeEl);
-      if(a.limit){
-        var util=Math.min(100,(Math.abs(live)/a.limit)*100);
-        var pw=mk('div','progress-wrap'); pw.style.marginTop='10px';
-        var pb=mk('div','progress-bar'); pb.style.width=util+'%'; pb.style.background=util>80?'var(--red)':util>50?'var(--amber)':'var(--green)';
-        pw.appendChild(pb); card.appendChild(pw);
-        var uLabel=mk('div','',Math.round(util)+'% of '+fmt(a.limit)); uLabel.style.cssText='font-size:11px;color:var(--text3);margin-top:4px;'; card.appendChild(uLabel);
-      }
-      var footer=mk('div',''); footer.style.cssText='margin-top:10px;display:flex;justify-content:space-between;align-items:center;';
-      var openLabel=mk('span','','Opening: '+fmt(a.openingBalance||0)); openLabel.style.cssText='font-size:11px;color:var(--text3);';
-      var delBtn=mk('button','btn btn-danger btn-sm','Remove');
-      delBtn.addEventListener('click',function(){if(!confirm('Remove this account?')) return; db.accounts=db.accounts.filter(function(x){return x.id!==a.id;}); saveData(); renderAccounts();});
-      footer.appendChild(openLabel); footer.appendChild(delBtn);
-      card.appendChild(footer); grid.appendChild(card);
-    });
-    section.appendChild(grid); c.appendChild(section);
+
+  // Split accounts into assets and debts
+  var assets=db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';});
+  var debts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
+
+  // Sort debts: highest balance first
+  debts.sort(function(a,b){
+    return Math.abs(computeLiveBalance(b.id))-Math.abs(computeLiveBalance(a.id));
   });
+
+  // ---- ASSETS ----
+  var assetsWrap=mk('div','');
+  var assetsHdr=mk('div',''); assetsHdr.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:0 0 8px;';
+  assetsHdr.textContent='Assets';
+  assetsWrap.appendChild(assetsHdr);
+
+  var assetList=mk('div','card'); assetList.style.padding='0';
+  assets.forEach(function(a,idx){
+    var live=computeLiveBalance(a.id);
+    var change=live-(a.openingBalance||0);
+    var ident=getDebtIdentity(a.id);
+    var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(idx<assets.length-1?'border-bottom:0.5px solid var(--border);':'');
+    var badge=mk('div',''); badge.style.cssText='width:36px;height:36px;border-radius:10px;background:'+ident.bg+';border:1.5px solid '+ident.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+ident.color+';flex-shrink:0;font-family:var(--font-mono);';
+    badge.textContent=ident.initials;
+    var mid=mk('div',''); mid.style.flex='1'; mid.style.minWidth='0';
+    var name=mk('div','',a.name); name.style.cssText='font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    var sub=mk('div','',a.type+' · CAD'); sub.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;';
+    mid.appendChild(name); mid.appendChild(sub);
+    var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+    var bal=mk('div','',fmt(live)); bal.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(live>=0?'var(--green)':'var(--red)')+';';
+    var chg=mk('div','',(change>=0?'+':'')+fmt(change)+' since cut'); chg.style.cssText='font-size:10px;color:'+(change>=0?'var(--green)':'var(--red)')+';margin-top:2px;';
+    right.appendChild(bal); right.appendChild(chg);
+    row.appendChild(badge); row.appendChild(mid); row.appendChild(right);
+    assetList.appendChild(row);
+  });
+  assetsWrap.appendChild(assetList);
+  c.appendChild(assetsWrap);
+
+  // ---- DEBT ROADMAP BAR ----
+  var totalDebt=debts.reduce(function(s,d){return s+Math.abs(computeLiveBalance(d.id));},0);
+  if(debts.length&&totalDebt>0){
+    var roadmapWrap=mk('div',''); roadmapWrap.style.marginTop='24px';
+    var dHdr=mk('div',''); dHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:0 0 8px;';
+    var dTitle=mk('div',''); dTitle.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;';
+    dTitle.textContent='Debts — sorted by balance';
+    var dTotal=mk('div','',fmt(totalDebt)+' total'); dTotal.style.cssText='font-size:11px;color:var(--text3);font-family:var(--font-mono);';
+    dHdr.appendChild(dTitle); dHdr.appendChild(dTotal);
+    roadmapWrap.appendChild(dHdr);
+
+    // Proportional bar
+    var bar=mk('div',''); bar.style.cssText='display:flex;height:24px;border-radius:8px;overflow:hidden;margin-bottom:8px;gap:2px;';
+    debts.forEach(function(d){
+      var bal=Math.abs(computeLiveBalance(d.id));
+      var pct=(bal/totalDebt)*100;
+      var ident=getDebtIdentity(d.id);
+      if(pct<0.5) return;
+      var seg=mk('div',''); seg.style.cssText='height:100%;background:'+ident.color+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;transition:flex .3s;';
+      seg.style.flex=pct.toFixed(1);
+      if(pct>8) seg.textContent=ident.initials;
+      seg.title=d.name+': '+fmt(bal);
+      bar.appendChild(seg);
+    });
+    roadmapWrap.appendChild(bar);
+
+    // Legend
+    var legend=mk('div',''); legend.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;';
+    debts.forEach(function(d){
+      var bal=Math.abs(computeLiveBalance(d.id));
+      if(bal<0.01) return;
+      var ident=getDebtIdentity(d.id);
+      var item=mk('div',''); item.style.cssText='display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);';
+      var dot=mk('span',''); dot.style.cssText='width:8px;height:8px;border-radius:2px;background:'+ident.color+';flex-shrink:0;';
+      item.appendChild(dot);
+      item.appendChild(document.createTextNode(ident.initials+' '+fmt(bal)));
+      legend.appendChild(item);
+    });
+    roadmapWrap.appendChild(legend);
+
+    // Dense debt rows
+    var debtList=mk('div','card'); debtList.style.padding='0';
+    debts.forEach(function(d,idx){
+      var bal=Math.abs(computeLiveBalance(d.id));
+      var live=computeLiveBalance(d.id);
+      var isPaidOff=bal<0.01;
+      var ident=getDebtIdentity(d.id);
+      var rate=d.rate||'?';
+      var rcolor=rateColor(rate);
+      var monthly=d.monthlyPayment||0;
+      var mtp=monthly>0&&!isPaidOff?Math.ceil(bal/monthly):null;
+
+      var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(idx<debts.length-1?'border-bottom:0.5px solid var(--border);':'')+(isPaidOff?'opacity:0.5;':'');
+
+      var badge=mk('div',''); badge.style.cssText='width:36px;height:36px;border-radius:10px;background:'+(isPaidOff?'var(--bg3)':ident.bg)+';border:1.5px solid '+(isPaidOff?'var(--border)':ident.color)+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:'+(isPaidOff?'var(--text3)':ident.color)+';flex-shrink:0;font-family:var(--font-mono);';
+      badge.textContent=ident.initials;
+
+      var mid=mk('div',''); mid.style.flex='1'; mid.style.minWidth='0';
+      var nameRow=mk('div',''); nameRow.style.cssText='display:flex;align-items:center;gap:6px;';
+      var name=mk('div','',d.name); name.style.cssText='font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+      var rateTag=mk('span','tag tag-'+rcolor,rate); rateTag.style.cssText='font-size:9px;padding:1px 5px;flex-shrink:0;';
+      nameRow.appendChild(name); nameRow.appendChild(rateTag);
+      mid.appendChild(nameRow);
+
+      // Utilization bar
+      if(d.limit&&!isPaidOff){
+        var pct=Math.min(100,(bal/d.limit)*100);
+        var barColor=pct>80?'var(--red)':pct>50?'var(--amber)':ident.color;
+        var pw=mk('div',''); pw.style.cssText='height:3px;background:var(--bg3);border-radius:2px;margin-top:5px;width:100%;';
+        var pb=mk('div',''); pb.style.cssText='height:100%;border-radius:2px;background:'+barColor+';width:'+pct+'%;';
+        pw.appendChild(pb); mid.appendChild(pw);
+        var utilLabel=mk('div','',Math.round(pct)+'% of '+fmt(d.limit)); utilLabel.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;';
+        mid.appendChild(utilLabel);
+      }
+      if(d.rateNote){
+        var note=mk('div','',d.rateNote); note.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        mid.appendChild(note);
+      }
+
+      var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+      var balEl=mk('div','',isPaidOff?'PAID OFF':fmt(bal)); balEl.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(isPaidOff?'var(--green)':'var(--red)')+';';
+      right.appendChild(balEl);
+      if(monthly>0&&!isPaidOff){ var mo=mk('div','',fmt(monthly)+'/mo'); mo.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;'; right.appendChild(mo); }
+      if(mtp){ var mtpEl=mk('div','',mtp+'mo left'); mtpEl.style.cssText='font-size:10px;color:'+(mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--text3)')+';margin-top:1px;'; right.appendChild(mtpEl); }
+      var editBtn=mk('button','btn btn-ghost btn-sm','Edit'); editBtn.style.cssText='font-size:10px;padding:3px 7px;margin-top:6px;display:block;margin-left:auto;';
+      editBtn.addEventListener('click',function(){openEditDebt(d.id);});
+      right.appendChild(editBtn);
+
+      row.appendChild(badge); row.appendChild(mid); row.appendChild(right);
+      debtList.appendChild(row);
+    });
+    roadmapWrap.appendChild(debtList);
+    c.appendChild(roadmapWrap);
+  }
+
+  // Balance history chart
+  var chartCard=mk('div','card'); chartCard.style.marginTop='20px';
+  var chartTitle=mk('div','card-title','Chequing balance history'); chartCard.appendChild(chartTitle);
+  var canvas=mk('canvas',''); canvas.id='chart-bal-history'; canvas.style.cssText='width:100%;height:160px;';
+  chartCard.appendChild(canvas); c.appendChild(chartCard);
+
   setTimeout(function(){
     var cut=db.cutDate||'2026-04-14';
     var acc=db.accounts.find(function(a){return a.id==='ws-chq';});
@@ -2625,36 +2724,6 @@ function renderAccounts(){
   },50);
 }
 
-el('btn-add-account').addEventListener('click',function(){openModal('modal-add-account');});
-el('btn-cancel-account').addEventListener('click',function(){closeModal('modal-add-account');});
-el('btn-save-account').addEventListener('click',function(){
-  var name=el('acc-name').value.trim(), type=el('acc-type').value;
-  var balance=parseFloat(el('acc-balance').value)||0, limit=parseFloat(el('acc-limit').value)||null;
-  if(!name){showToast('Enter account name');return;}
-  var isD=type==='Credit card'||type==='Loan';
-  db.accounts.push({id:'acc'+Date.now(),name:name,type:type,openingBalance:isD?-balance:balance,limit:limit,currency:'CAD'});
-  saveData(null,'accounts'); closeModal('modal-add-account'); renderAccounts(); showToast('Account added');
-  el('acc-name').value=''; el('acc-balance').value=''; el('acc-limit').value='';
-});
-
-el('btn-edit-balances').addEventListener('click',function(){
-  el('cut-date-input').value=db.cutDate;
-  var c=el('opening-bal-fields'); c.innerHTML='';
-  db.accounts.forEach(function(a){
-    var row=mk('div',''); row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);gap:12px;';
-    row.appendChild(mk('span','',a.name));
-    var inp=mk('input','form-input'); inp.type='number'; inp.step='0.01'; inp.id='ob-'+a.id;
-    inp.value=(a.openingBalance||0).toFixed(2); inp.style.width='120px';
-    row.appendChild(inp); c.appendChild(row);
-  });
-  openModal('modal-cut-date');
-});
-el('btn-cancel-cut-date').addEventListener('click',function(){closeModal('modal-cut-date');});
-el('btn-save-cut-date').addEventListener('click',function(){
-  var nd=el('cut-date-input').value; if(nd) db.cutDate=nd;
-  db.accounts.forEach(function(a){var inp=el('ob-'+a.id);if(inp) a.openingBalance=parseFloat(inp.value)||0;});
-  saveData(null,'accounts'); closeModal('modal-cut-date'); renderAccounts(); renderDashboard(); showToast('Opening balances saved');
-});
 
 // ---- DEBTS & INSTALLMENTS ----
 
