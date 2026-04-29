@@ -129,8 +129,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
 .filter-bar .form-select,.filter-bar .form-input{width:auto;min-width:130px;}
 .linked-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:var(--purple-bg);color:var(--purple);border:1px solid rgba(107,68,168,.2);}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg2);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;z-index:999;display:none;white-space:nowrap;}
-.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);font-size:20px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-dow{text-align:center;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;padding:4px 0;}
+.cal-day{min-height:72px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px;cursor:pointer;transition:background .15s;position:relative;}
+.cal-day:hover{background:var(--bg3);}
+.cal-day.today{border-color:var(--accent);border-width:2px;}
+.cal-day.other-month{opacity:0.35;}
+.cal-day.selected{background:rgba(193,127,58,.1);border-color:var(--accent);}
+.cal-day-num{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px;}
+.cal-day.today .cal-day-num{color:var(--accent);}
+.cal-dots{display:flex;flex-wrap:wrap;gap:3px;}
+.cal-dot{width:7px;height:7px;border-radius:50%;}
+.cal-event-item{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.cal-event-item:last-child{border-bottom:none;}
+@media(max-width:768px){.cal-day{min-height:52px;padding:4px;}.cal-day-num{font-size:11px;}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg2);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;z-index:999;display:none;white-space:nowrap;}.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);font-size:20px;}
 .import-step{padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px;}
 .import-step.done{background:var(--green-bg);color:var(--green);}
 .import-step.active{background:var(--blue-bg);color:var(--blue);}
@@ -239,7 +252,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.0 - William R.M.</div>
+    <div class="logo-sub">v2.3.1 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -250,6 +263,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="debts"><span class="nav-icon">&#9671;</span>Debts</div>
   <div class="nav-item" data-page="paycheque"><span class="nav-icon">&#8853;</span>Paycheque Plan</div>
   <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
+  <div class="nav-item" data-page="calendar"><span class="nav-icon">&#128197;</span>Calendar</div>
   <div class="nav-item" data-page="categories"><span class="nav-icon">&#9632;</span>Categories</div>
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
@@ -415,6 +429,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="page" id="page-recurring">
     <div class="sec-header"><div><div class="sec-title">Recurring Payments</div><div class="sec-sub">Edit amounts, dates, mark paid</div></div><button class="btn btn-primary btn-sm" id="btn-add-recurring">+ Add payment</button></div>
     <div id="recurring-list"></div>
+  </div>
+
+  <div class="page" id="page-calendar">
+    <div class="sec-header">
+      <div><div class="sec-title">Financial Calendar</div><div class="sec-sub" id="cal-month-label"></div></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="btn-cal-prev">&#8592;</button>
+        <button class="btn btn-ghost btn-sm" id="btn-cal-today">Today</button>
+        <button class="btn btn-ghost btn-sm" id="btn-cal-next">&#8594;</button>
+      </div>
+    </div>
+    <!-- Legend -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;font-size:11px;">
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#6b44a8;display:inline-block;"></span>Statement date</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#b84040;display:inline-block;"></span>Payment due</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#3a7d52;display:inline-block;"></span>Paycheque</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#2e6ea6;display:inline-block;"></span>Bill due</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#b07020;display:inline-block;"></span>Installment</span>
+    </div>
+    <div id="cal-grid"></div>
+    <div id="cal-detail" style="margin-top:16px;"></div>
   </div>
 
   <div class="page" id="page-categories">
@@ -676,6 +711,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div class="form-group"><label class="form-label">Interest rate</label><input type="text" class="form-input" id="edit-debt-rate" placeholder="e.g. 19.99%, 0% promo, Fixed"></div>
     <div class="form-group"><label class="form-label">Monthly payment ($)</label><input type="number" step="0.01" class="form-input" id="edit-debt-payment" placeholder="0.00"></div>
     <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="edit-debt-note" placeholder="e.g. promo ends Dec 2026"></div>
+    <div id="edit-debt-statement-fields">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Statement day of month</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-statement-day" placeholder="e.g. 4"></div>
+        <div class="form-group"><label class="form-label">Payment due day of month</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-due-day" placeholder="e.g. 29"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:10px;">Statement day = when balance gets reported to credit bureau. Leave blank if unknown.</div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-debt">Cancel</button>
       <button class="btn btn-primary" id="btn-save-edit-debt">Save</button>
@@ -1140,7 +1182,7 @@ function buildDefaultData(){
     accounts:[
       {id:'ws-chq',name:'Wealthsimple Chequing',type:'Chequing',openingBalance:877.83,limit:null,currency:'CAD'},
       {id:'mbna-amazon',name:'MBNA Amazon MC 2083',type:'Credit card',openingBalance:-1500,limit:6000,currency:'CAD',rate:'27.99%',monthlyPayment:50,rateNote:'Penalty rate — balance transfer to Rogers pending'},
-      {id:'bmo-cc',name:'BMO CashBack MC 9207',type:'Credit card',openingBalance:-5940.93,limit:11500,currency:'CAD',rate:'0% promo',monthlyPayment:620,rateNote:'0% promo — risk if minimum missed'},
+      {id:'bmo-cc',name:'BMO CashBack MC 9207',type:'Credit card',openingBalance:-5940.93,limit:11500,currency:'CAD',rate:'0% promo',monthlyPayment:620,rateNote:'0% promo — risk if minimum missed',statementDay:4,dueDayOfMonth:29},
       {id:'scotia-visa',name:'Scotia Visa 9565',type:'Credit card',openingBalance:-692,limit:10000,currency:'CAD',rate:'Paid in full',monthlyPayment:1383.80,rateNote:'Rent via Chexy — paid in full monthly'},
       {id:'rogers-mc',name:'Rogers Red MC 1113',type:'Credit card',openingBalance:-1554,limit:5000,currency:'CAD',rate:'0% / 12 mo',monthlyPayment:130,rateNote:'Balance transfer from MBNA — Apr 2026'},
       {id:'amex-simple',name:'Amex SimplyCash 54001',type:'Credit card',openingBalance:-1857,limit:6089,currency:'CAD',rate:'~21.99%',monthlyPayment:300,rateNote:''},
@@ -1304,6 +1346,9 @@ function migrateData(d){
   d.accounts.forEach(function(a){
     if((a.type==='Credit card'||a.type==='Loan')&&!a.rate){var def=rateDefaults[a.id]||{rate:'?',monthlyPayment:0};a.rate=def.rate;a.monthlyPayment=def.monthlyPayment;a.rateNote=a.rateNote||'';}
     if(a.balance!==undefined&&a.openingBalance===undefined) a.openingBalance=a.balance;
+    if(a.id==='bmo-cc'&&!a.statementDay){a.statementDay=4;a.dueDayOfMonth=29;}
+    if(a.type==='Credit card'&&a.statementDay===undefined){a.statementDay=null;}
+    if(a.type==='Credit card'&&a.dueDayOfMonth===undefined){a.dueDayOfMonth=null;}
   });
   if(!d.aiHistory) d.aiHistory=[];
   if(!d.floatHistory) d.floatHistory=[];
@@ -1411,7 +1456,7 @@ function checkSetup(){
 }
 
 // ---- NAVIGATION ----
-var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',paycheque:'Paycheque Plan',recurring:'Recurring Payments',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
+var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
 
 function nav(page){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -1456,6 +1501,7 @@ function renderPage(page){
   else if(page==='budget') renderBudget();
   else if(page==='paycheque') renderPaycheque();
   else if(page==='recurring') renderRecurring();
+  else if(page==='calendar') renderCalendar();
   else if(page==='categories') renderCategories();
   else if(page==='recategorize') renderRecategorize();
   else if(page==='reports') renderReport();
@@ -1635,7 +1681,19 @@ function renderAlerts(){
     {id:'alert-bmo',   type:'amber', msg:'BMO 0% promo - ensure $620/month e-transfer is being sent'},
     {id:'alert-affirm',type:'green', msg:'Affirm and Klarna fully paid off - over $60/month freed permanently'}
   ];
-  if(live<346) alerts.unshift({id:'alert-buffer',type:'red',msg:'Chequing '+fmt(live)+' is below $346 buffer'});
+  // Statement date alerts
+  db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay;}).forEach(function(a){
+    var bal=Math.abs(computeLiveBalance(a.id));
+    if(bal<1) return; // nothing to report
+    var daysLeft=daysUntilStatement(a);
+    if(daysLeft===0){
+      alerts.unshift({id:'stmt-'+a.id,type:'red',msg:'Statement closes TODAY for '+a.name+' — '+fmt(bal)+' will be reported to credit bureau'});
+    } else if(daysLeft<=3){
+      alerts.unshift({id:'stmt-'+a.id,type:'red',msg:'Statement closes in '+daysLeft+' day'+(daysLeft>1?'s':'')+' for '+a.name+' — '+fmt(bal)+' balance. Pay down to lower reported utilization.'});
+    } else if(daysLeft<=7){
+      alerts.push({id:'stmt-'+a.id,type:'amber',msg:'Statement closes '+fmtShortDate(nextStatementDate(a))+' for '+a.name+' — current balance '+fmt(bal)});
+    }
+  });
   var dismissed=db.dismissedAlerts||{};
   var anyShown=false;
   alerts.forEach(function(a){
@@ -2605,7 +2663,45 @@ el('btn-toggle-uncapped').addEventListener('click',function(){
 el('btn-add-varbudget') && el('btn-add-varbudget').addEventListener('click',function(){openAddEnvelope();});
 
 
-// ---- ACCOUNTS ----
+// ---- STATEMENT DATE HELPERS ----
+function daysUntilStatement(account){
+  if(!account.statementDay) return null;
+  var today=new Date(); var d=today.getDate(); var sd=account.statementDay;
+  var daysLeft=sd-d;
+  if(daysLeft<0){
+    // Next month's statement
+    var nextMonth=new Date(today.getFullYear(),today.getMonth()+1,sd);
+    daysLeft=Math.ceil((nextMonth-today)/(1000*60*60*24));
+  }
+  return daysLeft;
+}
+
+function nextStatementDate(account){
+  if(!account.statementDay) return null;
+  var today=new Date(); var d=today.getDate(); var sd=account.statementDay;
+  if(sd>=d){
+    return new Date(today.getFullYear(),today.getMonth(),sd);
+  }else{
+    return new Date(today.getFullYear(),today.getMonth()+1,sd);
+  }
+}
+
+function nextDueDate(account){
+  if(!account.dueDayOfMonth) return null;
+  var today=new Date(); var d=today.getDate(); var dd=account.dueDayOfMonth;
+  if(dd>=d){
+    return new Date(today.getFullYear(),today.getMonth(),dd);
+  }else{
+    return new Date(today.getFullYear(),today.getMonth()+1,dd);
+  }
+}
+
+function fmtShortDate(dateObj){
+  if(!dateObj) return '';
+  return dateObj.toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+}
+
+
 
 function makeAssetRow(a, isLast){
   var live=computeLiveBalance(a.id);
@@ -2695,6 +2791,17 @@ function makeDebtSection(title, debts){
     nameRow.appendChild(name); nameRow.appendChild(rateTag);
     mid.appendChild(nameRow);
     if(d.rateNote){var note=mk('div','',d.rateNote);note.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';mid.appendChild(note);}
+    // Statement date info for credit cards
+    if(d.type==='Credit card'&&d.statementDay){
+      var daysLeft=daysUntilStatement(d);
+      var stColor=daysLeft<=3?'var(--red)':daysLeft<=7?'var(--amber)':'var(--text3)';
+      var stText=daysLeft===0?'Statement TODAY':daysLeft===1?'Statement tomorrow':'Statement in '+daysLeft+' days ('+d.statementDay+'th)';
+      var stEl=mk('div','',stText); stEl.style.cssText='font-size:10px;color:'+stColor+';margin-top:3px;font-weight:'+(daysLeft<=3?'600':'400')+';';
+      mid.appendChild(stEl);
+    } else if(d.type==='Credit card'&&!d.statementDay){
+      var addStEl=mk('div','','No statement date set'); addStEl.style.cssText='font-size:10px;color:var(--border2);margin-top:2px;';
+      mid.appendChild(addStEl);
+    }
     if(d.limit&&!isPaidOff){
       var pct=Math.min(100,(bal/d.limit)*100);
       var barColor=pct>80?'var(--red)':pct>50?'var(--amber)':'var(--green)';
@@ -2833,6 +2940,11 @@ function openEditDebt(accountId){
   el('edit-debt-rate').value=a.rate||'';
   el('edit-debt-payment').value=a.monthlyPayment||'';
   el('edit-debt-note').value=a.rateNote||'';
+  // Show statement fields only for credit cards
+  var stFields=el('edit-debt-statement-fields');
+  if(stFields) stFields.style.display=a.type==='Credit card'?'block':'none';
+  el('edit-debt-statement-day').value=a.statementDay||'';
+  el('edit-debt-due-day').value=a.dueDayOfMonth||'';
   openModal('modal-edit-debt');
 }
 
@@ -2844,7 +2956,14 @@ el('btn-save-edit-debt').addEventListener('click',function(){
   a.rate=el('edit-debt-rate').value.trim();
   a.monthlyPayment=parseFloat(el('edit-debt-payment').value)||0;
   a.rateNote=el('edit-debt-note').value.trim();
-  saveData(null,'accounts'); closeModal('modal-edit-debt'); renderDebts(); showToast('Debt updated');
+  if(a.type==='Credit card'){
+    var sd=parseInt(el('edit-debt-statement-day').value);
+    var dd=parseInt(el('edit-debt-due-day').value);
+    a.statementDay=isNaN(sd)?null:sd;
+    a.dueDayOfMonth=isNaN(dd)?null:dd;
+  }
+  saveData(null,'accounts'); closeModal('modal-edit-debt'); renderDebts();
+  renderAccounts(); renderDashboard(); showToast('Updated');
 });
 
 // Add installment plan
@@ -3768,6 +3887,168 @@ el('btn-apply-recat').addEventListener('click',function(){
   showToast(count+' transactions re-categorized');
   renderRecategorize();
   renderDashboard();
+});
+
+
+// ---- FINANCIAL CALENDAR ----
+var _calYear=new Date().getFullYear();
+var _calMonth=new Date().getMonth(); // 0-indexed
+var _calSelected=null;
+
+// Build all events for a given year/month
+function getCalEvents(year, month){
+  var events={}; // key = 'YYYY-MM-DD', value = array of event objects
+  function addEvent(day, event){
+    if(!day||day<1||day>31) return;
+    var d=new Date(year,month,day);
+    if(d.getMonth()!==month) return; // skip invalid dates like Feb 31
+    var key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(!events[key]) events[key]=[];
+    events[key].push(event);
+  }
+
+  // Paycheques (~13th and ~27th)
+  addEvent(13,{type:'paycheque',color:'#3a7d52',label:'Paycheque 1 (~$2,859)',icon:'$'});
+  addEvent(27,{type:'paycheque',color:'#3a7d52',label:'Paycheque 2 (~$2,859)',icon:'$'});
+
+  // Credit card statement dates
+  db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay;}).forEach(function(a){
+    var bal=Math.abs(computeLiveBalance(a.id));
+    addEvent(a.statementDay,{type:'statement',color:'#6b44a8',label:a.name+' statement — '+fmt(bal)+' will be reported',icon:'C',accountId:a.id});
+  });
+
+  // Credit card payment due dates
+  db.accounts.filter(function(a){return a.type==='Credit card'&&a.dueDayOfMonth;}).forEach(function(a){
+    addEvent(a.dueDayOfMonth,{type:'payment-due',color:'#b84040',label:a.name+' payment due',icon:'!',accountId:a.id});
+  });
+
+  // Recurring bills
+  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp){
+    addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id});
+  });
+
+  // Installment payments
+  var yearMonthStr=year+'-'+String(month+1).padStart(2,'0');
+  db.installmentPlans.filter(function(i){return i.active;}).forEach(function(inst){
+    inst.payments.filter(function(p){return p.dueDate.startsWith(yearMonthStr);}).forEach(function(p){
+      var day=parseInt(p.dueDate.split('-')[2]);
+      addEvent(day,{type:'installment',color:'#b07020',label:inst.name+' — '+fmt(p.amount)+(p.paid?' (paid)':''),icon:'K',paid:p.paid});
+    });
+  });
+
+  return events;
+}
+
+function renderCalendar(){
+  var now=new Date();
+  var todayStr=todayLocal();
+  el('cal-month-label').textContent=new Date(_calYear,_calMonth,1).toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+
+  var events=getCalEvents(_calYear,_calMonth);
+  var grid=el('cal-grid'); grid.innerHTML='';
+  grid.className='cal-grid';
+
+  // Day of week headers
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
+    var hdr=mk('div','cal-dow',d); grid.appendChild(hdr);
+  });
+
+  // First day of month
+  var firstDay=new Date(_calYear,_calMonth,1).getDay();
+  var daysInMonth=new Date(_calYear,_calMonth+1,0).getDate();
+  var daysInPrev=new Date(_calYear,_calMonth,0).getDate();
+
+  // Previous month padding
+  for(var i=0;i<firstDay;i++){
+    var d=mk('div','cal-day other-month');
+    var n=mk('div','cal-day-num',String(daysInPrev-firstDay+1+i)); d.appendChild(n);
+    grid.appendChild(d);
+  }
+
+  // Current month days
+  for(var day=1;day<=daysInMonth;day++){
+    var dateStr=_calYear+'-'+String(_calMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    var isToday=dateStr===todayStr;
+    var isSelected=dateStr===_calSelected;
+    var dayEvents=events[dateStr]||[];
+
+    var cell=mk('div','cal-day'+(isToday?' today':'')+(isSelected?' selected':''));
+    var num=mk('div','cal-day-num',String(day)); cell.appendChild(num);
+
+    if(dayEvents.length){
+      var dots=mk('div','cal-dots');
+      dayEvents.forEach(function(e){
+        var dot=mk('div','cal-dot'); dot.style.background=e.color; dot.title=e.label;
+        dots.appendChild(dot);
+      });
+      cell.appendChild(dots);
+    }
+
+    (function(ds, evts){
+      cell.addEventListener('click',function(){
+        _calSelected=ds;
+        renderCalendar();
+        renderCalDetail(evts, ds);
+      });
+    })(dateStr, dayEvents);
+
+    grid.appendChild(cell);
+  }
+
+  // Next month padding
+  var totalCells=firstDay+daysInMonth;
+  var remaining=(7-totalCells%7)%7;
+  for(var i=1;i<=remaining;i++){
+    var d=mk('div','cal-day other-month');
+    var n=mk('div','cal-day-num',String(i)); d.appendChild(n);
+    grid.appendChild(d);
+  }
+
+  // Auto-show today's events or selected
+  if(_calSelected&&events[_calSelected]){
+    renderCalDetail(events[_calSelected],_calSelected);
+  } else if(events[todayStr]&&_calYear===now.getFullYear()&&_calMonth===now.getMonth()){
+    renderCalDetail(events[todayStr],todayStr);
+  } else {
+    el('cal-detail').innerHTML='';
+  }
+}
+
+function renderCalDetail(evts, dateStr){
+  var c=el('cal-detail'); c.innerHTML='';
+  if(!evts||!evts.length) return;
+  var hdr=mk('div',''); hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;';
+  hdr.textContent=fmtDate(dateStr)+' — '+evts.length+' event'+(evts.length>1?'s':'');
+  c.appendChild(hdr);
+  var list=mk('div','card'); list.style.padding='0';
+  evts.forEach(function(e){
+    var row=mk('div','cal-event-item');
+    var dot=mk('div',''); dot.style.cssText='width:10px;height:10px;border-radius:50%;background:'+e.color+';flex-shrink:0;margin-top:3px;';
+    var info=mk('div',''); info.style.flex='1';
+    var typeLabel={statement:'Statement date',bill:'Bill due','payment-due':'Payment due',paycheque:'Paycheque',installment:'Installment'}[e.type]||e.type;
+    var type=mk('div','',typeLabel); type.style.cssText='font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;';
+    var lbl=mk('div','',e.label); lbl.style.cssText='font-size:13px;color:var(--text);margin-top:2px;'+(e.paid?'text-decoration:line-through;color:var(--text3);':'');
+    info.appendChild(type); info.appendChild(lbl);
+    // Statement tip
+    if(e.type==='statement'){
+      var tip=mk('div','','Pay down before this date to lower your reported credit utilization'); tip.style.cssText='font-size:11px;color:var(--purple);margin-top:3px;';
+      info.appendChild(tip);
+    }
+    row.appendChild(dot); row.appendChild(info);
+    list.appendChild(row);
+  });
+  c.appendChild(list);
+}
+
+// Calendar nav buttons
+el('btn-cal-prev').addEventListener('click',function(){
+  _calMonth--; if(_calMonth<0){_calMonth=11;_calYear--;} _calSelected=null; renderCalendar();
+});
+el('btn-cal-next').addEventListener('click',function(){
+  _calMonth++; if(_calMonth>11){_calMonth=0;_calYear++;} _calSelected=null; renderCalendar();
+});
+el('btn-cal-today').addEventListener('click',function(){
+  var n=new Date(); _calYear=n.getFullYear(); _calMonth=n.getMonth(); _calSelected=null; renderCalendar();
 });
 
 
