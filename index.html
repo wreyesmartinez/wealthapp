@@ -239,7 +239,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.2.9 - William R.M.</div>
+    <div class="logo-sub">v2.3.0 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -256,7 +256,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
   <div class="nav-item" data-page="recategorize"><span class="nav-icon">&#8635;</span>Re-categorize</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.2.9<br>Brand logos - split CC/loans<br>Apr 2026</div>
+  <div class="version-badge">WealthTrack v2.3.0<br>Account nav + date fix<br>Apr 2026</div>
 </div>
 
 <div class="main">
@@ -1326,6 +1326,26 @@ if(!db.budgetEnvelopes) db.budgetEnvelopes=buildDefaultData().budgetEnvelopes;
 // ---- UTILS ----
 function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtDate(d){try{return new Date(d+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'});}catch(e){return d;}}
+function todayLocal(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+// Track whether we navigated to transactions from an account click (skip filter reset)
+var _txnAccountFilter=null;
+
+// Navigate to transactions filtered by account
+function navToAccount(accountId){
+  _txnAccountFilter=accountId;
+  nav('transactions');
+  // Set the account filter after nav renders
+  setTimeout(function(){
+    var fa=el('filter-account');
+    if(fa){
+      for(var i=0;i<fa.options.length;i++){
+        if(fa.options[i].value===accountId){fa.selectedIndex=i;break;}
+      }
+    }
+    renderTransactions();
+  },50);
+}
 function getApiKey(){return localStorage.getItem(SK_KEY)||'';}
 function setApiKey(k){localStorage.setItem(SK_KEY,k);}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},3000);}
@@ -1419,7 +1439,18 @@ function nav(page){
 
 function renderPage(page){
   if(page==='dashboard') renderDashboard();
-  else if(page==='transactions') renderTransactions();
+  else if(page==='transactions'){
+    // Reset filters when navigating from nav (not from navToAccount)
+    if(!_txnAccountFilter){
+      el('filter-account').value='';
+      el('filter-cat').value='';
+      el('filter-type').value='';
+      el('filter-search').value='';
+      // Keep month filter as current month
+    }
+    _txnAccountFilter=null;
+    renderTransactions();
+  }
   else if(page==='accounts') renderAccounts();
   else if(page==='debts') renderDebts();
   else if(page==='budget') renderBudget();
@@ -1669,7 +1700,7 @@ function renderDashboardBudgetAlerts(spent){
 
 function renderUpcoming(){
   var c=el('upcoming-timeline'); c.innerHTML='';
-  var today=new Date().toISOString().split('T')[0];
+  var today=todayLocal();
   var now=new Date(); var y=now.getFullYear(); var m=String(now.getMonth()+1).padStart(2,'0');
   var payments=[
     {date:y+'-'+m+'-11',desc:'Uplift Canada',amount:65.40},
@@ -1792,10 +1823,17 @@ el('filter-search').addEventListener('input',renderTransactions);
 
 // Add transaction modal
 function openAddTxnModal(){
-  el('txn-date').value=new Date().toISOString().split('T')[0];
+  el('txn-date').value=todayLocal();
   el('txn-amount').value=''; el('txn-desc').value=''; el('txn-notes').value='';
   var sel=el('txn-account'); sel.innerHTML='';
   db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;sel.appendChild(o);});
+  // Pre-select account if filter is active
+  var currentFilter=el('filter-account')?el('filter-account').value:'';
+  if(currentFilter){
+    for(var i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===currentFilter){sel.selectedIndex=i;break;}
+    }
+  }
   fillCatSelect('txn-category',false,'Groceries');
   openModal('modal-add-txn');
 }
@@ -1870,7 +1908,7 @@ function deleteTxn(id){
 
 // Transfer modal
 function openTransferModal(){
-  el('tr-date').value=new Date().toISOString().split('T')[0];
+  el('tr-date').value=todayLocal();
   el('tr-amount').value=''; el('tr-desc').value='';
   ['tr-from','tr-to'].forEach(function(sid){
     var sel=el(sid); sel.innerHTML='';
@@ -2574,7 +2612,10 @@ function makeAssetRow(a, isLast){
   var change=live-(a.openingBalance||0);
   var ident=getDebtIdentity(a.id)||{initials:a.name.substring(0,2).toUpperCase(),color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'};
   var row=mk('div','');
-  row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(isLast?'':'border-bottom:0.5px solid var(--border);');
+  row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background .15s;'+(isLast?'':'border-bottom:0.5px solid var(--border);');
+  row.addEventListener('click',function(){navToAccount(a.id);});
+  row.onmouseenter=function(){row.style.background='var(--bg3)';};
+  row.onmouseleave=function(){row.style.background='';};
   row.appendChild(makeLogoBadge(ident,38));
   var mid=mk('div',''); mid.style.cssText='flex:1;min-width:0;';
   var name=mk('div','',a.name); name.style.cssText='font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
@@ -2641,7 +2682,10 @@ function makeDebtSection(title, debts){
     var monthly=d.monthlyPayment||0;
     var mtp=monthly>0&&!isPaidOff?Math.ceil(bal/monthly):null;
 
-    var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;'+(idx<debts.length-1?'border-bottom:0.5px solid var(--border);':'')+(isPaidOff?'opacity:0.5;':'');
+    var row=mk('div',''); row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background .15s;'+(idx<debts.length-1?'border-bottom:0.5px solid var(--border);':'')+(isPaidOff?'opacity:0.5;':'');
+    row.addEventListener('click',function(){navToAccount(d.id);});
+    row.onmouseenter=function(){row.style.background='var(--bg3)';};
+    row.onmouseleave=function(){row.style.background='';};
     row.appendChild(makeLogoBadge(isPaidOff?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident, 38));
 
     var mid=mk('div',''); mid.style.cssText='flex:1;min-width:0;';
@@ -2667,7 +2711,7 @@ function makeDebtSection(title, debts){
     if(monthly>0&&!isPaidOff){var mo=mk('div','',fmt(monthly)+'/mo');mo.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;';right.appendChild(mo);}
     if(mtp){var mtpEl=mk('div','',mtp+'mo left');mtpEl.style.cssText='font-size:10px;color:'+(mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--text3)')+';margin-top:1px;';right.appendChild(mtpEl);}
     var editBtn=mk('button','btn btn-ghost btn-sm','Edit');editBtn.style.cssText='font-size:10px;padding:3px 7px;margin-top:6px;display:block;margin-left:auto;';
-    editBtn.addEventListener('click',function(){openEditDebt(d.id);});
+    editBtn.addEventListener('click',function(e){e.stopPropagation();openEditDebt(d.id);});
     right.appendChild(editBtn);
 
     row.appendChild(mid); row.appendChild(right);
@@ -2767,7 +2811,7 @@ function toggleInstPayment(instId,paymentId,forcePaid){
   var p=inst.payments.find(function(x){return x.id===paymentId;});
   if(!p) return;
   p.paid=forcePaid!==undefined?forcePaid:!p.paid;
-  p.paidDate=p.paid?new Date().toISOString().split('T')[0]:null;
+  p.paidDate=p.paid?todayLocal():null;
   saveData(null,'installmentPlans'); renderDebts(); renderPaycheque();
   showToast(p.paid?'Payment marked as paid':'Payment unmarked');
 }
@@ -2805,7 +2849,7 @@ el('btn-save-edit-debt').addEventListener('click',function(){
 
 // Add installment plan
 el('btn-add-installment').addEventListener('click',function(){
-  el('inst-first-date').value=new Date().toISOString().split('T')[0];
+  el('inst-first-date').value=todayLocal();
   el('inst-first-paid').checked=false;
   el('inst-name').value=''; el('inst-provider').value='';
   el('inst-total').value=''; el('inst-count').value='4';
@@ -2949,7 +2993,7 @@ function rateColor(rate){
 }
 
 function renderDebts(){
-  var today=new Date().toISOString().split('T')[0];
+  var today=todayLocal();
 
   // ---- BUILD UNIFIED ITEM LIST ----
   var items=[];
