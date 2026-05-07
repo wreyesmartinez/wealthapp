@@ -1805,7 +1805,15 @@ function renderTransactions(){
   if(cat) txns=txns.filter(function(t){return t.category===cat;});
   if(mo) txns=txns.filter(function(t){return t.date.startsWith(mo);});
   if(tp) txns=txns.filter(function(t){return t.type===tp;});
-  if(q) txns=txns.filter(function(t){return t.description.toLowerCase().includes(q)||t.category.toLowerCase().includes(q)||t.notes.toLowerCase().includes(q);});
+  if(q) txns=txns.filter(function(t){
+    var a=db.accounts.find(function(x){return x.id===t.account;});
+    var accName=a?a.name.toLowerCase():'';
+    return t.description.toLowerCase().includes(q)||
+           t.category.toLowerCase().includes(q)||
+           (t.notes||'').toLowerCase().includes(q)||
+           t.amount.toFixed(2).includes(q)||
+           accName.includes(q);
+  });
   var f=sortTxnState.field,d=sortTxnState.dir;
   txns.sort(function(a,b){
     var va=a[f],vb=b[f];
