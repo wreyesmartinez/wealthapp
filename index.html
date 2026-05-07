@@ -279,7 +279,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <button class="hamburger" id="btn-hamburger">&#9776;</button>
       <div>
         <div class="topbar-title" id="page-title">Dashboard</div>
-        <div class="topbar-meta">April 2026</div>
+        <div class="topbar-meta" id="topbar-meta">May 2026</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
@@ -309,7 +309,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <div class="card"><div class="card-title">Debt balances</div><canvas id="chart-debt" style="width:100%;height:180px;"></canvas></div>
     </div>
     <div class="grid2">
-      <div class="card"><div class="card-title">Budget - April 2026</div><div id="budget-progress-list"></div></div>
+      <div class="card"><div class="card-title" id="dash-budget-title">Budget</div><div id="budget-progress-list"></div></div>
       <div class="card">
         <div class="card-title">Upcoming payments</div>
         <div id="upcoming-timeline"></div>
@@ -330,11 +330,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div class="filter-bar">
       <select class="form-select" id="filter-account"><option value="">All accounts</option></select>
       <select class="form-select" id="filter-cat"></select>
-      <select class="form-select" id="filter-month">
-        <option value="">All months</option>
-        <option value="2026-01">Jan 2026</option><option value="2026-02">Feb 2026</option>
-        <option value="2026-03">Mar 2026</option><option value="2026-04" selected>Apr 2026</option>
-      </select>
+      <select class="form-select" id="filter-month"></select>
       <select class="form-select" id="filter-type">
         <option value="">All types</option><option value="income">Income</option><option value="expense">Expense</option>
       </select>
@@ -486,9 +482,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     </div>
     <div class="filter-bar">
       <select class="form-select" id="report-month">
-        <option value="">All months</option><option value="2026-01">Jan 2026</option>
-        <option value="2026-02">Feb 2026</option><option value="2026-03">Mar 2026</option>
-        <option value="2026-04" selected>Apr 2026</option>
+        <option value="">All months</option>
       </select>
       <select class="form-select" id="report-group">
         <option value="category">By category</option><option value="account">By account</option>
@@ -1373,6 +1367,36 @@ function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDi
 function fmtDate(d){try{return new Date(d+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'});}catch(e){return d;}}
 function todayLocal(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
+// Build month dropdown options dynamically from transaction data + current month
+function buildMonthOptions(selectId, defaultToCurrentMonth){
+  var sel=el(selectId); if(!sel) return;
+  var currentMonth=getCurrentMonth();
+  // Gather all months from transactions
+  var monthSet={};
+  db.transactions.forEach(function(t){ monthSet[t.date.substring(0,7)]=true; });
+  // Always include current month even if no transactions yet
+  monthSet[currentMonth]=true;
+  var months=Object.keys(monthSet).sort().reverse(); // newest first
+  var prev=sel.value; // preserve current selection
+  sel.innerHTML='';
+  var allOpt=mk('option'); allOpt.value=''; allOpt.textContent='All months'; sel.appendChild(allOpt);
+  months.forEach(function(m){
+    var d=new Date(m+'-01T12:00:00');
+    var label=d.toLocaleDateString('en-CA',{month:'short',year:'numeric'});
+    var o=mk('option'); o.value=m; o.textContent=label;
+    if(prev?m===prev:defaultToCurrentMonth&&m===currentMonth) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
+// Update topbar meta with current month
+function updateTopbarMeta(){
+  var meta=el('topbar-meta');
+  if(meta) meta.textContent=new Date().toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+  var dashTitle=el('dash-budget-title');
+  if(dashTitle) dashTitle.textContent='Budget - '+new Date().toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+}
+
 // Track whether we navigated to transactions from an account click (skip filter reset)
 var _txnAccountFilter=null;
 
@@ -1659,7 +1683,13 @@ function renderDashboard(){
       .forEach(function(t){cats[t.category]=(cats[t.category]||0)+t.amount;});
     var sorted=Object.entries(cats).sort(function(a,b){return b[1]-a[1];});
     drawDonut('chart-donut',sorted.map(function(d){return[d[0],d[1],catColor(d[0])];}),'donut-legend');
-    var months=['2026-01','2026-02','2026-03','2026-04'],mlabels=['Jan','Feb','Mar','Apr'];
+    // Build last 4 months dynamically
+    var months=[],mlabels=[];
+    for(var mi=3;mi>=0;mi--){
+      var md=new Date(); md.setDate(1); md.setMonth(md.getMonth()-mi);
+      months.push(md.getFullYear()+'-'+String(md.getMonth()+1).padStart(2,'0'));
+      mlabels.push(md.toLocaleDateString('en-CA',{month:'short'}));
+    }
     drawBarChart('chart-bar',mlabels,[
       {label:'Income',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#3a7d52'},
       {label:'Expenses',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#b84040'}
@@ -1791,6 +1821,8 @@ function renderTransactions(){
   fa.innerHTML='';
   var optAll=mk('option'); optAll.value=''; optAll.textContent='All accounts';
   fa.appendChild(optAll);
+  // Rebuild month options dynamically each time
+  buildMonthOptions('filter-month',false);
   db.accounts.forEach(function(a){
     var o=mk('option'); o.value=a.id; o.textContent=a.name;
     if(a.id===curAcc) o.selected=true;
@@ -4474,6 +4506,9 @@ async function init(){
   fillCatSelect('tr-category',false,'Credit card payment');
   fillCatSelect('rp-category',false,'Loan payment');
   fillCatSelect('edit-rp-category',false);
+  buildMonthOptions('filter-month',true);
+  buildMonthOptions('report-month',true);
+  updateTopbarMeta();
   renderImportPage();
   renderDashboard();
 
