@@ -665,6 +665,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-edit-installment">
+  <div class="modal">
+    <div class="modal-title">Edit Installment Plan</div>
+    <input type="hidden" id="edit-inst-id">
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="edit-inst-name"></div>
+    <div class="form-group"><label class="form-label">Provider</label><input type="text" class="form-input" id="edit-inst-provider" placeholder="e.g. Klarna, Affirm"></div>
+    <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="edit-inst-keywords" placeholder="e.g. klarna, ps5"></div>
+    <div class="alert alert-blue" style="margin-top:4px;">Payment schedule cannot be changed after creation. Mark individual payments as paid/unpaid by tapping them in Debt Tracker.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-inst">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-edit-inst">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-add-installment">
   <div class="modal">
     <div class="modal-title">Add Installment Plan</div>
@@ -2965,19 +2980,24 @@ function toggleInstPayment(instId,paymentId,forcePaid){
 
 function openEditInstallment(id){
   var inst=db.installmentPlans.find(function(x){return x.id===id;}); if(!inst) return;
-  // Reuse add modal pre-filled
-  el('inst-name').value=inst.name;
-  el('inst-provider').value=inst.provider||'';
-  el('inst-total').value=inst.totalAmount||'';
-  el('inst-count').value=inst.payments.length;
-  el('inst-payment-amt').value=inst.payments[0]?inst.payments[0].amount:'';
-  el('inst-first-date').value=inst.payments[0]?inst.payments[0].dueDate:todayLocal();
-  el('inst-keywords').value=(inst.keywords||[]).join(', ');
-  el('inst-first-paid').checked=inst.payments[0]&&inst.payments[0].paid;
-  // Change save button to update mode
-  el('inst-name').setAttribute('data-edit-id', id);
-  openModal('modal-add-installment');
+  el('edit-inst-id').value=id;
+  el('edit-inst-name').value=inst.name;
+  el('edit-inst-provider').value=inst.provider||'';
+  el('edit-inst-keywords').value=(inst.keywords||[]).join(', ');
+  openModal('modal-edit-installment');
 }
+
+el('btn-cancel-edit-inst').addEventListener('click',function(){closeModal('modal-edit-installment');});
+el('btn-save-edit-inst').addEventListener('click',function(){
+  var id=el('edit-inst-id').value;
+  var inst=db.installmentPlans.find(function(x){return x.id===id;}); if(!inst) return;
+  inst.name=el('edit-inst-name').value.trim()||inst.name;
+  inst.provider=el('edit-inst-provider').value.trim();
+  inst.keywords=el('edit-inst-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  saveData(null,'installmentPlans');
+  closeModal('modal-edit-installment');
+  renderDebts(); showToast('Installment updated');
+});
 
 function deleteInstallment(id){
   if(!confirm('Remove this installment plan?')) return;
