@@ -252,7 +252,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.2 - William R.M.</div>
+    <div class="logo-sub">v2.3.3 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2963,6 +2963,22 @@ function toggleInstPayment(instId,paymentId,forcePaid){
   showToast(p.paid?'Payment marked as paid':'Payment unmarked');
 }
 
+function openEditInstallment(id){
+  var inst=db.installmentPlans.find(function(x){return x.id===id;}); if(!inst) return;
+  // Reuse add modal pre-filled
+  el('inst-name').value=inst.name;
+  el('inst-provider').value=inst.provider||'';
+  el('inst-total').value=inst.totalAmount||'';
+  el('inst-count').value=inst.payments.length;
+  el('inst-payment-amt').value=inst.payments[0]?inst.payments[0].amount:'';
+  el('inst-first-date').value=inst.payments[0]?inst.payments[0].dueDate:todayLocal();
+  el('inst-keywords').value=(inst.keywords||[]).join(', ');
+  el('inst-first-paid').checked=inst.payments[0]&&inst.payments[0].paid;
+  // Change save button to update mode
+  el('inst-name').setAttribute('data-edit-id', id);
+  openModal('modal-add-installment');
+}
+
 function deleteInstallment(id){
   if(!confirm('Remove this installment plan?')) return;
   // Archive instead of delete — move to completed with all paid
@@ -3045,13 +3061,42 @@ el('btn-save-installment').addEventListener('click',function(){
     else if(freq==='30') cur.setMonth(cur.getMonth()+1);
   }
 
-  db.installmentPlans.push({
+  var newInst={
     id:'inst'+Date.now(),name:name,merchant:name,
     totalAmount:total,payments:payments,
     provider:provider,keywords:keywords,active:true
-  });
+  };
+  db.installmentPlans.push(newInst);
   saveData(null,'installmentPlans'); closeModal('modal-add-installment'); renderDebts();
   showToast('Installment plan added');
+
+  // Ask if user wants to add upcoming payments to Recurring
+  setTimeout(function(){
+    var unpaid=payments.filter(function(p){return !p.paid;});
+    if(!unpaid.length) return;
+    if(confirm('Add the '+unpaid.length+' upcoming payments to your Recurring list?\n\nThis will make them appear in your Paycheque Plan automatically.')){
+      unpaid.forEach(function(p){
+        var day=parseInt(p.dueDate.split('-')[2]);
+        var pc=dateToPC(p.dueDate);
+        db.recurringPayments.push({
+          id:'rp'+Date.now()+Math.random(),
+          name:name+' ('+fmtDate(p.dueDate)+')',
+          amount:p.amount,
+          expectedDay:day,
+          tolerance:3,
+          keywords:keywords,
+          paycheque:pc,
+          active:true,
+          category:'Buy now pay later',
+          linkedInstallmentId:newInst.id,
+          linkedPaymentId:p.id
+        });
+      });
+      saveData(null,'recurringPayments');
+      showToast(unpaid.length+' payments added to Recurring');
+      renderRecurring();
+    }
+  },300);
 });
 
 // ---- DEBT IDENTITY — brand colors ----
@@ -3253,8 +3298,9 @@ function buildInstCard(item,today){
   var inst=item.inst;
   var ident=getInstIdentity(inst);
   var card=mk('div','debt-card');
+  // Light background with colored left border — no more black
   card.style.borderLeft='4px solid '+ident.color;
-  card.style.background=item.allDone?'var(--bg3)':ident.bg;
+  card.style.background=item.allDone?'var(--bg3)':'var(--bg2)';
   if(item.allDone) card.style.opacity='0.65';
 
   // Header row with badge
@@ -3262,10 +3308,19 @@ function buildInstCard(item,today){
   hdr.appendChild(makeLogoBadge(item.allDone?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident,44));
 
   var mid=mk('div',''); mid.style.flex='1';
-  var providerTag=mk('span','tag tag-purple',inst.provider||'Installment');
-  providerTag.style.cssText='background:'+ident.bg+';color:'+ident.color+';border:1px solid '+ident.color+'40;margin-bottom:4px;display:inline-block;';
+  // Provider tag
+  var providerTag=mk('span','tag','');
+  providerTag.style.cssText='background:'+ident.color+'18;color:'+ident.color+';border:1px solid '+ident.color+'40;margin-bottom:5px;display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;';
+  providerTag.textContent=inst.provider||'Installment';
+  // Full plan name (not just provider)
   var nameEl=mk('div','',inst.name); nameEl.style.cssText='font-size:14px;font-weight:600;color:var(--text);';
   mid.appendChild(providerTag); mid.appendChild(nameEl);
+  // Linked recurring badge
+  var linkedRp=db.recurringPayments.find(function(r){return r.linkedInstallmentId===inst.id;});
+  if(linkedRp){
+    var linkedBadge=mk('span','','Tracked in Recurring'); linkedBadge.style.cssText='font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:8px;margin-top:3px;display:inline-block;';
+    mid.appendChild(linkedBadge);
+  }
 
   var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
   var amtEl=mk('div','',item.allDone?'PAID OFF':fmt(item.amtRemaining)+' left');
@@ -3282,15 +3337,16 @@ function buildInstCard(item,today){
   pb.style.width=pct+'%'; pb.style.background=item.allDone?'var(--green)':ident.color;
   pw.appendChild(pb); card.appendChild(pw);
 
-  // Payment timeline
-  var timeline=mk('div',''); timeline.style.cssText='display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;';
+  // Payment timeline — scrollable if many payments
+  var timelineWrap=mk('div',''); timelineWrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:14px;padding-bottom:4px;';
+  var timeline=mk('div',''); timeline.style.cssText='display:flex;gap:8px;min-width:max-content;';
   inst.payments.forEach(function(p){
     var isNext=!p.paid&&p===item.nextPmt;
-    var tileBg=p.paid?'var(--green-bg)':isNext?ident.bg:'var(--bg3)';
-    var tileBorder=p.paid?'rgba(58,125,82,.2)':isNext?ident.color+'60':'var(--border)';
+    var tileBg=p.paid?'var(--green-bg)':isNext?ident.color+'15':'var(--bg3)';
+    var tileBorder=p.paid?'rgba(58,125,82,.2)':isNext?ident.color:'var(--border)';
     var tileColor=p.paid?'var(--green)':isNext?ident.color:'var(--text2)';
     var pCard=mk('div','');
-    pCard.style.cssText='flex:1;min-width:70px;text-align:center;padding:8px 6px;border-radius:var(--radius-sm);background:'+tileBg+';border:1px solid '+tileBorder+';cursor:pointer;transition:all .15s;';
+    pCard.style.cssText='width:80px;text-align:center;padding:8px 6px;border-radius:var(--radius-sm);background:'+tileBg+';border:1px solid '+tileBorder+';cursor:pointer;transition:all .15s;flex-shrink:0;';
     if(isNext) pCard.style.fontWeight='600';
     pCard.title=p.paid?'Click to unmark':'Click to mark paid';
     var dateEl=mk('div','',fmtDate(p.dueDate)); dateEl.style.cssText='font-size:10px;color:var(--text3);margin-bottom:3px;';
@@ -3303,21 +3359,29 @@ function buildInstCard(item,today){
     })(p.id,p.paid);
     timeline.appendChild(pCard);
   });
-  card.appendChild(timeline);
+  timelineWrap.appendChild(timeline);
+  card.appendChild(timelineWrap);
 
+  // Footer: due date + edit + remove
   var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:space-between;align-items:center;';
   if(item.nextPmt&&!item.allDone){
     var daysEl=mk('span','',item.daysToNext<=0?'Due today':item.daysToNext===1?'Due tomorrow':'Due in '+item.daysToNext+' days');
     daysEl.style.cssText='font-size:12px;font-weight:'+(item.daysToNext<=3?'600':'400')+';color:'+(item.daysToNext<=3?'var(--red)':'var(--text3)')+';';
     footer.appendChild(daysEl);
   }else{ footer.appendChild(mk('span','')); }
+  var btns=mk('div',''); btns.style.cssText='display:flex;gap:6px;';
+  var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
+  editBtn.style.fontSize='11px';
+  editBtn.addEventListener('click',function(){openEditInstallment(inst.id);});
   var delBtn=mk('button','btn btn-ghost btn-sm',item.allDone?'Archive':'Remove');
   delBtn.style.fontSize='11px';
   delBtn.addEventListener('click',function(){deleteInstallment(inst.id);});
-  footer.appendChild(delBtn);
+  btns.appendChild(editBtn); btns.appendChild(delBtn);
+  footer.appendChild(btns);
   card.appendChild(footer);
   return card;
 }
+
 
 function buildDebtCard(item){
   var d=item.account, bal=item.bal, monthly=item.monthly, mtp=item.mtp;
@@ -3433,35 +3497,8 @@ function renderPaycheque(){
   var pc1=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===1;});
   var pc2=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===2;});
 
-  // Add upcoming installment payments to the right PC
-  var instPmts=[];
-  db.installmentPlans.filter(function(i){return i.active;}).forEach(function(inst){
-    inst.payments.filter(function(p){return !p.paid;}).forEach(function(p){
-      var pc=dateToPC(p.dueDate);
-      // Only show payments due this month or next
-      var dueMonth=p.dueDate.substring(0,7);
-      var thisMonth=new Date().toISOString().substring(0,7);
-      var nextMonth=new Date(new Date().setMonth(new Date().getMonth()+1)).toISOString().substring(0,7);
-      if(dueMonth===thisMonth||dueMonth===nextMonth){
-        instPmts.push({
-          id:'inst-'+inst.id+'-'+p.id,
-          name:inst.name+' ('+fmtDate(p.dueDate)+')',
-          amount:p.amount,
-          expectedDay:parseInt(p.dueDate.split('-')[2]),
-          tolerance:3,
-          keywords:inst.keywords,
-          paycheque:pc,
-          active:true,
-          category:'Buy now pay later',
-          isInstallment:true,
-          instId:inst.id,
-          pmtId:p.id
-        });
-      }
-    });
-  });
-  instPmts.filter(function(p){return p.paycheque===1;}).forEach(function(p){pc1.push(p);});
-  instPmts.filter(function(p){return p.paycheque===2;}).forEach(function(p){pc2.push(p);});
+  // Paycheque Plan only shows recurring payments — installments appear here
+  // only if they were explicitly added to Recurring by the user
   var pc1Paid=pc1.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).length;
   var pc2Paid=pc2.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).length;
   // Period indicator
@@ -3503,6 +3540,16 @@ function renderPaycheque(){
       var nameEl=mk('span','',rp.name); if(status.paid) nameEl.style.textDecoration='line-through';
       if(status.manual){var mTag=mk('span','','(manual)');mTag.style.cssText='font-size:10px;color:var(--text3);';nameRow.appendChild(mTag);}
       nameRow.appendChild(circle); nameRow.appendChild(nameEl);
+      // Show badge if linked to an installment plan
+      if(rp.linkedInstallmentId){
+        var inst=db.installmentPlans.find(function(x){return x.id===rp.linkedInstallmentId;});
+        if(inst){
+          var instBadge=mk('span','',inst.provider||'Installment');
+          instBadge.style.cssText='font-size:9px;padding:1px 5px;border-radius:8px;background:var(--purple-bg);color:var(--purple);margin-left:4px;font-weight:600;';
+          instBadge.title='Linked to: '+inst.name;
+          nameRow.appendChild(instBadge);
+        }
+      }
       var dueEl=mk('div','','Due ~'+rp.expectedDay+'th +/-'+( rp.tolerance||5)+' days');
       dueEl.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;margin-left:22px;';
       if(status.paid&&status.txn){
