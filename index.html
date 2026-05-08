@@ -34,7 +34,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .nav-item{display:flex;align-items:center;gap:9px;padding:9px 22px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-left:2.5px solid transparent;transition:all .15s;user-select:none;}
 .nav-item:hover{color:var(--text);background:var(--bg3);}
 .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(193,127,58,.07);font-weight:600;}
-.nav-ai{color:var(--purple) !important;}
+.nav-item.nav-sub{padding-left:36px;font-size:12px;color:var(--text3);}
+.nav-item.nav-sub.active{color:var(--accent);border-left-color:var(--accent);background:rgba(193,127,58,.07);}
 .nav-ai.active{color:var(--purple) !important;border-left-color:var(--purple) !important;background:rgba(107,68,168,.07) !important;}
 .nav-icon{font-size:15px;width:18px;text-align:center;}
 .version-badge{margin-top:auto;padding:12px 22px;font-size:10px;color:var(--text3);font-family:var(--font-mono);border-top:1px solid var(--border);line-height:1.8;}
@@ -252,7 +253,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.3 - William R.M.</div>
+    <div class="logo-sub">v2.3.4 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -261,9 +262,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-section">Finance</div>
   <div class="nav-item" data-page="accounts"><span class="nav-icon">&#9635;</span>Accounts</div>
   <div class="nav-item" data-page="debts"><span class="nav-icon">&#9671;</span>Debts</div>
-  <div class="nav-item" data-page="paycheque"><span class="nav-icon">&#8853;</span>Paycheque Plan</div>
-  <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
   <div class="nav-item" data-page="calendar"><span class="nav-icon">&#128197;</span>Calendar</div>
+  <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
+  <div class="nav-item nav-sub" data-page="paycheque"><span class="nav-icon">&#8627;</span>Paycheque Plan</div>
   <div class="nav-item" data-page="categories"><span class="nav-icon">&#9632;</span>Categories</div>
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
@@ -806,6 +807,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="modal-overlay" id="modal-add-recurring">
   <div class="modal">
     <div class="modal-title">Add Recurring Payment</div>
+    <!-- Link to debt section -->
+    <div class="form-group" id="rp-link-debt-section">
+      <label class="form-label">Link to existing debt? <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
+      <select class="form-select" id="rp-link-debt">
+        <option value="">No — standalone recurring</option>
+      </select>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Selecting a debt will pre-fill the fields below.</div>
+    </div>
     <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="rp-name" placeholder="e.g. Netflix"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="rp-amount"></div>
@@ -828,6 +837,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="modal">
     <div class="modal-title">Edit Recurring Payment</div>
     <input type="hidden" id="edit-rp-id">
+    <!-- Linked debt info -->
+    <div id="edit-rp-linked-debt" style="display:none;margin-bottom:12px;"></div>
     <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="edit-rp-name"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="edit-rp-amount"></div>
@@ -3640,6 +3651,16 @@ function renderRecurring(){
       nameEl.style.cssText='font-size:13px;font-weight:600;flex:1;color:'+(status.paid?'var(--text3)':'var(--text)')+(status.paid?';text-decoration:line-through':'');
       hdrRow.appendChild(icon); hdrRow.appendChild(nameEl);
       if(!rp.active){var inact=mk('span','tag tag-gray','off');inact.style.fontSize='9px';hdrRow.appendChild(inact);}
+      // Linked installment badge
+      if(rp.linkedInstallmentId){
+        var inst=db.installmentPlans.find(function(x){return x.id===rp.linkedInstallmentId;});
+        if(inst){
+          var lbadge=mk('span','',inst.provider||'Debt');
+          lbadge.style.cssText='font-size:9px;padding:1px 5px;border-radius:8px;background:var(--purple-bg);color:var(--purple);font-weight:600;flex-shrink:0;';
+          lbadge.title='Linked to: '+inst.name;
+          hdrRow.appendChild(lbadge);
+        }
+      }
       card.appendChild(hdrRow);
 
       // Amount + due date row
@@ -3681,7 +3702,46 @@ function renderRecurring(){
 
 el('btn-add-recurring').addEventListener('click',function(){
   fillCatSelect('rp-category',false,'Loan payment');
+  el('rp-name').value=''; el('rp-amount').value='';
+  el('rp-day').value=''; el('rp-keywords').value='';
+  el('rp-tolerance').value='5'; el('rp-paycheque').value='1';
+
+  // Populate link-to-debt dropdown with unlinked installment plans only
+  var linkedIds=db.recurringPayments
+    .filter(function(r){return r.linkedInstallmentId;})
+    .map(function(r){return r.linkedInstallmentId;});
+  var unlinked=db.installmentPlans.filter(function(i){
+    return i.active && !linkedIds.includes(i.id);
+  });
+  var sel=el('rp-link-debt'); sel.innerHTML='';
+  var noneOpt=mk('option'); noneOpt.value=''; noneOpt.textContent='No — standalone recurring';
+  sel.appendChild(noneOpt);
+  unlinked.forEach(function(inst){
+    var remaining=inst.payments.filter(function(p){return !p.paid;});
+    if(!remaining.length) return;
+    var o=mk('option'); o.value=inst.id;
+    o.textContent=inst.name+' ('+remaining.length+' payments left, '+fmt(remaining[0].amount)+' each)';
+    sel.appendChild(o);
+  });
+
   openModal('modal-add-recurring');
+});
+
+// When a debt is selected in the dropdown, pre-fill the form
+el('rp-link-debt').addEventListener('change',function(){
+  var instId=el('rp-link-debt').value;
+  if(!instId) return;
+  var inst=db.installmentPlans.find(function(x){return x.id===instId;});
+  if(!inst) return;
+  var nextPmt=inst.payments.find(function(p){return !p.paid;});
+  if(!nextPmt) return;
+  el('rp-name').value=inst.name;
+  el('rp-amount').value=nextPmt.amount.toFixed(2);
+  var day=parseInt(nextPmt.dueDate.split('-')[2]);
+  el('rp-day').value=day;
+  el('rp-paycheque').value=dateToPC(nextPmt.dueDate);
+  el('rp-tolerance').value='3';
+  el('rp-keywords').value=(inst.keywords||[]).join(', ');
 });
 el('btn-cancel-rp').addEventListener('click',function(){closeModal('modal-add-recurring');});
 el('btn-save-rp').addEventListener('click',function(){
@@ -3690,9 +3750,16 @@ el('btn-save-rp').addEventListener('click',function(){
   var paycheque=parseInt(el('rp-paycheque').value);
   var keywords=el('rp-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
   var category=el('rp-category').value;
+  var linkedInstId=el('rp-link-debt').value||null;
   if(!name||!amount||!day){showToast('Fill name, amount and day');return;}
-  db.recurringPayments.push({id:'rp'+Date.now(),name:name,amount:amount,expectedDay:day,tolerance:tolerance,keywords:keywords,paycheque:paycheque,active:true,category:category});
-  saveData(null,'recurringPayments'); closeModal('modal-add-recurring'); renderRecurring(); renderPaycheque(); showToast('Added');
+  db.recurringPayments.push({
+    id:'rp'+Date.now(),name:name,amount:amount,expectedDay:day,
+    tolerance:tolerance,keywords:keywords,paycheque:paycheque,
+    active:true,category:category,
+    linkedInstallmentId:linkedInstId||undefined
+  });
+  saveData(null,'recurringPayments'); closeModal('modal-add-recurring');
+  renderRecurring(); renderPaycheque(); showToast('Added');
   el('rp-name').value=''; el('rp-amount').value=''; el('rp-day').value=''; el('rp-keywords').value='';
 });
 
@@ -3702,6 +3769,25 @@ function openEditRecurring(id){
   el('edit-rp-day').value=rp.expectedDay; el('edit-rp-tolerance').value=rp.tolerance||5;
   el('edit-rp-keywords').value=(rp.keywords||[]).join(', '); el('edit-rp-paycheque').value=rp.paycheque;
   fillCatSelect('edit-rp-category',false,rp.category||'Other');
+
+  // Show linked debt if present
+  var linkedEl=el('edit-rp-linked-debt');
+  if(rp.linkedInstallmentId){
+    var inst=db.installmentPlans.find(function(x){return x.id===rp.linkedInstallmentId;});
+    if(inst){
+      linkedEl.style.display='block'; linkedEl.innerHTML='';
+      var badge=mk('div',''); badge.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--purple-bg);border-radius:var(--radius-sm);border:1px solid rgba(107,68,168,.2);';
+      var dot=mk('span',''); dot.style.cssText='width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0;';
+      var txt=mk('div','');
+      txt.appendChild(mk('div','','Linked to: '+inst.name));
+      var sub=mk('div','',inst.provider+' · '+inst.payments.filter(function(p){return !p.paid;}).length+' payments remaining');
+      sub.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
+      txt.appendChild(sub);
+      badge.appendChild(dot); badge.appendChild(txt);
+      linkedEl.appendChild(badge);
+    } else { linkedEl.style.display='none'; }
+  } else { linkedEl.style.display='none'; }
+
   openModal('modal-edit-recurring');
 }
 el('btn-cancel-edit-rp').addEventListener('click',function(){closeModal('modal-edit-recurring');});
