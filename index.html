@@ -132,18 +132,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .linked-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:var(--purple-bg);color:var(--purple);border:1px solid rgba(107,68,168,.2);}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
 .cal-dow{text-align:center;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;padding:4px 0;}
-.cal-day{min-height:72px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px;cursor:pointer;transition:background .15s;position:relative;}
+.cal-day{min-height:80px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 6px;cursor:pointer;transition:background .15s;position:relative;overflow:hidden;}
 .cal-day:hover{background:var(--bg3);}
 .cal-day.today{border-color:var(--accent);border-width:2px;}
-.cal-day.other-month{opacity:0.35;}
-.cal-day.selected{background:rgba(193,127,58,.1);border-color:var(--accent);}
-.cal-day-num{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px;}
-.cal-day.today .cal-day-num{color:var(--accent);}
-.cal-dots{display:flex;flex-wrap:wrap;gap:3px;}
-.cal-dot{width:7px;height:7px;border-radius:50%;}
+.cal-day.other-month{opacity:0.3;}
+.cal-day.selected{background:rgba(193,127,58,.08);border-color:var(--accent);}
+.cal-day-num{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;}
+.cal-day.today .cal-day-num{color:var(--accent);font-size:12px;}
+.cal-pills{display:flex;flex-direction:column;gap:2px;}
+.cal-pill{font-size:9px;font-weight:600;padding:1px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;}
 .cal-event-item{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
 .cal-event-item:last-child{border-bottom:none;}
-@media(max-width:768px){.cal-day{min-height:52px;padding:4px;}.cal-day-num{font-size:11px;}}
+@media(max-width:768px){.cal-day{min-height:56px;padding:3px 4px;}.cal-day-num{font-size:10px;}.cal-pill{font-size:8px;padding:1px 3px;}}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg2);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;z-index:999;display:none;white-space:nowrap;}.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);font-size:20px;}
 .import-step{padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px;}
 .import-step.done{background:var(--green-bg);color:var(--green);}
@@ -253,7 +253,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.4.0 - William R.M.</div>
+    <div class="logo-sub">v2.3.5 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -438,12 +438,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       </div>
     </div>
     <!-- Legend -->
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;font-size:11px;">
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#6b44a8;display:inline-block;"></span>Statement date</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#b84040;display:inline-block;"></span>Payment due</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#3a7d52;display:inline-block;"></span>Paycheque</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#2e6ea6;display:inline-block;"></span>Bill due</span>
-      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:#b07020;display:inline-block;"></span>Installment</span>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+      <span class="cal-pill" style="background:#f0eafa;color:#6b44a8;">S Statement</span>
+      <span class="cal-pill" style="background:#faeaea;color:#b84040;">! Payment due</span>
+      <span class="cal-pill" style="background:#e8f4ed;color:#3a7d52;">$ Paycheque</span>
+      <span class="cal-pill" style="background:#e5eef8;color:#2e6ea6;">R Bill due</span>
+      <span class="cal-pill" style="background:#fef3e0;color:#b07020;">K Installment</span>
     </div>
     <div id="cal-grid"></div>
     <div id="cal-detail" style="margin-top:16px;"></div>
@@ -3584,8 +3584,15 @@ function renderPaycheque(){
       var dueEl=mk('div','','Due ~'+rp.expectedDay+'th +/-'+( rp.tolerance||5)+' days');
       dueEl.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;margin-left:22px;';
       if(status.paid&&status.txn){
-        var matchEl=mk('div','','Matched: '+status.txn.date+' '+fmt(status.txn.amount));
-        matchEl.style.cssText='font-size:10px;color:var(--green);margin-left:22px;'; left.appendChild(nameRow); left.appendChild(dueEl); left.appendChild(matchEl);
+        var matchEl=mk('div','');
+        matchEl.style.cssText='font-size:10px;color:var(--green);margin-left:22px;margin-top:2px;';
+        var matchAmtColor=Math.abs(status.txn.amount-rp.amount)>0.05?'color:var(--amber);':'color:var(--green);';
+        matchEl.textContent='Matched: '+status.txn.date+' · '+status.txn.description.substring(0,30)+(status.txn.description.length>30?'...':'')+' · '+fmt(status.txn.amount);
+        if(Math.abs(status.txn.amount-rp.amount)>0.05){
+          matchEl.style.color='var(--amber)';
+          matchEl.textContent+=' ⚠ expected '+fmt(rp.amount);
+        }
+        left.appendChild(nameRow); left.appendChild(dueEl); left.appendChild(matchEl);
       }else{left.appendChild(nameRow); left.appendChild(dueEl);}
       var right=mk('div',''); right.style.cssText='display:flex;align-items:center;gap:8px;flex-shrink:0;';
       var amtEl=mk('span','',status.paid?'paid':'-'+fmt(rp.amount));
@@ -3672,8 +3679,15 @@ function renderRecurring(){
 
       // Match info
       if(status.txn){
-        var match=mk('div','','✓ '+status.txn.date+' '+fmt(status.txn.amount));
-        match.style.cssText='font-size:10px;color:var(--green);margin-bottom:8px;';
+        var match=mk('div','');
+        match.style.cssText='font-size:10px;margin-bottom:8px;';
+        match.textContent='✓ '+status.txn.date+' · '+status.txn.description.substring(0,28)+(status.txn.description.length>28?'...':'')+' · '+fmt(status.txn.amount);
+        if(Math.abs(status.txn.amount-rp.amount)>0.05){
+          match.style.color='var(--amber)';
+          match.textContent+=' ⚠ expected '+fmt(rp.amount);
+        } else {
+          match.style.color='var(--green)';
+        }
         card.appendChild(match);
       }
 
@@ -4173,13 +4187,34 @@ function renderCalendar(){
     var cell=mk('div','cal-day'+(isToday?' today':'')+(isSelected?' selected':''));
     var num=mk('div','cal-day-num',String(day)); cell.appendChild(num);
 
+    // Event type → pill config
+    var pillConfig={
+      statement: {bg:'#f0eafa',color:'#6b44a8',prefix:'S '},
+      'payment-due':{bg:'#faeaea',color:'#b84040',prefix:'! '},
+      paycheque:  {bg:'#e8f4ed',color:'#3a7d52',prefix:'$ '},
+      bill:       {bg:'#e5eef8',color:'#2e6ea6',prefix:'R '},
+      installment:{bg:'#fef3e0',color:'#b07020',prefix:'K '},
+    };
+
     if(dayEvents.length){
-      var dots=mk('div','cal-dots');
-      dayEvents.forEach(function(e){
-        var dot=mk('div','cal-dot'); dot.style.background=e.color; dot.title=e.label;
-        dots.appendChild(dot);
+      var pills=mk('div','cal-pills');
+      // Show max 3 pills, then "+N more"
+      var shown=dayEvents.slice(0,3);
+      shown.forEach(function(e){
+        var cfg=pillConfig[e.type]||{bg:'var(--bg3)',color:'var(--text2)',prefix:''};
+        // Short label: prefix + first word of relevant name
+        var shortName=e.label.split('—')[0].trim().split(' ').slice(0,2).join(' ');
+        var pill=mk('span','cal-pill',cfg.prefix+shortName);
+        pill.style.cssText='background:'+cfg.bg+';color:'+cfg.color+';';
+        pill.title=e.label;
+        pills.appendChild(pill);
       });
-      cell.appendChild(dots);
+      if(dayEvents.length>3){
+        var more=mk('span','cal-pill','+'+(dayEvents.length-3)+' more');
+        more.style.cssText='background:var(--bg3);color:var(--text3);';
+        pills.appendChild(more);
+      }
+      cell.appendChild(pills);
     }
 
     (function(ds, evts){
@@ -4215,28 +4250,36 @@ function renderCalendar(){
 function renderCalDetail(evts, dateStr){
   var c=el('cal-detail'); c.innerHTML='';
   if(!evts||!evts.length) return;
+  var pillConfig={
+    statement:    {bg:'#f0eafa',color:'#6b44a8',label:'Statement date'},
+    'payment-due':{bg:'#faeaea',color:'#b84040',label:'Payment due'},
+    paycheque:    {bg:'#e8f4ed',color:'#3a7d52',label:'Paycheque'},
+    bill:         {bg:'#e5eef8',color:'#2e6ea6',label:'Bill due'},
+    installment:  {bg:'#fef3e0',color:'#b07020',label:'Installment'},
+  };
   var hdr=mk('div',''); hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;';
   hdr.textContent=fmtDate(dateStr)+' — '+evts.length+' event'+(evts.length>1?'s':'');
   c.appendChild(hdr);
   var list=mk('div','card'); list.style.padding='0';
   evts.forEach(function(e){
+    var cfg=pillConfig[e.type]||{bg:'var(--bg3)',color:'var(--text2)',label:e.type};
     var row=mk('div','cal-event-item');
-    var dot=mk('div',''); dot.style.cssText='width:10px;height:10px;border-radius:50%;background:'+e.color+';flex-shrink:0;margin-top:3px;';
+    var typePill=mk('span','cal-pill',cfg.label);
+    typePill.style.cssText='background:'+cfg.bg+';color:'+cfg.color+';flex-shrink:0;font-size:10px;padding:2px 7px;';
     var info=mk('div',''); info.style.flex='1';
-    var typeLabel={statement:'Statement date',bill:'Bill due','payment-due':'Payment due',paycheque:'Paycheque',installment:'Installment'}[e.type]||e.type;
-    var type=mk('div','',typeLabel); type.style.cssText='font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;';
     var lbl=mk('div','',e.label); lbl.style.cssText='font-size:13px;color:var(--text);margin-top:2px;'+(e.paid?'text-decoration:line-through;color:var(--text3);':'');
-    info.appendChild(type); info.appendChild(lbl);
-    // Statement tip
+    info.appendChild(lbl);
     if(e.type==='statement'){
-      var tip=mk('div','','Pay down before this date to lower your reported credit utilization'); tip.style.cssText='font-size:11px;color:var(--purple);margin-top:3px;';
+      var tip=mk('div','','Pay down before today to lower reported utilization');
+      tip.style.cssText='font-size:11px;color:var(--purple);margin-top:3px;';
       info.appendChild(tip);
     }
-    row.appendChild(dot); row.appendChild(info);
+    row.appendChild(typePill); row.appendChild(info);
     list.appendChild(row);
   });
   c.appendChild(list);
 }
+
 
 // Calendar nav buttons
 el('btn-cal-prev').addEventListener('click',function(){
