@@ -253,7 +253,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.5 - William R.M.</div>
+    <div class="logo-sub">v2.3.6 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -280,7 +280,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <button class="hamburger" id="btn-hamburger">&#9776;</button>
       <div>
         <div class="topbar-title" id="page-title">Dashboard</div>
-        <div class="topbar-meta" id="topbar-meta">May 2026</div>
+        <div class="topbar-meta" id="topbar-meta"></div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
@@ -305,7 +305,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <div class="stat-card"><div class="stat-label">Monthly cushion</div><div class="stat-val" style="color:var(--amber);">$182</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">after obligations</div></div>
     </div>
     <div class="grid3" style="margin-bottom:18px;">
-      <div class="card"><div class="card-title">Spending - Apr 2026</div><canvas id="chart-donut" style="width:100%;height:180px;"></canvas><div id="donut-legend" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div></div>
+      <div class="card"><div class="card-title" id="dash-spending-title">Spending</div><canvas id="chart-donut" style="width:100%;height:180px;"></canvas><div id="donut-legend" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div></div>
       <div class="card"><div class="card-title">Income vs Expenses - 4 months</div><canvas id="chart-bar" style="width:100%;height:180px;"></canvas></div>
       <div class="card"><div class="card-title">Debt balances</div><canvas id="chart-debt" style="width:100%;height:180px;"></canvas></div>
     </div>
@@ -356,7 +356,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
   <div class="page" id="page-budget">
     <div class="sec-header">
-      <div><div class="sec-title">Budget</div><div class="sec-sub" id="budget-month-label">April 2026</div></div>
+      <div><div class="sec-title">Budget</div><div class="sec-sub" id="budget-month-label"></div></div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-sm btn-ai" id="btn-monthly-review">Monthly Review</button>
         <button class="btn btn-sm btn-ai" id="btn-ai-budget">AI Budget Review</button>
@@ -419,7 +419,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   </div>
 
   <div class="page" id="page-paycheque">
-    <div class="sec-header"><div><div class="sec-title">Paycheque Plan</div><div class="sec-sub" id="pc-period-label">Apr 2026</div></div><button class="btn btn-ghost btn-sm" id="btn-go-recurring">Edit recurring</button></div>
+    <div class="sec-header"><div><div class="sec-title">Paycheque Plan</div><div class="sec-sub" id="pc-period-label"></div></div><button class="btn btn-ghost btn-sm" id="btn-go-recurring">Edit recurring</button></div>
     <div id="paycheque-plan"></div>
   </div>
 
@@ -1417,10 +1417,14 @@ function buildMonthOptions(selectId, defaultToCurrentMonth){
 
 // Update topbar meta with current month
 function updateTopbarMeta(){
-  var meta=el('topbar-meta');
-  if(meta) meta.textContent=new Date().toLocaleDateString('en-CA',{month:'long',year:'numeric'});
-  var dashTitle=el('dash-budget-title');
-  if(dashTitle) dashTitle.textContent='Budget - '+new Date().toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+  var now=new Date();
+  var monthLabel=now.toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+  var shortLabel=now.toLocaleDateString('en-CA',{month:'short',year:'numeric'});
+  if(el('topbar-meta')) el('topbar-meta').textContent=monthLabel;
+  if(el('budget-month-label')) el('budget-month-label').textContent=monthLabel;
+  if(el('pc-period-label')) el('pc-period-label').textContent=monthLabel;
+  if(el('dash-spending-title')) el('dash-spending-title').textContent='Spending - '+shortLabel;
+  if(el('dash-budget-title')) el('dash-budget-title').textContent='Budget - '+shortLabel;
 }
 
 // Track whether we navigated to transactions from an account click (skip filter reset)
@@ -3521,6 +3525,7 @@ function toggleManual(rpId,yearMonth,markPaid){
 }
 
 function renderPaycheque(){
+  updateTopbarMeta();
   var today=new Date(), day=today.getDate();
   var yearMonth=today.toISOString().substring(0,7);
   var inPC1=day>=1&&day<=13, activePC=inPC1?1:2;
@@ -3603,9 +3608,48 @@ function renderPaycheque(){
       right.appendChild(amtEl); right.appendChild(editBtn);
       row.appendChild(left); row.appendChild(right); card.appendChild(row);
     });
-    var totalRow=mk('div',''); totalRow.style.cssText='display:flex;justify-content:space-between;padding:9px 0;font-weight:600;font-size:14px;border-top:1px solid var(--border);margin-top:4px;';
-    if(pcNum===2){totalRow.style.color='var(--green)'; totalRow.appendChild(mk('span','','Cushion after obligations')); var cushion=mk('span','','+$182'); cushion.style.fontFamily='var(--font-mono)'; totalRow.appendChild(cushion);}
-    else{totalRow.appendChild(mk('span','','Total obligations')); var totEl=mk('span','','-'+fmt(total+346)); totEl.style.cssText='font-family:var(--font-mono);color:var(--red);'; totalRow.appendChild(totEl);}
+    var totalRow=mk('div',''); totalRow.style.cssText='border-top:1px solid var(--border);margin-top:8px;padding-top:10px;';
+
+    // Total obligations
+    var r1=mk('div',''); r1.style.cssText='display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:4px;';
+    r1.appendChild(mk('span','','Total obligations'));
+    var t1=mk('span','','-'+fmt(total)); t1.style.cssText='font-family:var(--font-mono);font-weight:600;';
+    r1.appendChild(t1); totalRow.appendChild(r1);
+
+    // Still to pay (total minus paid items)
+    var paidAmt=items.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
+    var stillToPay=total-paidAmt;
+    var r2=mk('div',''); r2.style.cssText='display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;';
+    r2.appendChild(mk('span','','Still to pay'));
+    var t2=mk('span','',stillToPay<=0?'All paid!':'-'+fmt(stillToPay));
+    t2.style.cssText='font-family:var(--font-mono);font-weight:600;color:'+(stillToPay<=0?'var(--green)':'var(--red)')+';';
+    r2.appendChild(t2); totalRow.appendChild(r2);
+
+    // Chequing balance vs still to pay
+    var chequingBal=computeLiveBalance('ws-chq');
+    var r3=mk('div',''); r3.style.cssText='display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;';
+    r3.appendChild(mk('span','','Chequing balance'));
+    var t3=mk('span','',fmt(chequingBal));
+    t3.style.cssText='font-family:var(--font-mono);font-weight:600;color:'+(chequingBal>=0?'var(--green)':'var(--red)')+';';
+    r3.appendChild(t3); totalRow.appendChild(r3);
+
+    // Coverage indicator
+    var diff=chequingBal-stillToPay;
+    var indicator=mk('div',''); indicator.style.cssText='padding:7px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;text-align:center;';
+    if(stillToPay<=0){
+      indicator.style.cssText+=';background:var(--green-bg);color:var(--green);';
+      indicator.textContent='All obligations paid this period';
+    } else if(diff>=0){
+      indicator.style.cssText+=';background:var(--green-bg);color:var(--green);';
+      indicator.textContent='Covered — '+fmt(diff)+' left after payments';
+    } else if(diff>=-200){
+      indicator.style.cssText+=';background:var(--amber-bg);color:var(--amber);';
+      indicator.textContent='Tight — '+fmt(Math.abs(diff))+' short of covering all payments';
+    } else {
+      indicator.style.cssText+=';background:var(--red-bg);color:var(--red);';
+      indicator.textContent='Not enough — '+fmt(Math.abs(diff))+' short';
+    }
+    totalRow.appendChild(indicator);
     card.appendChild(totalRow);
     return card;
   }
@@ -4484,7 +4528,10 @@ el('btn-confirm-import').addEventListener('click',function(){
 // ---- AI ENGINE ----
 function buildFinancialContext(){
   var cut=db.cutDate||'2026-04-14';
-  var months=['2026-01','2026-02','2026-03','2026-04'];
+  var months=[];
+  for(var mi=5;mi>=0;mi--){var md=new Date();md.setDate(1);md.setMonth(md.getMonth()-mi);months.push(md.getFullYear()+'-'+String(md.getMonth()+1).padStart(2,'0'));}
+  // Only include months that have transactions
+  months=months.filter(function(m){return db.transactions.some(function(t){return t.date.startsWith(m);});});
   var stats=months.map(function(m){
     var tx=db.transactions.filter(function(t){return t.date.startsWith(m);});
     var inc=tx.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
