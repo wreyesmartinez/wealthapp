@@ -24,8 +24,9 @@
   --shadow-sm:0 1px 2px rgba(80,60,30,.06);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
+html,body{max-width:100%;overflow-x:hidden;}
 body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
-.app{display:flex;min-height:100vh;}
+.app{display:flex;min-height:100vh;overflow-x:hidden;}
 .sidebar{width:230px;min-width:230px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s;box-shadow:var(--shadow);overflow-y:auto;}
 .logo{padding:20px 22px 18px;border-bottom:1px solid var(--border);}
 .logo-title{font-family:var(--font-display);font-size:21px;color:var(--accent);}
@@ -39,7 +40,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .nav-ai.active{color:var(--purple) !important;border-left-color:var(--purple) !important;background:rgba(107,68,168,.07) !important;}
 .nav-icon{font-size:15px;width:18px;text-align:center;}
 .version-badge{margin-top:auto;padding:12px 22px;font-size:10px;color:var(--text3);font-family:var(--font-mono);border-top:1px solid var(--border);line-height:1.8;}
-.main{margin-left:230px;flex:1;min-height:100vh;}
+.main{margin-left:230px;flex:1;min-height:100vh;min-width:0;overflow-x:hidden;}
 .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:13px 26px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-sm);}
 .topbar-title{font-family:var(--font-display);font-size:19px;}
 .topbar-meta{font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;}
@@ -48,7 +49,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);}
+.grid2>*,.grid3>*,.grid4>*{min-width:0;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);min-width:0;overflow:hidden;}
 .card-title{font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;}
 .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;box-shadow:var(--shadow-sm);}
 .stat-label{font-size:11px;color:var(--text3);margin-bottom:4px;}
@@ -62,7 +64,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .tag-gray{background:var(--bg3);color:var(--text2);}
 .progress-wrap{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:6px;}
 .progress-bar{height:100%;border-radius:3px;transition:width .5s;}
-.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;}
 .tbl th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg3);}
 .tbl td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
 .tbl tr:last-child td{border-bottom:none;}
@@ -253,7 +255,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.6 - William R.M.</div>
+    <div class="logo-sub">v2.3.7 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -296,26 +298,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   </div>
 
   <div class="page active" id="page-dashboard">
-    <div id="dashboard-alerts" style="margin-bottom:16px;"></div>
-    <div id="monthly-review-banner" style="display:none;margin-bottom:16px;"></div>
-    <div class="grid4" style="margin-bottom:18px;">
+    <div id="dashboard-alerts" style="margin-bottom:12px;"></div>
+    <div id="monthly-review-banner" style="display:none;margin-bottom:12px;"></div>
+    <!-- Stat cards: 4-col desktop, 2-col mobile -->
+    <div class="grid4" style="margin-bottom:16px;">
       <div class="stat-card"><div class="stat-label">Chequing balance</div><div class="stat-val" id="stat-chequing" style="color:var(--green);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">Wealthsimple live</div></div>
-      <div class="stat-card"><div class="stat-label">Monthly income</div><div class="stat-val" style="color:var(--blue);">$5,719</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">2 paycheques/mo</div></div>
+      <div class="stat-card"><div class="stat-label">Monthly income</div><div class="stat-val" id="stat-income" style="color:var(--blue);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">this month</div></div>
       <div class="stat-card"><div class="stat-label">Total debt</div><div class="stat-val" id="stat-debt" style="color:var(--red);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">all accounts</div></div>
-      <div class="stat-card"><div class="stat-label">Monthly cushion</div><div class="stat-val" style="color:var(--amber);">$182</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">after obligations</div></div>
+      <div class="stat-card"><div class="stat-label">Spent this month</div><div class="stat-val" id="stat-spent" style="color:var(--amber);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">expenses only</div></div>
     </div>
-    <div class="grid3" style="margin-bottom:18px;">
+    <!-- Charts: spending donut + income/expense bar side by side -->
+    <div class="grid2" style="margin-bottom:16px;">
       <div class="card"><div class="card-title" id="dash-spending-title">Spending</div><canvas id="chart-donut" style="width:100%;height:180px;"></canvas><div id="donut-legend" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;"></div></div>
-      <div class="card"><div class="card-title">Income vs Expenses - 4 months</div><canvas id="chart-bar" style="width:100%;height:180px;"></canvas></div>
-      <div class="card"><div class="card-title">Debt balances</div><canvas id="chart-debt" style="width:100%;height:180px;"></canvas></div>
+      <div class="card"><div class="card-title">Income vs Expenses</div><canvas id="chart-bar" style="width:100%;height:180px;"></canvas></div>
     </div>
-    <div class="grid2">
-      <div class="card"><div class="card-title" id="dash-budget-title">Budget</div><div id="budget-progress-list"></div></div>
-      <div class="card">
-        <div class="card-title">Upcoming payments</div>
-        <div id="upcoming-timeline"></div>
-        <div style="margin-top:12px;"><button class="btn btn-sm" style="background:var(--purple-bg);color:var(--purple);border:none;width:100%;justify-content:center;" id="btn-ask-payments">Ask AI about payments</button></div>
-      </div>
+    <!-- Upcoming payments full width -->
+    <div class="card">
+      <div class="card-title">Upcoming payments</div>
+      <div id="upcoming-timeline"></div>
+      <div style="margin-top:12px;"><button class="btn btn-sm" style="background:var(--purple-bg);color:var(--purple);border:none;width:100%;justify-content:center;" id="btn-ask-payments">Ask AI about payments</button></div>
     </div>
   </div>
 
@@ -1704,16 +1705,26 @@ function renderDashboard(){
   var totalDebt=db.accounts.filter(function(a){return (a.type==='Credit card'||a.type==='Loan')&&computeLiveBalance(a.id)<0;})
     .reduce(function(s,a){return s+Math.abs(computeLiveBalance(a.id));},0);
   el('stat-debt').textContent=fmt(totalDebt);
-  renderAlerts(); renderBudgetProgress(); renderUpcoming();
-  // Check if monthly review should auto-trigger
+
+  // Dynamic income and spent this month
+  var thisMonth=getCurrentMonth();
+  var monthIncome=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+  var monthSpent=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  if(el('stat-income')) el('stat-income').textContent=fmt(monthIncome);
+  if(el('stat-spent')) el('stat-spent').textContent=fmt(monthSpent);
+
+  renderAlerts(); renderUpcoming();
   if(getApiKey()) checkMonthlyReviewTrigger();
+
   setTimeout(function(){
+    // Donut: CURRENT MONTH ONLY
     var cats={};
-    db.transactions.filter(function(t){return t.date.startsWith('2026-04')&&t.type==='expense';})
+    db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense';})
       .forEach(function(t){cats[t.category]=(cats[t.category]||0)+t.amount;});
     var sorted=Object.entries(cats).sort(function(a,b){return b[1]-a[1];});
     drawDonut('chart-donut',sorted.map(function(d){return[d[0],d[1],catColor(d[0])];}),'donut-legend');
-    // Build last 4 months dynamically
+
+    // Bar: last 4 months dynamically
     var months=[],mlabels=[];
     for(var mi=3;mi>=0;mi--){
       var md=new Date(); md.setDate(1); md.setMonth(md.getMonth()-mi);
@@ -1724,8 +1735,6 @@ function renderDashboard(){
       {label:'Income',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#3a7d52'},
       {label:'Expenses',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#b84040'}
     ]);
-    var debts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
-    drawHBarChart('chart-debt',debts.map(function(d){return d.name;}),debts.map(function(d){return Math.abs(computeLiveBalance(d.id));}),['#b84040','#b07020','#6b44a8','#2e6ea6','#c17f3a','#3a7d52']);
   },50);
   if(getApiKey()){
     el('ai-proactive-section') && (el('ai-proactive-section').style.display='block');
