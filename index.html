@@ -1777,7 +1777,7 @@ function renderAlerts(){
     xBtn.addEventListener('click',function(){
       if(!db.dismissedAlerts) db.dismissedAlerts={};
       db.dismissedAlerts[a.id]=true;
-      saveData(); renderAlerts();
+      saveData(null,'dismissedAlerts'); renderAlerts();
     });
     d.appendChild(txt); d.appendChild(xBtn);
     c.appendChild(d);
@@ -3757,7 +3757,7 @@ function renderRecurring(){
       toggleBtn.addEventListener('click',function(){rp.active=!rp.active;saveData(null,'recurringPayments');renderRecurring();renderPaycheque();showToast(rp.active?'Activated':'Deactivated');});
       var delBtn=mk('button','btn btn-danger btn-sm','✕');
       delBtn.style.cssText='font-size:10px;padding:3px 7px;';
-      delBtn.addEventListener('click',function(){if(!confirm('Remove?')) return; db.recurringPayments=db.recurringPayments.filter(function(x){return x.id!==rp.id;}); saveData(); renderRecurring(); renderPaycheque(); showToast('Removed');});
+      delBtn.addEventListener('click',function(){if(!confirm('Remove?')) return; db.recurringPayments=db.recurringPayments.filter(function(x){return x.id!==rp.id;}); saveData(null,'recurringPayments'); renderRecurring(); renderPaycheque(); showToast('Removed');});
       btns.appendChild(markBtn); btns.appendChild(editBtn); btns.appendChild(toggleBtn); btns.appendChild(delBtn);
       card.appendChild(btns);
       grid.appendChild(card);
@@ -3915,7 +3915,7 @@ function renderCategories(){
       delBtn.addEventListener('click',function(){
         if(!confirm('Delete "'+cat.name+'"? Existing transactions keep this label.')) return;
         db.customCategories=db.customCategories.filter(function(x){return x.id!==cat.id;});
-        saveData(); renderCategories();
+        saveData(null,'customCategories'); renderCategories();
         showToast('Category deleted');
       });
       btns.appendChild(editBtn); btns.appendChild(delBtn);
