@@ -4187,8 +4187,8 @@ function getCalEvents(year, month){
     addEvent(a.dueDayOfMonth,{type:'payment-due',color:'#b84040',label:a.name+' payment due',icon:'!',accountId:a.id});
   });
 
-  // Recurring bills
-  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp){
+  // Recurring bills — skip entries linked to an installment (shown separately below)
+  db.recurringPayments.filter(function(r){return r.active&&!r.linkedInstallmentId;}).forEach(function(rp){
     addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id});
   });
 
@@ -4197,7 +4197,10 @@ function getCalEvents(year, month){
   db.installmentPlans.filter(function(i){return i.active;}).forEach(function(inst){
     inst.payments.filter(function(p){return p.dueDate.startsWith(yearMonthStr);}).forEach(function(p){
       var day=parseInt(p.dueDate.split('-')[2]);
-      addEvent(day,{type:'installment',color:'#b07020',label:inst.name+' — '+fmt(p.amount)+(p.paid?' (paid)':''),icon:'K',paid:p.paid});
+      var isLinked=db.recurringPayments.some(function(r){return r.linkedInstallmentId===inst.id;});
+      addEvent(day,{type:'installment',color:'#b07020',
+        label:inst.name+' — '+fmt(p.amount)+(p.paid?' (paid)':'')+(isLinked?' · tracked in recurring':''),
+        icon:'K',paid:p.paid});
     });
   });
 
