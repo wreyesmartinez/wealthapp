@@ -255,7 +255,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.7 - William R.M.</div>
+    <div class="logo-sub">v2.3.8 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1447,7 +1447,24 @@ function navToAccount(accountId){
   },50);
 }
 function getApiKey(){return localStorage.getItem(SK_KEY)||'';}
-function setApiKey(k){localStorage.setItem(SK_KEY,k);}
+function setApiKey(k){
+  localStorage.setItem(SK_KEY,k);
+  // Also save to Supabase so it survives browser cache clears
+  if(k&&syncState.online){
+    sbUpsert('wealthtrack_settings',[{key:'_apikey_hash',value:k,updated_at:new Date().toISOString()}]).catch(function(){});
+  }
+}
+
+async function restoreApiKeyFromCloud(){
+  try{
+    var rows=await sbGet('wealthtrack_settings','key=eq._apikey_hash');
+    if(rows.length&&rows[0].value){
+      localStorage.setItem(SK_KEY,rows[0].value);
+      return rows[0].value;
+    }
+  }catch(e){}
+  return null;
+}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},3000);}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -1505,9 +1522,22 @@ el('btn-skip-setup').addEventListener('click', function(){
   init();
 });
 
-function checkSetup(){
-  if(getApiKey()){el('setup-screen').style.display='none';init();}
-  else{el('setup-screen').style.display='flex';}
+async function checkSetup(){
+  if(getApiKey()){
+    el('setup-screen').style.display='none';
+    init();
+    return;
+  }
+  // Try restoring from Supabase before showing the prompt
+  if(navigator.onLine){
+    var restored=await restoreApiKeyFromCloud();
+    if(restored){
+      el('setup-screen').style.display='none';
+      init();
+      return;
+    }
+  }
+  el('setup-screen').style.display='flex';
 }
 
 // ---- NAVIGATION ----
@@ -4184,12 +4214,33 @@ function getCalEvents(year, month){
 
   // Credit card payment due dates
   db.accounts.filter(function(a){return a.type==='Credit card'&&a.dueDayOfMonth;}).forEach(function(a){
-    addEvent(a.dueDayOfMonth,{type:'payment-due',color:'#b84040',label:a.name+' payment due',icon:'!',accountId:a.id});
+    // Payment due comes FROM chequing TO this card
+    var wsAcc=db.accounts.find(function(x){return x.id==='ws-chq';});
+    var fromName=wsAcc?wsAcc.name:'Wealthsimple Chequing';
+    addEvent(a.dueDayOfMonth,{type:'payment-due',color:'#b84040',label:a.name+' payment due',icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name});
   });
 
   // Recurring bills — skip entries linked to an installment (shown separately below)
   db.recurringPayments.filter(function(r){return r.active&&!r.linkedInstallmentId;}).forEach(function(rp){
-    addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id});
+    // Find which account this usually comes from by looking at matched transactions
+    var matched=db.transactions.filter(function(t){
+      if(t.type!=='expense') return false;
+      var kws=(rp.keywords||[]);
+      if(!kws.length) return false;
+      var desc=t.description.toLowerCase();
+      return kws.some(function(k){return desc.includes(k);});
+    });
+    var fromAcc=null;
+    if(matched.length){
+      var accId=matched[matched.length-1].account;
+      var acc=db.accounts.find(function(a){return a.id===accId;});
+      if(acc) fromAcc=acc.name;
+    }
+    if(!fromAcc){
+      var ws=db.accounts.find(function(a){return a.id==='ws-chq';});
+      fromAcc=ws?ws.name:'Wealthsimple Chequing';
+    }
+    addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id,fromAccount:fromAcc});
   });
 
   // Installment payments
@@ -4198,9 +4249,23 @@ function getCalEvents(year, month){
     inst.payments.filter(function(p){return p.dueDate.startsWith(yearMonthStr);}).forEach(function(p){
       var day=parseInt(p.dueDate.split('-')[2]);
       var isLinked=db.recurringPayments.some(function(r){return r.linkedInstallmentId===inst.id;});
+      // Find which account pays this installment
+      var fromAcc=null;
+      var matched=db.transactions.filter(function(t){
+        if(t.type!=='expense') return false;
+        var kws=(inst.keywords||[]);
+        if(!kws.length) return false;
+        var desc=t.description.toLowerCase();
+        return kws.some(function(k){return desc.includes(k);});
+      });
+      if(matched.length){
+        var acc=db.accounts.find(function(a){return a.id===matched[matched.length-1].account;});
+        if(acc) fromAcc=acc.name;
+      }
+      if(!fromAcc){var ws=db.accounts.find(function(a){return a.id==='ws-chq';});fromAcc=ws?ws.name:'Wealthsimple Chequing';}
       addEvent(day,{type:'installment',color:'#b07020',
-        label:inst.name+' — '+fmt(p.amount)+(p.paid?' (paid)':'')+(isLinked?' · tracked in recurring':''),
-        icon:'K',paid:p.paid});
+        label:inst.name+' — '+fmt(p.amount)+(p.paid?' (paid)':''),
+        icon:'K',paid:p.paid,fromAccount:fromAcc+(isLinked?' · tracked in recurring':'')});
     });
   });
 
@@ -4325,6 +4390,12 @@ function renderCalDetail(evts, dateStr){
     var info=mk('div',''); info.style.flex='1';
     var lbl=mk('div','',e.label); lbl.style.cssText='font-size:13px;color:var(--text);margin-top:2px;'+(e.paid?'text-decoration:line-through;color:var(--text3);':'');
     info.appendChild(lbl);
+    // Show which account the payment goes from
+    if(e.fromAccount){
+      var fromEl=mk('div','','From: '+e.fromAccount);
+      fromEl.style.cssText='font-size:11px;color:var(--text3);margin-top:3px;font-style:italic;';
+      info.appendChild(fromEl);
+    }
     if(e.type==='statement'){
       var tip=mk('div','','Pay down before today to lower reported utilization');
       tip.style.cssText='font-size:11px;color:var(--purple);margin-top:3px;';
