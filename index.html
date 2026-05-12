@@ -1462,12 +1462,21 @@ function setApiKey(k){
 
 async function restoreApiKeyFromCloud(){
   try{
-    var rows=await sbGet('wealthtrack_settings','key=eq._apikey_hash');
-    if(rows.length&&rows[0].value){
+    var url=SB_URL+'/rest/v1/wealthtrack_settings?key=eq._apikey_hash&select=value';
+    var r=await fetch(url,{
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SB_KEY,
+        'Authorization':'Bearer '+SB_KEY
+      }
+    });
+    if(!r.ok) return null;
+    var rows=await r.json();
+    if(rows&&rows.length&&rows[0].value){
       localStorage.setItem(SK_KEY,rows[0].value);
       return rows[0].value;
     }
-  }catch(e){}
+  }catch(e){ console.warn('restoreApiKey failed:',e); }
   return null;
 }
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},3000);}
@@ -1528,30 +1537,50 @@ el('btn-skip-setup').addEventListener('click', function(){
 });
 
 async function checkSetup(){
-  // Show loading while we check
   var loadEl=document.getElementById('app-loading');
-  if(loadEl) loadEl.style.display='flex';
 
-  if(getApiKey()){
+  function hideLoadingAndLaunch(){
     if(loadEl) loadEl.style.display='none';
     el('setup-screen').style.display='none';
     init();
-    return;
   }
-  // Try restoring from Supabase before showing the prompt
-  if(navigator.onLine){
-    try{
+
+  function showSetupScreen(){
+    if(loadEl) loadEl.style.display='none';
+    el('setup-screen').style.display='flex';
+  }
+
+  // Safety timeout — if anything hangs, show setup screen after 4 seconds
+  var timeout=setTimeout(function(){
+    if(loadEl&&loadEl.style.display!=='none'){
+      console.warn('checkSetup timed out');
+      showSetupScreen();
+    }
+  },4000);
+
+  try{
+    // 1. Check localStorage first (instant)
+    if(getApiKey()){
+      clearTimeout(timeout);
+      hideLoadingAndLaunch();
+      return;
+    }
+    // 2. Try Supabase (network)
+    if(navigator.onLine){
       var restored=await restoreApiKeyFromCloud();
       if(restored){
-        if(loadEl) loadEl.style.display='none';
-        el('setup-screen').style.display='none';
-        init();
+        clearTimeout(timeout);
+        hideLoadingAndLaunch();
         return;
       }
-    }catch(e){}
+    }
+    // 3. No key found anywhere — show setup
+    clearTimeout(timeout);
+    showSetupScreen();
+  }catch(e){
+    clearTimeout(timeout);
+    showSetupScreen();
   }
-  if(loadEl) loadEl.style.display='none';
-  el('setup-screen').style.display='flex';
 }
 
 // ---- NAVIGATION ----
