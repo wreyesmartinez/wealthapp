@@ -4828,39 +4828,6 @@ el('btn-ai-debts').addEventListener('click',function(){askAI('What is the best o
 el('btn-ai-report').addEventListener('click',function(){askAI('Generate my weekly financial summary comparing this month to last month.');});
 el('btn-ask-payments').addEventListener('click',function(){askAI('What payments are coming up this month and do I have enough to cover them?');});
 
-// Float panel
-
-
-function renderFloatChat(){
-  var container=el('ai-float-messages'); container.innerHTML='';
-  if(!db.floatHistory.length){
-    var msg=mk('div','ai-msg assistant');
-    var av=mk('div','ai-avatar','*'); av.style.cssText='width:24px;height:24px;font-size:10px;';
-    var bub=mk('div','ai-bubble','Quick question? I am here.'); bub.style.fontSize='12px;';
-    msg.appendChild(av); msg.appendChild(bub); container.appendChild(msg);
-  }else{
-    db.floatHistory.forEach(function(m){
-      var msgEl=mk('div','ai-msg '+m.role);
-      var av=mk('div','ai-avatar',m.role==='user'?'W':'*'); av.style.cssText='width:24px;height:24px;font-size:10px;';
-      var bub=mk('div','ai-bubble',m.content.substring(0,400)); bub.style.fontSize='12px;';
-      msgEl.appendChild(av); msgEl.appendChild(bub); container.appendChild(msgEl);
-    });
-  }
-  container.scrollTop=container.scrollHeight;
-}
-
-async function sendFloatMessage(){
-  var input=el('ai-float-input'), text=input.value.trim(); if(!text) return;
-  if(!getApiKey()){showToast('Set API key first');return;}
-  input.value=''; db.floatHistory.push({role:'user',content:text}); saveData(); renderFloatChat();
-  addTyping('ai-float-messages');
-  try{
-    var reply=await callClaude(db.floatHistory.slice(-6).map(function(m){return{role:m.role,content:m.content};}),'Keep responses to 2-3 paragraphs max.');
-    removeTyping('ai-float-messages'); db.floatHistory.push({role:'assistant',content:reply}); saveData(); renderFloatChat();
-  }catch(e){removeTyping('ai-float-messages'); db.floatHistory.push({role:'assistant',content:'Error: '+e.message}); saveData(); renderFloatChat();}
-}
-el('btn-float-send').addEventListener('click',sendFloatMessage);
-el('ai-float-input').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendFloatMessage();}});
 
 // AI proactive section placeholder
 var proactiveSection=mk('div',''); proactiveSection.id='ai-proactive-section'; proactiveSection.style.display='none'; proactiveSection.style.marginBottom='16px';
