@@ -235,7 +235,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 </head>
 <body>
 
-<div class="setup-screen" id="setup-screen">
+<div id="app-loading" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:600;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+  <div style="font-family:'Lora',serif;font-size:24px;color:var(--accent);">WealthTrack</div>
+  <div style="font-size:13px;color:var(--text3);">Loading...</div>
+</div>
+
+<div class="setup-screen" id="setup-screen" style="display:none;">
   <div class="setup-card">
     <div class="setup-title">WealthTrack</div>
     <div class="setup-sub">Welcome back, William. Enter your Anthropic API key to enable AI features. Stored only in your browser.</div>
@@ -1523,20 +1528,29 @@ el('btn-skip-setup').addEventListener('click', function(){
 });
 
 async function checkSetup(){
+  // Show loading while we check
+  var loadEl=document.getElementById('app-loading');
+  if(loadEl) loadEl.style.display='flex';
+
   if(getApiKey()){
+    if(loadEl) loadEl.style.display='none';
     el('setup-screen').style.display='none';
     init();
     return;
   }
   // Try restoring from Supabase before showing the prompt
   if(navigator.onLine){
-    var restored=await restoreApiKeyFromCloud();
-    if(restored){
-      el('setup-screen').style.display='none';
-      init();
-      return;
-    }
+    try{
+      var restored=await restoreApiKeyFromCloud();
+      if(restored){
+        if(loadEl) loadEl.style.display='none';
+        el('setup-screen').style.display='none';
+        init();
+        return;
+      }
+    }catch(e){}
   }
+  if(loadEl) loadEl.style.display='none';
   el('setup-screen').style.display='flex';
 }
 
