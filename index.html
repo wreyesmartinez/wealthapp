@@ -3175,6 +3175,30 @@ function deleteInstallment(id){
   saveData(null,'installmentPlans'); renderDebts(); showToast('Plan archived');
 }
 
+// ---- ADD ACCOUNT ----
+el('btn-add-account').addEventListener('click',function(){
+  el('acc-name').value=''; el('acc-balance').value=''; el('acc-limit').value='';
+  el('acc-type').value='Chequing';
+  openModal('modal-add-account');
+});
+el('btn-cancel-account').addEventListener('click',function(){closeModal('modal-add-account');});
+el('btn-save-account').addEventListener('click',function(){
+  var name=el('acc-name').value.trim();
+  var type=el('acc-type').value;
+  var balance=parseFloat(el('acc-balance').value)||0;
+  var limit=parseFloat(el('acc-limit').value)||0;
+  if(!name){showToast('Account name required');return;}
+  var id='acc'+Date.now();
+  var newAcc={id:id,name:name,type:type,openingBalance:balance,currency:'CAD'};
+  if(limit) newAcc.limit=limit;
+  if(type==='Credit card'||type==='Loan'){newAcc.rate='?';newAcc.monthlyPayment=0;newAcc.rateNote='';newAcc.statementDay=null;newAcc.dueDayOfMonth=null;}
+  db.accounts.push(newAcc);
+  saveData(null,'accounts');
+  closeModal('modal-add-account');
+  renderAccounts();
+  showToast('Account added');
+});
+
 function openEditDebt(accountId){
   var a=db.accounts.find(function(x){return x.id===accountId;});
   if(!a) return;
