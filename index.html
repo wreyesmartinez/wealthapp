@@ -146,6 +146,26 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .cal-event-item{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
 .cal-event-item:last-child{border-bottom:none;}
 @media(max-width:768px){.cal-day{min-height:56px;padding:3px 4px;}.cal-day-num{font-size:10px;}.cal-pill{font-size:8px;padding:1px 3px;}}
+.goal-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;}
+.goal-card-accent{position:absolute;top:0;left:0;right:0;height:3px;}
+.goal-prog-track{height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:14px 0 8px;}
+.goal-prog-fill{height:100%;border-radius:99px;transition:width .5s ease;}
+.goal-motivator{margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);font-size:12px;line-height:1.6;}
+.goal-color-opt.selected{border-color:#333 !important;box-shadow:0 0 0 2px #fff,0 0 0 4px currentColor;}
+.goal-chip{font-size:11px;padding:3px 8px;border-radius:99px;background:var(--bg3);color:var(--text3);border:1px solid var(--border);}
+.goal-chip.on-track{background:var(--green-bg);color:var(--green);}
+.goal-chip.behind{background:var(--amber-bg);color:var(--amber);}
+.goal-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;}
+.goal-card-accent{position:absolute;top:0;left:0;right:0;height:3px;}
+.goal-prog-track{height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:14px 0 8px;}
+.goal-prog-fill{height:100%;border-radius:99px;transition:width .5s ease;}
+.goal-motivator{margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);font-size:12px;line-height:1.6;}
+.goal-color-opt.selected{outline:3px solid var(--accent);outline-offset:2px;}
+.goal-chip{font-size:11px;padding:3px 8px;border-radius:99px;background:var(--bg3);color:var(--text3);border:1px solid var(--border);}
+.goal-chip.on-track{background:var(--green-bg);color:var(--green);}
+.goal-chip.behind{background:var(--amber-bg);color:var(--amber);}
+.goal-chip.done{background:var(--green-bg);color:var(--green);}
+.goals-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg2);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;z-index:999;display:none;white-space:nowrap;}.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);font-size:20px;}
 .import-step{padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px;}
 .import-step.done{background:var(--green-bg);color:var(--green);}
@@ -260,7 +280,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.3.8 - William R.M.</div>
+    <div class="logo-sub">v2.3.9 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -269,6 +289,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-section">Finance</div>
   <div class="nav-item" data-page="accounts"><span class="nav-icon">&#9635;</span>Accounts</div>
   <div class="nav-item" data-page="debts"><span class="nav-icon">&#9671;</span>Debts</div>
+  <div class="nav-item" data-page="goals"><span class="nav-icon">&#9733;</span>Goals</div>
   <div class="nav-item" data-page="calendar"><span class="nav-icon">&#128197;</span>Calendar</div>
   <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
   <div class="nav-item nav-sub" data-page="paycheque"><span class="nav-icon">&#8627;</span>Paycheque Plan</div>
@@ -406,6 +427,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <div class="card-title">Chequing balance history</div>
       <canvas id="chart-bal-history" style="width:100%;height:180px;"></canvas>
     </div>
+  </div>
+
+  <div class="page" id="page-goals">
+    <div class="sec-header">
+      <div><div class="sec-title">Savings Goals</div><div class="sec-sub" id="goals-month-label"></div></div>
+      <button class="btn btn-primary btn-sm" id="btn-add-goal">+ New goal</button>
+    </div>
+    <div class="grid3" style="margin-bottom:18px;" id="goals-summary-bar"></div>
+    <div id="goals-list"></div>
   </div>
 
   <div class="page" id="page-debts">
@@ -564,6 +594,44 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   </div>
 </div>
 
+
+<!-- Add/Edit Goal Modal -->
+<div class="modal-overlay" id="modal-add-goal">
+  <div class="modal">
+    <div class="modal-title" id="goal-modal-title">New Savings Goal</div>
+    <input type="hidden" id="goal-edit-id">
+    <div class="form-group"><label class="form-label">Goal name</label><input type="text" class="form-input" id="goal-name" placeholder="e.g. Emergency Fund, Moving, Birthday Gifts"></div>
+    <div class="form-group"><label class="form-label">Target amount ($)</label><input type="number" step="0.01" class="form-input" id="goal-target" placeholder="5000"></div>
+    <div class="form-group"><label class="form-label">Linked account</label><select class="form-select" id="goal-account"></select></div>
+    <div class="form-group"><label class="form-label">Target date (optional)</label><input type="month" class="form-input" id="goal-date"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Contribution amount ($)</label><input type="number" step="0.01" class="form-input" id="goal-contrib-amount" placeholder="100"></div>
+      <div class="form-group"><label class="form-label">Frequency</label>
+        <select class="form-select" id="goal-contrib-freq">
+          <option value="weekly">Weekly</option>
+          <option value="biweekly" selected>Biweekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="goal-keywords" placeholder="e.g. transfer, savings, wealthsimple"></div>
+    <div class="form-group"><label class="form-label">Color</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;padding:4px 0;" id="goal-color-picker">
+        <span class="goal-color-opt" data-color="#1D9E75" style="width:28px;height:28px;border-radius:50%;background:#1D9E75;cursor:pointer;border:2px solid transparent;"></span>
+        <span class="goal-color-opt" data-color="#534AB7" style="width:28px;height:28px;border-radius:50%;background:#534AB7;cursor:pointer;border:2px solid transparent;"></span>
+        <span class="goal-color-opt" data-color="#BA7517" style="width:28px;height:28px;border-radius:50%;background:#BA7517;cursor:pointer;border:2px solid transparent;"></span>
+        <span class="goal-color-opt" data-color="#D85A30" style="width:28px;height:28px;border-radius:50%;background:#D85A30;cursor:pointer;border:2px solid transparent;"></span>
+        <span class="goal-color-opt" data-color="#185FA5" style="width:28px;height:28px;border-radius:50%;background:#185FA5;cursor:pointer;border:2px solid transparent;"></span>
+        <span class="goal-color-opt" data-color="#D4537E" style="width:28px;height:28px;border-radius:50%;background:#D4537E;cursor:pointer;border:2px solid transparent;"></span>
+      </div>
+      <input type="hidden" id="goal-color" value="#1D9E75">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-goal">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-goal">Save goal</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-add-txn">
@@ -1315,7 +1383,7 @@ function buildDefaultData(){
       {id:'cat-ins',  name:'Insurance',            group:'Other',          color:'#7a7a7a'},
       {id:'cat-misc', name:'Miscellaneous',        group:'Other',          color:'#7a7a7a'},
       {id:'cat-pers', name:'Personal',             group:'Other',          color:'#7a7a7a'},
-      {id:'cat-idrm', name:"I don't remember",   group:'Other',          color:'#7a7a7a'},
+      {id:'cat-idrm', name:"I do not remember",   group:'Other',          color:'#7a7a7a'},
       {id:'cat-frau', name:'Fraud',                group:'Other',          color:'#7a7a7a'},
       {id:'cat-itrf', name:'Internal transfer',    group:'Other',          color:'#7a7a7a'},
     ],
@@ -1376,6 +1444,7 @@ function migrateData(d){
     if(a.type==='Credit card'&&a.statementDay===undefined){a.statementDay=null;}
     if(a.type==='Credit card'&&a.dueDayOfMonth===undefined){a.dueDayOfMonth=null;}
   });
+  if(!d.savingsGoals) d.savingsGoals=[];
   if(!d.aiHistory) d.aiHistory=[];
   if(!d.floatHistory) d.floatHistory=[];
   if(!d._settingsTs) d._settingsTs={};
@@ -1584,7 +1653,7 @@ async function checkSetup(){
 }
 
 // ---- NAVIGATION ----
-var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
+var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',goals:'Savings Goals',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
 
 function nav(page){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -1626,6 +1695,7 @@ function renderPage(page){
   }
   else if(page==='accounts') renderAccounts();
   else if(page==='debts') renderDebts();
+  else if(page==='goals') renderGoals();
   else if(page==='budget') renderBudget();
   else if(page==='paycheque') renderPaycheque();
   else if(page==='recurring') renderRecurring();
@@ -4225,6 +4295,297 @@ el('btn-apply-recat').addEventListener('click',function(){
   showToast(count+' transactions re-categorized');
   renderRecategorize();
   renderDashboard();
+});
+
+
+// ---- SAVINGS GOALS ----
+
+// Face SVG by progress pct
+function goalFaceSVG(pct, color){
+  var bg = color+'22';
+  if(pct>=100){
+    // Achieved - big smile + stars
+    return '<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="20" fill="'+bg+'" stroke="'+color+'" stroke-width="1.5"/><circle cx="16" cy="18" r="2.5" fill="'+color+'"/><circle cx="28" cy="18" r="2.5" fill="'+color+'"/><path d="M13 25 Q22 34 31 25" stroke="'+color+'" stroke-width="2.5" stroke-linecap="round" fill="none"/><text x="8" y="14" font-size="7" fill="'+color+'">★</text><text x="30" y="14" font-size="7" fill="'+color+'">★</text></svg>';
+  } else if(pct>=86){
+    // Almost there - big smile + raised brows
+    return '<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="20" fill="'+bg+'" stroke="'+color+'" stroke-width="1.5"/><circle cx="16" cy="19" r="2.5" fill="'+color+'"/><circle cx="28" cy="19" r="2.5" fill="'+color+'"/><path d="M14 27 Q22 34 30 27" stroke="'+color+'" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M13 15 Q16 12 19 15" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M25 15 Q28 12 31 15" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>';
+  } else if(pct>=61){
+    // Doing well - smile + happy brows
+    return '<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="20" fill="'+bg+'" stroke="'+color+'" stroke-width="1.5"/><circle cx="16" cy="19" r="2.5" fill="'+color+'"/><circle cx="28" cy="19" r="2.5" fill="'+color+'"/><path d="M15 27 Q22 33 29 27" stroke="'+color+'" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M13 16 Q16 13 19 16" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M25 16 Q28 13 31 16" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>';
+  } else if(pct>=31){
+    // On your way - neutral smile
+    return '<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="20" fill="'+bg+'" stroke="'+color+'" stroke-width="1.5"/><circle cx="16" cy="19" r="2.5" fill="'+color+'"/><circle cx="28" cy="19" r="2.5" fill="'+color+'"/><path d="M15 27 Q22 31 29 27" stroke="'+color+'" stroke-width="2" stroke-linecap="round" fill="none"/></svg>';
+  } else if(pct>=11){
+    // Progressing - flat mouth
+    return '<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="20" fill="'+bg+'" stroke="'+color+'" stroke-width="1.5"/><circle cx="16" cy="20" r="2.5" fill="'+color+'"/><circle cx="28" cy="20" r="2.5" fill="'+color+'"/><path d="M15 28 Q22 26 29 28" stroke="'+color+'" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M17 15 L15 17" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round"/><path d="M27 15 L29 17" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  } else {
+    // Just started - sleepy/neutral
+    return '<svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="22" cy="22" r="20" fill="'+bg+'" stroke="'+color+'" stroke-width="1.5"/><circle cx="16" cy="20" r="2.5" fill="'+color+'"/><circle cx="28" cy="20" r="2.5" fill="'+color+'"/><path d="M16 28 Q22 26 28 28" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="22" cy="12" r="3" fill="'+color+'" opacity="0.3"/><path d="M22 15 L22 10" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  }
+}
+
+// Calculate how much has been saved toward a goal
+function calcGoalSaved(goal){
+  var acc=db.accounts.find(function(a){return a.id===goal.accountId;});
+  if(!acc) return goal.manualAmount||0;
+  var kws=(goal.keywords||[]).map(function(k){return k.toLowerCase();});
+  var saved=0;
+  db.transactions.filter(function(t){
+    if(t.account!==goal.accountId) return false;
+    if(t.type!=='income') return false;
+    if(!kws.length) return true;
+    var desc=t.description.toLowerCase();
+    return kws.some(function(k){return desc.includes(k);});
+  }).forEach(function(t){ saved+=t.amount; });
+  // Add manual override
+  return saved+(goal.manualAmount||0);
+}
+
+// Frequency label
+function freqLabel(freq){
+  return {weekly:'weekly',biweekly:'biweekly',monthly:'monthly'}[freq]||freq;
+}
+
+// Contributions per month based on frequency
+function contribPerMonth(goal){
+  var amt=goal.contribAmount||0;
+  if(goal.contribFreq==='weekly') return amt*4.33;
+  if(goal.contribFreq==='biweekly') return amt*2.17;
+  return amt;
+}
+
+// Build motivator message
+function buildMotivator(goal, saved, pct){
+  var target=goal.target||0;
+  var remaining=Math.max(0,target-saved);
+  var cpm=contribPerMonth(goal);
+  var monthsLeft=cpm>0?Math.ceil(remaining/cpm):null;
+
+  // Target date comparison
+  var targetDateStr=goal.targetDate;
+  var now=new Date();
+  var monthsToTarget=null;
+  if(targetDateStr){
+    var td=new Date(targetDateStr+'-01');
+    monthsToTarget=Math.max(0,(td.getFullYear()-now.getFullYear())*12+(td.getMonth()-now.getMonth()));
+  }
+
+  // Check budget underspend for nudge
+  var underspendMsg='';
+  if(db.budgetEnvelopes){
+    var thisMonth=getCurrentMonth();
+    db.budgetEnvelopes.forEach(function(env){
+      if(!env.limit) return;
+      var spent=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense'&&env.categories.includes(t.category);}).reduce(function(s,t){return s+t.amount;},0);
+      var under=env.limit-spent;
+      if(under>20) underspendMsg=' You are $'+Math.round(under)+' under budget in '+env.name+' — redirecting that gets you closer faster.';
+    });
+  }
+
+  if(pct>=100){
+    return {msg:'Goal reached! Amazing work — you saved $'+Math.round(target)+'. Time to celebrate and set your next goal.',type:'done'};
+  }
+  if(pct>=86){
+    return {msg:'Almost there — just $'+Math.round(remaining)+' to go! You are so close, keep going.',type:'good'};
+  }
+  if(monthsLeft!==null&&monthsToTarget!==null){
+    if(monthsLeft<=monthsToTarget){
+      var ahead=monthsToTarget-monthsLeft;
+      var msg='On track for your goal date. At your current pace you will arrive '+( ahead>0?ahead+' month'+(ahead>1?'s':'')+' early':'right on time')+'.';
+      if(cpm>0){
+        var extra=Math.round(remaining/Math.max(1,monthsToTarget-1)-cpm);
+        if(extra>0&&extra<200) msg+=' Add $'+extra+'/mo and you would finish a month sooner.';
+      }
+      return {msg:msg,type:'good'};
+    } else {
+      var shortfall=monthsLeft-monthsToTarget;
+      var needed=monthsToTarget>0?Math.ceil(remaining/monthsToTarget):remaining;
+      var extra2=Math.max(0,needed-Math.round(cpm));
+      var msg2='You need $'+Math.round(needed)+'/mo to hit your '+targetDateStr+' target — $'+extra2+' more than now.'+underspendMsg;
+      return {msg:msg2,type:'nudge'};
+    }
+  }
+  if(monthsLeft!==null){
+    var arrivalDate=new Date(now.getFullYear(),now.getMonth()+monthsLeft,1);
+    var arrStr=arrivalDate.toLocaleDateString('en-CA',{month:'short',year:'numeric'});
+    var msg3='At $'+Math.round(goal.contribAmount)+' '+freqLabel(goal.contribFreq)+' you will reach $'+Math.round(target)+' by '+arrStr+'.';
+    if(cpm>0){var e2=Math.round(remaining/Math.max(1,monthsLeft-1)-cpm);if(e2>0&&e2<300) msg3+=' Save $'+e2+' more/mo to arrive a month earlier.';}
+    return {msg:msg3+(underspendMsg||''),type:'good'};
+  }
+  return {msg:'Set a contribution amount to see your projected timeline.'+underspendMsg,type:'start'};
+}
+
+function renderGoals(){
+  var now=new Date();
+  if(el('goals-month-label')) el('goals-month-label').textContent=now.toLocaleDateString('en-CA',{month:'long',year:'numeric'});
+
+  // Summary bar
+  var sb=el('goals-summary-bar'); sb.innerHTML='';
+  var totalSaved=0,totalTarget=0,onTrack=0;
+  db.savingsGoals.forEach(function(g){
+    var s=calcGoalSaved(g); totalSaved+=s; totalTarget+=g.target||0;
+    var cpm=contribPerMonth(g);
+    var rem=Math.max(0,(g.target||0)-s);
+    var ml=cpm>0?Math.ceil(rem/cpm):999;
+    var mt=9999;
+    if(g.targetDate){var td=new Date(g.targetDate+'-01');mt=(td.getFullYear()-now.getFullYear())*12+(td.getMonth()-now.getMonth());}
+    if(ml<=mt) onTrack++;
+  });
+  function sumCard(label,val,sub){var c=mk('div','stat-card');var l=mk('div','stat-label',label);var v=mk('div','stat-val',val);v.style.color='var(--accent)';var s=mk('div','',sub);s.style.cssText='font-size:11px;color:var(--text3);margin-top:3px;';c.appendChild(l);c.appendChild(v);c.appendChild(s);return c;}
+  sb.appendChild(sumCard('Total saved',fmt(totalSaved),'across '+db.savingsGoals.length+' goal'+(db.savingsGoals.length!==1?'s':'')));
+  var totalCPM=db.savingsGoals.reduce(function(s,g){return s+contribPerMonth(g);},0);
+  sb.appendChild(sumCard('Monthly target',fmt(totalCPM),'combined contributions'));
+  sb.appendChild(sumCard('On track',onTrack+' / '+db.savingsGoals.length,'goal'+(db.savingsGoals.length!==1?'s':'')));
+
+  // Goals grid
+  var c=el('goals-list'); c.innerHTML='';
+  if(!db.savingsGoals.length){
+    var empty=mk('div','card'); empty.style.cssText='text-align:center;padding:40px;color:var(--text3);';
+    empty.textContent='No goals yet — tap "+ New goal" to start saving toward something.';
+    c.appendChild(empty); return;
+  }
+  var grid=mk('div','goals-grid');
+  db.savingsGoals.forEach(function(goal){
+    var saved=calcGoalSaved(goal);
+    var target=goal.target||1;
+    var pct=Math.min(100,Math.round((saved/target)*100));
+    var color=goal.color||'#1D9E75';
+    var mot=buildMotivator(goal,saved,pct);
+    var motBg=mot.type==='done'?'var(--green-bg)':mot.type==='good'?'var(--green-bg)':mot.type==='nudge'?'var(--amber-bg)':'var(--blue-bg)';
+    var motColor=mot.type==='done'?'var(--green)':mot.type==='good'?'var(--green)':mot.type==='nudge'?'var(--amber)':'var(--blue)';
+
+    var card=mk('div','goal-card');
+    // Accent bar
+    var accent=mk('div','goal-card-accent'); accent.style.background=color; card.appendChild(accent);
+
+    // Top row: name + face
+    var top=mk('div',''); top.style.cssText='display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;margin-top:4px;';
+    var nameCol=mk('div',''); nameCol.style.flex='1';
+    var nameEl=mk('div','',goal.name); nameEl.style.cssText='font-size:15px;font-weight:600;color:var(--text);';
+    var accEl=mk('div',''); accEl.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
+    var acc=db.accounts.find(function(a){return a.id===goal.accountId;});
+    accEl.textContent=(acc?acc.name:'—')+' · $'+Math.round(goal.contribAmount||0)+' '+freqLabel(goal.contribFreq);
+    nameCol.appendChild(nameEl); nameCol.appendChild(accEl);
+    var faceEl=mk('div',''); faceEl.style.cssText='width:44px;height:44px;flex-shrink:0;';
+    faceEl.innerHTML=goalFaceSVG(pct,color);
+    top.appendChild(nameCol); top.appendChild(faceEl);
+    card.appendChild(top);
+
+    // Progress bar
+    var track=mk('div','goal-prog-track');
+    var fill=mk('div','goal-prog-fill'); fill.style.cssText='width:'+pct+'%;background:'+color+';';
+    track.appendChild(fill); card.appendChild(track);
+
+    // Labels
+    var labels=mk('div',''); labels.style.cssText='display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;';
+    var lSaved=mk('span','',fmt(saved)+' saved'); lSaved.style.cssText='font-weight:600;color:var(--text);';
+    var lTarget=mk('span','',fmt(target)+' goal · '+pct+'%'); lTarget.style.color='var(--text3)';
+    labels.appendChild(lSaved); labels.appendChild(lTarget);
+    card.appendChild(labels);
+
+    // Chips row
+    var chips=mk('div',''); chips.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px;';
+    var cpm=contribPerMonth(goal);
+    var rem=Math.max(0,target-saved);
+    var ml=cpm>0?Math.ceil(rem/cpm):null;
+    var statusChip=mk('span','goal-chip '+(pct>=100?'done':mot.type==='nudge'?'behind':'on-track'),pct>=100?'Goal reached!':mot.type==='nudge'?'Behind pace':'On track');
+    chips.appendChild(statusChip);
+    if(goal.targetDate){var dtChip=mk('span','goal-chip','Target: '+goal.targetDate);chips.appendChild(dtChip);}
+    if(ml&&pct<100){var paceChip=mk('span','goal-chip',ml+' months at current pace');chips.appendChild(paceChip);}
+    card.appendChild(chips);
+
+    // Motivator
+    var motEl=mk('div','goal-motivator'); motEl.style.cssText='background:'+motBg+';color:'+motColor+';margin-top:10px;padding:10px 12px;border-radius:var(--radius-sm);font-size:12px;line-height:1.6;';
+    motEl.textContent=mot.msg;
+    card.appendChild(motEl);
+
+    // Footer buttons
+    var footer=mk('div',''); footer.style.cssText='display:flex;justify-content:flex-end;gap:6px;margin-top:12px;';
+    var editBtn=mk('button','btn btn-ghost btn-sm','Edit'); editBtn.style.fontSize='11px';
+    editBtn.addEventListener('click',function(){openEditGoal(goal.id);});
+    var delBtn=mk('button','btn btn-ghost btn-sm','Remove'); delBtn.style.fontSize='11px';
+    delBtn.addEventListener('click',function(){
+      if(!confirm('Remove "'+goal.name+'"?')) return;
+      db.savingsGoals=db.savingsGoals.filter(function(g){return g.id!==goal.id;});
+      saveData(null,'savingsGoals'); renderGoals(); showToast('Goal removed');
+    });
+    footer.appendChild(editBtn); footer.appendChild(delBtn);
+    card.appendChild(footer);
+    grid.appendChild(card);
+  });
+  c.appendChild(grid);
+}
+
+function openAddGoal(){
+  el('goal-modal-title').textContent='New Savings Goal';
+  el('goal-edit-id').value='';
+  el('goal-name').value=''; el('goal-target').value=''; el('goal-date').value='';
+  el('goal-contrib-amount').value=''; el('goal-contrib-freq').value='biweekly';
+  el('goal-keywords').value='transfer, savings';
+  el('goal-color').value='#1D9E75';
+  // Populate account dropdown
+  var sel=el('goal-account'); sel.innerHTML='';
+  db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';}).forEach(function(a){
+    var o=mk('option'); o.value=a.id; o.textContent=a.name; sel.appendChild(o);
+  });
+  // Set color picker
+  document.querySelectorAll('.goal-color-opt').forEach(function(s){
+    s.classList.toggle('selected',s.getAttribute('data-color')==='#1D9E75');
+  });
+  openModal('modal-add-goal');
+}
+
+function openEditGoal(id){
+  var g=db.savingsGoals.find(function(x){return x.id===id;}); if(!g) return;
+  el('goal-modal-title').textContent='Edit Goal';
+  el('goal-edit-id').value=id;
+  el('goal-name').value=g.name; el('goal-target').value=g.target;
+  el('goal-date').value=g.targetDate||'';
+  el('goal-contrib-amount').value=g.contribAmount||'';
+  el('goal-contrib-freq').value=g.contribFreq||'biweekly';
+  el('goal-keywords').value=(g.keywords||[]).join(', ');
+  el('goal-color').value=g.color||'#1D9E75';
+  var sel=el('goal-account'); sel.innerHTML='';
+  db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';}).forEach(function(a){
+    var o=mk('option'); o.value=a.id; o.textContent=a.name;
+    if(a.id===g.accountId) o.selected=true;
+    sel.appendChild(o);
+  });
+  document.querySelectorAll('.goal-color-opt').forEach(function(s){
+    s.classList.toggle('selected',s.getAttribute('data-color')===g.color);
+  });
+  openModal('modal-add-goal');
+}
+
+// Color picker
+document.querySelectorAll('.goal-color-opt').forEach(function(s){
+  s.addEventListener('click',function(){
+    document.querySelectorAll('.goal-color-opt').forEach(function(x){x.classList.remove('selected');});
+    s.classList.add('selected');
+    el('goal-color').value=s.getAttribute('data-color');
+  });
+});
+
+el('btn-add-goal').addEventListener('click',openAddGoal);
+el('btn-cancel-goal').addEventListener('click',function(){closeModal('modal-add-goal');});
+el('btn-save-goal').addEventListener('click',function(){
+  var name=el('goal-name').value.trim();
+  var target=parseFloat(el('goal-target').value);
+  var accountId=el('goal-account').value;
+  var targetDate=el('goal-date').value||null;
+  var contribAmount=parseFloat(el('goal-contrib-amount').value)||0;
+  var contribFreq=el('goal-contrib-freq').value;
+  var keywords=el('goal-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  var color=el('goal-color').value||'#1D9E75';
+  if(!name||!target){showToast('Name and target amount required');return;}
+  var editId=el('goal-edit-id').value;
+  if(editId){
+    var g=db.savingsGoals.find(function(x){return x.id===editId;});
+    if(g){g.name=name;g.target=target;g.accountId=accountId;g.targetDate=targetDate;g.contribAmount=contribAmount;g.contribFreq=contribFreq;g.keywords=keywords;g.color=color;}
+  } else {
+    db.savingsGoals.push({id:'goal'+Date.now(),name:name,target:target,accountId:accountId,targetDate:targetDate,contribAmount:contribAmount,contribFreq:contribFreq,keywords:keywords,color:color,manualAmount:0});
+  }
+  saveData(null,'savingsGoals'); closeModal('modal-add-goal'); renderGoals(); showToast(editId?'Goal updated':'Goal created');
 });
 
 
