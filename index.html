@@ -4650,23 +4650,22 @@ function getCalEvents(year, month){
 
   // Recurring bills — skip entries linked to an installment (shown separately below)
   db.recurringPayments.filter(function(r){return r.active&&!r.linkedInstallmentId;}).forEach(function(rp){
-    // Find which account this usually comes from by looking at matched transactions
+    // Bills always come from chequing — use ws-chq as default, don't guess from transactions
+    var ws=db.accounts.find(function(a){return a.id==='ws-chq';});
+    var fromAcc=ws?ws.name:'Wealthsimple Chequing';
+    // Only override if we find a match on a chequing/savings account specifically
     var matched=db.transactions.filter(function(t){
       if(t.type!=='expense') return false;
+      var acc=db.accounts.find(function(a){return a.id===t.account;});
+      if(!acc||acc.type==='Credit card') return false; // skip credit card transactions
       var kws=(rp.keywords||[]);
       if(!kws.length) return false;
       var desc=t.description.toLowerCase();
       return kws.some(function(k){return desc.includes(k);});
     });
-    var fromAcc=null;
     if(matched.length){
-      var accId=matched[matched.length-1].account;
-      var acc=db.accounts.find(function(a){return a.id===accId;});
+      var acc=db.accounts.find(function(a){return a.id===matched[matched.length-1].account;});
       if(acc) fromAcc=acc.name;
-    }
-    if(!fromAcc){
-      var ws=db.accounts.find(function(a){return a.id==='ws-chq';});
-      fromAcc=ws?ws.name:'Wealthsimple Chequing';
     }
     addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id,fromAccount:fromAcc});
   });
@@ -4677,10 +4676,12 @@ function getCalEvents(year, month){
     inst.payments.filter(function(p){return p.dueDate.startsWith(yearMonthStr);}).forEach(function(p){
       var day=parseInt(p.dueDate.split('-')[2]);
       var isLinked=db.recurringPayments.some(function(r){return r.linkedInstallmentId===inst.id;});
-      // Find which account pays this installment
+      // Find which chequing/savings account pays this installment
       var fromAcc=null;
       var matched=db.transactions.filter(function(t){
         if(t.type!=='expense') return false;
+        var acc=db.accounts.find(function(a){return a.id===t.account;});
+        if(!acc||acc.type==='Credit card') return false; // skip credit card transactions
         var kws=(inst.keywords||[]);
         if(!kws.length) return false;
         var desc=t.description.toLowerCase();
