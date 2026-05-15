@@ -290,7 +290,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.0 - William R.M.</div>
+    <div class="logo-sub">v2.4.1 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -300,14 +300,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="nav-item" data-page="accounts"><span class="nav-icon">&#9635;</span>Accounts</div>
   <div class="nav-item" data-page="debts"><span class="nav-icon">&#9671;</span>Debts</div>
   <div class="nav-item" data-page="goals"><span class="nav-icon">&#9733;</span>Goals</div>
+  <div class="nav-item" data-page="invest"><span class="nav-icon">&#128200;</span>Invest</div>
   <div class="nav-item" data-page="calendar"><span class="nav-icon">&#128197;</span>Calendar</div>
   <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
   <div class="nav-item nav-sub" data-page="paycheque"><span class="nav-icon">&#8627;</span>Paycheque Plan</div>
   <div class="nav-item" data-page="categories"><span class="nav-icon">&#9632;</span>Categories</div>
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
-  <div class="nav-item" data-page="import"><span class="nav-icon">&#8593;</span>Import Anything</div>
-  <div class="nav-item" data-page="recategorize"><span class="nav-icon">&#8635;</span>Re-categorize</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
   <div class="version-badge">WealthTrack v2.3.0<br>Account nav + date fix<br>Apr 2026</div>
 </div>
@@ -437,6 +436,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
       <div class="card-title">Chequing balance history</div>
       <canvas id="chart-bal-history" style="width:100%;height:180px;"></canvas>
     </div>
+  </div>
+
+  <div class="page" id="page-invest">
+    <div class="sec-header">
+      <div><div class="sec-title">Investment Projector</div><div class="sec-sub">Based on age 36 · born 1989</div></div>
+    </div>
+    <div id="invest-card-container"></div>
   </div>
 
   <div class="page" id="page-goals">
@@ -1694,7 +1700,7 @@ async function checkSetup(){
 }
 
 // ---- NAVIGATION ----
-var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',goals:'Savings Goals',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
+var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',goals:'Savings Goals',invest:'Investment Projector',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
 
 function nav(page){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -1737,6 +1743,7 @@ function renderPage(page){
   else if(page==='accounts') renderAccounts();
   else if(page==='debts') renderDebts();
   else if(page==='goals') renderGoals();
+  else if(page==='invest') renderInvest();
   else if(page==='budget') renderBudget();
   else if(page==='paycheque') renderPaycheque();
   else if(page==='recurring') renderRecurring();
@@ -4710,13 +4717,15 @@ function buildMotivator(goal, saved, pct){
   return {msg:'Set a contribution amount to see your projected timeline.'+underspendMsg,type:'start'};
 }
 
+function renderInvest(){
+  var c=el('invest-card-container'); c.innerHTML='';
+  c.appendChild(renderInvestmentCard());
+}
+
 function renderGoals(){
   var now=new Date();
   if(el('goals-month-label')) el('goals-month-label').textContent=now.toLocaleDateString('en-CA',{month:'long',year:'numeric'});
 
-  // Investment card at top
-  var c=el('goals-list'); c.innerHTML='';
-  c.appendChild(renderInvestmentCard());
   var sb=el('goals-summary-bar'); sb.innerHTML='';
   var totalSaved=0,totalTarget=0,onTrack=0;
   db.savingsGoals.forEach(function(g){
@@ -4734,8 +4743,8 @@ function renderGoals(){
   sb.appendChild(sumCard('Monthly target',fmt(totalCPM),'combined contributions'));
   sb.appendChild(sumCard('On track',onTrack+' / '+db.savingsGoals.length,'goal'+(db.savingsGoals.length!==1?'s':'')));
 
-  // Goals grid — append below investment card (don't reset innerHTML)
-  var c=el('goals-list');
+  // Goals grid
+  var c=el('goals-list'); c.innerHTML='';
   if(!db.savingsGoals.length){
     var empty=mk('div','card'); empty.style.cssText='text-align:center;padding:40px;color:var(--text3);margin-top:16px;';
     empty.textContent='No goals yet — tap "+ New goal" to start saving toward something.';
