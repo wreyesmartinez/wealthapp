@@ -4734,14 +4734,14 @@ function renderGoals(){
   sb.appendChild(sumCard('Monthly target',fmt(totalCPM),'combined contributions'));
   sb.appendChild(sumCard('On track',onTrack+' / '+db.savingsGoals.length,'goal'+(db.savingsGoals.length!==1?'s':'')));
 
-  // Goals grid
-  var c=el('goals-list'); c.innerHTML='';
+  // Goals grid — append below investment card (don't reset innerHTML)
+  var c=el('goals-list');
   if(!db.savingsGoals.length){
-    var empty=mk('div','card'); empty.style.cssText='text-align:center;padding:40px;color:var(--text3);';
+    var empty=mk('div','card'); empty.style.cssText='text-align:center;padding:40px;color:var(--text3);margin-top:16px;';
     empty.textContent='No goals yet — tap "+ New goal" to start saving toward something.';
     c.appendChild(empty); return;
   }
-  var grid=mk('div','goals-grid');
+  var grid=mk('div','goals-grid'); grid.style.marginTop='16px';
   db.savingsGoals.forEach(function(goal){
     var saved=calcGoalSaved(goal);
     var target=goal.target||1;
