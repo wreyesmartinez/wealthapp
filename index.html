@@ -156,6 +156,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .inv-bar-track{height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:6px;}
 .inv-bar-fill{height:100%;border-radius:99px;}
 
+.txn-quick-chip{font-size:11px;padding:5px 10px;border-radius:99px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--text2);}
+.txn-quick-chip:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.txn-quick-chip.matched{opacity:0.45;text-decoration:line-through;cursor:default;}
 .goal-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;}
 .goal-card-accent{position:absolute;top:0;left:0;right:0;height:3px;}
 .goal-prog-track{height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:14px 0 8px;}
@@ -200,8 +203,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   .grid4{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .form-row{grid-template-columns:1fr;}
 
-  /* Topbar - hide transfer button on mobile, keep + transaction */
-  #btn-open-transfer{display:none;}
+  /* Topbar - keep both buttons but compact on mobile */
+  #btn-open-transfer{font-size:11px;padding:5px 8px;}
   #sync-label{display:none;}
 
   /* Transactions table - hide less critical columns */
@@ -290,7 +293,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.1 - William R.M.</div>
+    <div class="logo-sub">v2.4.3 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -683,6 +686,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="modal-overlay" id="modal-add-txn">
   <div class="modal">
     <div class="modal-title">Add Transaction</div>
+    <!-- Quick-fill from unmatched recurring payments -->
+    <div id="txn-recurring-chips-section" style="margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">Quick-fill from recurring</div>
+      <div id="txn-recurring-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="txn-date"></div>
       <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="txn-amount" placeholder="0.00"></div>
@@ -760,12 +768,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="modal-overlay" id="modal-add-account">
   <div class="modal">
     <div class="modal-title">Add Account</div>
-    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="acc-name"></div>
+    <div class="form-group"><label class="form-label">Account name</label><input type="text" class="form-input" id="acc-name" placeholder="e.g. BMO CashBack, Wealthsimple TFSA"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="acc-type"><option>Chequing</option><option>Savings</option><option>Credit card</option><option>Loan</option><option>Investment</option><option>TFSA</option><option>FHSA</option></select></div>
-      <div class="form-group"><label class="form-label">Current balance</label><input type="number" step="0.01" class="form-input" id="acc-balance" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Current balance ($)</label><input type="number" step="0.01" class="form-input" id="acc-balance" placeholder="0.00"></div>
     </div>
-    <div class="form-group"><label class="form-label">Credit limit (if applicable)</label><input type="number" step="0.01" class="form-input" id="acc-limit" placeholder="0.00"></div>
+    <div class="form-group" id="acc-last4-group" style="display:none;"><label class="form-label">Last 4 digits of card</label><input type="text" maxlength="4" class="form-input" id="acc-last4" placeholder="e.g. 1234"><div style="font-size:11px;color:var(--text3);margin-top:4px;">Will show as ••1234 in the app</div></div>
+    <div class="form-group"><label class="form-label">Credit limit (credit cards only)</label><input type="number" step="0.01" class="form-input" id="acc-limit" placeholder="0.00"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-account">Cancel</button>
       <button class="btn btn-primary" id="btn-save-account">Add</button>
@@ -2163,6 +2172,53 @@ function openAddTxnModal(){
     }
   }
   fillCatSelect('txn-category',false,'Groceries');
+
+  // Populate quick-fill chips from unmatched recurring payments
+  var yearMonth=getCurrentMonth();
+  var chipsEl=el('txn-recurring-chips'); chipsEl.innerHTML='';
+  var section=el('txn-recurring-chips-section');
+  var unmatched=[], matched=[];
+  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp){
+    var status=getPaymentStatus(rp,yearMonth);
+    if(status.paid) matched.push(rp);
+    else unmatched.push(rp);
+  });
+
+  if(!unmatched.length&&!matched.length){
+    section.style.display='none';
+  } else {
+    section.style.display='block';
+    // Show unmatched first, then matched (greyed)
+    var all=unmatched.concat(matched);
+    all.forEach(function(rp){
+      var isPaid=matched.indexOf(rp)>=0;
+      var chip=mk('button','txn-quick-chip'+(isPaid?' matched':''),rp.name+' '+fmt(rp.amount));
+      if(!isPaid){
+        chip.addEventListener('click',function(){
+          // Pre-fill the form
+          el('txn-desc').value=rp.name;
+          el('txn-amount').value=rp.amount.toFixed(2);
+          // Set category
+          fillCatSelect('txn-category',false,rp.category||'Other');
+          // Set expense type
+          var expRadio=document.querySelector('input[name="txn-type"][value="expense"]');
+          if(expRadio) expRadio.checked=true;
+          // Set account — try to find chequing
+          var ws=db.accounts.find(function(a){return a.id==='ws-chq';});
+          if(ws){
+            for(var i=0;i<sel.options.length;i++){
+              if(sel.options[i].value==='ws-chq'){sel.selectedIndex=i;break;}
+            }
+          }
+          // Highlight selected chip
+          chipsEl.querySelectorAll('.txn-quick-chip').forEach(function(c){c.style.background='';c.style.color='';c.style.borderColor='';});
+          chip.style.background='var(--accent)'; chip.style.color='#fff'; chip.style.borderColor='var(--accent)';
+        });
+      }
+      chipsEl.appendChild(chip);
+    });
+  }
+
   openModal('modal-add-txn');
 }
 el('btn-open-add-txn').addEventListener('click',openAddTxnModal);
@@ -2991,6 +3047,15 @@ function makeAssetRow(a, isLast){
   var bal=mk('div','',fmt(live)); bal.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(live>=0?'var(--green)':'var(--red)')+';';
   var chg=mk('div','',(change>=0?'+':'')+fmt(change)+' since cut'); chg.style.cssText='font-size:10px;color:'+(change>=0?'var(--green)':'var(--red)')+';margin-top:2px;';
   right.appendChild(bal); right.appendChild(chg);
+  // Remove button
+  var rmBtn=mk('button','btn btn-ghost btn-sm','Remove'); rmBtn.style.cssText='font-size:10px;padding:3px 7px;margin-top:6px;display:block;margin-left:auto;color:var(--red);';
+  rmBtn.addEventListener('click',function(e){
+    e.stopPropagation();
+    if(!confirm('Remove "'+a.name+'"? This cannot be undone.')) return;
+    db.accounts=db.accounts.filter(function(x){return x.id!==a.id;});
+    saveData(null,'accounts'); renderAccounts(); showToast('Account removed');
+  });
+  right.appendChild(rmBtn);
   row.appendChild(mid); row.appendChild(right);
   return row;
 }
@@ -3089,7 +3154,14 @@ function makeDebtSection(title, debts){
     if(mtp){var mtpEl=mk('div','',mtp+'mo left');mtpEl.style.cssText='font-size:10px;color:'+(mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--text3)')+';margin-top:1px;';right.appendChild(mtpEl);}
     var editBtn=mk('button','btn btn-ghost btn-sm','Edit');editBtn.style.cssText='font-size:10px;padding:3px 7px;margin-top:6px;display:block;margin-left:auto;';
     editBtn.addEventListener('click',function(e){e.stopPropagation();openEditDebt(d.id);});
-    right.appendChild(editBtn);
+    var rmBtn=mk('button','btn btn-ghost btn-sm','Remove');rmBtn.style.cssText='font-size:10px;padding:3px 7px;margin-top:4px;display:block;margin-left:auto;color:var(--red);';
+    rmBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(!confirm('Remove "'+d.name+'"? This cannot be undone.')) return;
+      db.accounts=db.accounts.filter(function(x){return x.id!==d.id;});
+      saveData(null,'accounts'); renderAccounts(); showToast('Account removed');
+    });
+    right.appendChild(editBtn); right.appendChild(rmBtn);
 
     row.appendChild(mid); row.appendChild(right);
     list.appendChild(row);
@@ -3225,9 +3297,13 @@ function deleteInstallment(id){
 
 // ---- ADD ACCOUNT ----
 el('btn-add-account').addEventListener('click',function(){
-  el('acc-name').value=''; el('acc-balance').value=''; el('acc-limit').value='';
+  el('acc-name').value=''; el('acc-balance').value=''; el('acc-limit').value=''; el('acc-last4').value='';
   el('acc-type').value='Chequing';
+  el('acc-last4-group').style.display='none';
   openModal('modal-add-account');
+});
+el('acc-type').addEventListener('change',function(){
+  el('acc-last4-group').style.display=this.value==='Credit card'?'block':'none';
 });
 el('btn-cancel-account').addEventListener('click',function(){closeModal('modal-add-account');});
 el('btn-save-account').addEventListener('click',function(){
@@ -3235,7 +3311,12 @@ el('btn-save-account').addEventListener('click',function(){
   var type=el('acc-type').value;
   var balance=parseFloat(el('acc-balance').value)||0;
   var limit=parseFloat(el('acc-limit').value)||0;
+  var last4=el('acc-last4').value.trim().replace(/\D/g,'').slice(-4);
   if(!name){showToast('Account name required');return;}
+  // Auto-format credit card name with dots
+  if(type==='Credit card'&&last4&&!name.includes('••')){
+    name=name+' ••'+last4;
+  }
   var id='acc'+Date.now();
   var newAcc={id:id,name:name,type:type,openingBalance:balance,currency:'CAD'};
   if(limit) newAcc.limit=limit;
