@@ -293,7 +293,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.3 - William R.M.</div>
+    <div class="logo-sub">v2.4.4 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1524,6 +1524,32 @@ function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDi
 function fmtDate(d){try{return new Date(d+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'});}catch(e){return d;}}
 function todayLocal(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
+// Grouped account dropdown helper
+function fillAccountSelect(selectId, selectedId, includeAll){
+  var sel=el(selectId); if(!sel) return;
+  sel.innerHTML='';
+  if(includeAll){var o=mk('option');o.value='';o.textContent='All accounts';sel.appendChild(o);}
+  var groups={
+    'Chequing':    db.accounts.filter(function(a){return a.type==='Chequing';}),
+    'Savings':     db.accounts.filter(function(a){return a.type==='Savings';}),
+    'Credit Cards':db.accounts.filter(function(a){return a.type==='Credit card';}),
+    'Loans':       db.accounts.filter(function(a){return a.type==='Loan';}),
+    'Investment':  db.accounts.filter(function(a){return a.type==='Investment'||a.type==='TFSA'||a.type==='FHSA';}),
+    'Other':       db.accounts.filter(function(a){return !['Chequing','Savings','Credit card','Loan','Investment','TFSA','FHSA'].includes(a.type);}),
+  };
+  Object.keys(groups).forEach(function(label){
+    var accs=groups[label];
+    if(!accs.length) return;
+    var grp=document.createElement('optgroup'); grp.label=label;
+    accs.forEach(function(a){
+      var o=mk('option'); o.value=a.id; o.textContent=a.name;
+      if(a.id===selectedId) o.selected=true;
+      grp.appendChild(o);
+    });
+    sel.appendChild(grp);
+  });
+}
+
 // Build month dropdown options dynamically from transaction data + current month
 function buildMonthOptions(selectId, defaultToCurrentMonth){
   var sel=el(selectId); if(!sel) return;
@@ -2101,15 +2127,63 @@ function renderTransactions(){
     emptyCell.style.cssText='color:var(--text3);text-align:center;padding:24px;';
     emptyRow.appendChild(emptyCell); tbody.appendChild(emptyRow);
   }else{
+    // Detect transfer pairs: same date, same amount (within $0.01), one expense + one income
+    // categorized as Transfer or Internal transfer
+    var transferCats=['Transfer','Internal transfer','Credit card payment'];
+    var transferPairs={};
+    var allTxns=db.transactions;
+    txns.forEach(function(t){
+      if(!transferCats.some(function(c){return t.category===c;})) return;
+      // Find matching transaction in full db
+      var match=allTxns.find(function(x){
+        if(x.id===t.id) return false;
+        if(x.date!==t.date) return false;
+        if(Math.abs(x.amount-t.amount)>0.01) return false;
+        if(x.type===t.type) return false; // must be opposite
+        return transferCats.some(function(c){return x.category===c;});
+      });
+      if(match){
+        // Use smaller id as key to avoid duplicates
+        var key=[t.id,match.id].sort().join('|');
+        transferPairs[t.id]=key;
+      }
+    });
+    // Assign colors to transfer pairs
+    var pairColors={};
+    var pairColorList=['#2e6ea6','#6b44a8','#1D9E75','#b07020','#D4537E'];
+    var colorIdx=0;
+    Object.values(transferPairs).filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(key){
+      pairColors[key]=pairColorList[colorIdx%pairColorList.length];
+      colorIdx++;
+    });
+
     txns.forEach(function(t){
       var a=db.accounts.find(function(x){return x.id===t.account;});
       var tr=document.createElement('tr');
+      var pairKey=transferPairs[t.id];
+      var pairColor=pairKey?pairColors[pairKey]:null;
+
+      // Transfer pair visual treatment
+      if(pairColor){
+        tr.style.cssText='border-left:3px solid '+pairColor+';background:'+pairColor+'08;';
+      }
+
       var tdDate=mk('td','',t.date); tdDate.style.cssText='font-family:var(--font-mono);font-size:11px;';
+      if(pairColor) tdDate.style.paddingLeft='8px';
+
       var tdDesc=mk('td','');
-      var descDiv=mk('div','',t.description);
-      if(t.linkedId){var lb=mk('span','linked-badge','Transfer');descDiv.appendChild(lb);}
+      var descDiv=mk('div',''); descDiv.style.cssText='display:flex;align-items:center;gap:6px;';
+      var descText=mk('span','',t.description);
+      descDiv.appendChild(descText);
+      if(pairColor){
+        var tfBadge=mk('span','');
+        tfBadge.style.cssText='font-size:9px;padding:1px 6px;border-radius:99px;background:'+pairColor+'20;color:'+pairColor+';border:1px solid '+pairColor+'40;font-weight:600;white-space:nowrap;flex-shrink:0;';
+        tfBadge.textContent='↕ Transfer';
+        descDiv.appendChild(tfBadge);
+      }
       tdDesc.appendChild(descDiv);
       if(t.notes){var notesDiv=mk('div','',t.notes);notesDiv.style.cssText='font-size:11px;color:var(--text3);';tdDesc.appendChild(notesDiv);}
+
       var tdAcc=mk('td','col-account',a?a.name:t.account); tdAcc.style.cssText='font-size:12px;color:var(--text3);';
       var tdCat=mk('td','col-category'); var catTag=mk('span','tag tag-gray',t.category); tdCat.appendChild(catTag);
       var tdAmt=mk('td','amount',(t.type==='income'?'+':'-')+fmt(t.amount));
@@ -2162,8 +2236,7 @@ el('filter-search').addEventListener('input',renderTransactions);
 function openAddTxnModal(){
   el('txn-date').value=todayLocal();
   el('txn-amount').value=''; el('txn-desc').value=''; el('txn-notes').value='';
-  var sel=el('txn-account'); sel.innerHTML='';
-  db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;sel.appendChild(o);});
+  fillAccountSelect('txn-account', currentFilter||'');
   // Pre-select account if filter is active
   var currentFilter=el('filter-account')?el('filter-account').value:'';
   if(currentFilter){
@@ -2241,8 +2314,7 @@ function openEditTxn(id){
   el('edit-txn-id').value=t.id; el('edit-txn-date').value=t.date;
   el('edit-txn-amount').value=t.amount; el('edit-txn-desc').value=t.description;
   el('edit-txn-notes').value=t.notes||'';
-  var sel=el('edit-txn-account'); sel.innerHTML='';
-  db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;if(a.id===t.account)o.selected=true;sel.appendChild(o);});
+  fillAccountSelect('edit-txn-account', t.account);
   fillCatSelect('edit-txn-category',false,t.category);
   document.querySelectorAll('input[name="edit-txn-type"]').forEach(function(r){r.checked=r.value===t.type;});
   openModal('modal-edit-txn');
@@ -2296,7 +2368,7 @@ function openTransferModal(){
   el('tr-amount').value=''; el('tr-desc').value='';
   ['tr-from','tr-to'].forEach(function(sid){
     var sel=el(sid); sel.innerHTML='';
-    db.accounts.forEach(function(a){var o=mk('option');o.value=a.id;o.textContent=a.name;sel.appendChild(o);});
+    fillAccountSelect(sel.id, '');
   });
   fillCatSelect('tr-category',false,'Credit card payment');
   openModal('modal-transfer');
@@ -4635,12 +4707,7 @@ function renderInvestmentCard(){
 
 function openInvSettings(){
   var inv = db.investmentSettings || {};
-  var sel = el('inv-account'); sel.innerHTML = '';
-  db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';}).forEach(function(a){
-    var o = mk('option'); o.value = a.id; o.textContent = a.name;
-    if(a.id===inv.accountId) o.selected = true;
-    sel.appendChild(o);
-  });
+  fillAccountSelect('inv-account', inv.accountId||'');
   el('inv-balance').value = inv.currentBalance || '';
   el('inv-monthly').value = inv.monthlyTarget || '';
   el('inv-rate').value = inv.annualRate || 7;
@@ -4912,9 +4979,7 @@ function openAddGoal(){
   el('goal-color').value='#1D9E75';
   // Populate account dropdown
   var sel=el('goal-account'); sel.innerHTML='';
-  db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';}).forEach(function(a){
-    var o=mk('option'); o.value=a.id; o.textContent=a.name; sel.appendChild(o);
-  });
+  fillAccountSelect(sel.id, '');
   // Set color picker
   document.querySelectorAll('.goal-color-opt').forEach(function(s){
     s.classList.toggle('selected',s.getAttribute('data-color')==='#1D9E75');
@@ -4932,12 +4997,7 @@ function openEditGoal(id){
   el('goal-contrib-freq').value=g.contribFreq||'biweekly';
   el('goal-keywords').value=(g.keywords||[]).join(', ');
   el('goal-color').value=g.color||'#1D9E75';
-  var sel=el('goal-account'); sel.innerHTML='';
-  db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';}).forEach(function(a){
-    var o=mk('option'); o.value=a.id; o.textContent=a.name;
-    if(a.id===g.accountId) o.selected=true;
-    sel.appendChild(o);
-  });
+  fillAccountSelect('goal-account', g.accountId||'');
   document.querySelectorAll('.goal-color-opt').forEach(function(s){
     s.classList.toggle('selected',s.getAttribute('data-color')===g.color);
   });
