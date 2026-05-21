@@ -293,7 +293,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.4 - William R.M.</div>
+    <div class="logo-sub">v2.4.5 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2165,16 +2165,34 @@ function renderTransactions(){
       if(pairColor) tdDate.style.paddingLeft='8px';
 
       var tdDesc=mk('td','');
-      var descDiv=mk('div',''); descDiv.style.cssText='display:flex;align-items:center;gap:6px;';
-      var descText=mk('span','',t.description);
+      var descDiv=mk('div',''); descDiv.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap;';
+      // Clean up (out)/(in) suffix from description
+      var cleanDesc=t.description.replace(' (out)','').replace(' (in)','');
+      var descText=mk('span','',cleanDesc);
       descDiv.appendChild(descText);
       if(pairColor){
         var tfBadge=mk('span','');
         tfBadge.style.cssText='font-size:9px;padding:1px 6px;border-radius:99px;background:'+pairColor+'20;color:'+pairColor+';border:1px solid '+pairColor+'40;font-weight:600;white-space:nowrap;flex-shrink:0;';
         tfBadge.textContent='↕ Transfer';
         descDiv.appendChild(tfBadge);
+        // Show from → to account
+        var pairTxn=db.transactions.find(function(x){return x.linkedId===t.linkedId&&x.id!==t.id;});
+        if(pairTxn){
+          var fromTxn=t.type==='expense'?t:pairTxn;
+          var toTxn=t.type==='income'?t:pairTxn;
+          var fromAcc=db.accounts.find(function(x){return x.id===fromTxn.account;});
+          var toAcc=db.accounts.find(function(x){return x.id===toTxn.account;});
+          var routeEl=mk('div','');
+          routeEl.style.cssText='font-size:10px;color:'+pairColor+';margin-top:2px;width:100%;';
+          routeEl.textContent=(fromAcc?fromAcc.name:fromTxn.account)+' → '+(toAcc?toAcc.name:toTxn.account);
+          tdDesc.appendChild(descDiv);
+          tdDesc.appendChild(routeEl);
+        } else {
+          tdDesc.appendChild(descDiv);
+        }
+      } else {
+        tdDesc.appendChild(descDiv);
       }
-      tdDesc.appendChild(descDiv);
       if(t.notes){var notesDiv=mk('div','',t.notes);notesDiv.style.cssText='font-size:11px;color:var(--text3);';tdDesc.appendChild(notesDiv);}
 
       var tdAcc=mk('td','col-account',a?a.name:t.account); tdAcc.style.cssText='font-size:12px;color:var(--text3);';
@@ -2298,6 +2316,25 @@ el('btn-save-txn').addEventListener('click',function(){
 // Edit transaction
 function openEditTxn(id){
   var t=db.transactions.find(function(x){return x.id===id;}); if(!t) return;
+
+  // If this is a transfer (has linkedId), open the transfer edit modal instead
+  if(t.linkedId){
+    var pair=db.transactions.find(function(x){return x.linkedId===t.linkedId&&x.id!==t.id;});
+    var fromTxn=t.type==='expense'?t:pair;
+    var toTxn=t.type==='income'?t:pair;
+    el('tr-date').value=t.date;
+    el('tr-amount').value=t.amount;
+    el('tr-desc').value=t.description.replace(' (out)','').replace(' (in)','');
+    fillAccountSelect('tr-from', fromTxn?fromTxn.account:'');
+    fillAccountSelect('tr-to', toTxn?toTxn.account:'');
+    fillCatSelect('tr-category',false,t.category);
+    // Store linked id for saving
+    el('modal-transfer').setAttribute('data-edit-lid', t.linkedId);
+    el('btn-save-transfer').textContent='Update Transfer';
+    openModal('modal-transfer');
+    return;
+  }
+
   el('edit-txn-id').value=t.id; el('edit-txn-date').value=t.date;
   el('edit-txn-amount').value=t.amount; el('edit-txn-desc').value=t.description;
   el('edit-txn-notes').value=t.notes||'';
@@ -2354,24 +2391,42 @@ function openTransferModal(){
   el('tr-date').value=todayLocal();
   el('tr-amount').value=''; el('tr-desc').value='';
   ['tr-from','tr-to'].forEach(function(sid){
-    var sel=el(sid); sel.innerHTML='';
-    fillAccountSelect(sel.id, '');
+    fillAccountSelect(sid, '');
   });
   fillCatSelect('tr-category',false,'Credit card payment');
+  el('modal-transfer').removeAttribute('data-edit-lid');
+  el('btn-save-transfer').textContent='Add Transfer';
   openModal('modal-transfer');
 }
 el('btn-open-transfer').addEventListener('click',openTransferModal);
-el('btn-cancel-transfer').addEventListener('click',function(){closeModal('modal-transfer');});
+el('btn-cancel-transfer').addEventListener('click',function(){
+  closeModal('modal-transfer');
+  el('modal-transfer').removeAttribute('data-edit-lid');
+  el('btn-save-transfer').textContent='Add Transfer';
+});
 el('btn-save-transfer').addEventListener('click',function(){
   var date=el('tr-date').value, amount=parseFloat(el('tr-amount').value);
   var fromId=el('tr-from').value, toId=el('tr-to').value;
   var desc=el('tr-desc').value.trim(), cat=el('tr-category').value;
   if(!date||!amount||!fromId||!toId||!desc){showToast('Please fill all fields');return;}
   if(fromId===toId){showToast('Source and destination must differ');return;}
-  var lid='link'+Date.now();
-  db.transactions.push({id:'t'+Date.now()+'a',date:date,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
-  db.transactions.push({id:'t'+Date.now()+'b',date:date,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
-  saveData(); closeModal('modal-transfer'); showToast('Transfer recorded');
+  var editLid=el('modal-transfer').getAttribute('data-edit-lid');
+  if(editLid){
+    // Edit mode — update existing transfer pair
+    var fromTxn=db.transactions.find(function(x){return x.linkedId===editLid&&x.type==='expense';});
+    var toTxn=db.transactions.find(function(x){return x.linkedId===editLid&&x.type==='income';});
+    if(fromTxn){fromTxn.date=date;fromTxn.amount=Math.abs(amount);fromTxn.account=fromId;fromTxn.category=cat;fromTxn.description=desc+' (out)';}
+    if(toTxn){toTxn.date=date;toTxn.amount=Math.abs(amount);toTxn.account=toId;toTxn.category=cat;toTxn.description=desc+' (in)';}
+    el('modal-transfer').removeAttribute('data-edit-lid');
+    el('btn-save-transfer').textContent='Add Transfer';
+    saveData(); closeModal('modal-transfer'); showToast('Transfer updated');
+  } else {
+    // Create mode
+    var lid='link'+Date.now();
+    db.transactions.push({id:'t'+Date.now()+'a',date:date,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
+    db.transactions.push({id:'t'+Date.now()+'b',date:date,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
+    saveData(); closeModal('modal-transfer'); showToast('Transfer recorded');
+  }
   renderTransactions(); renderDashboard();
 });
 
