@@ -2236,14 +2236,8 @@ el('filter-search').addEventListener('input',renderTransactions);
 function openAddTxnModal(){
   el('txn-date').value=todayLocal();
   el('txn-amount').value=''; el('txn-desc').value=''; el('txn-notes').value='';
-  fillAccountSelect('txn-account', currentFilter||'');
-  // Pre-select account if filter is active
   var currentFilter=el('filter-account')?el('filter-account').value:'';
-  if(currentFilter){
-    for(var i=0;i<sel.options.length;i++){
-      if(sel.options[i].value===currentFilter){sel.selectedIndex=i;break;}
-    }
-  }
+  fillAccountSelect('txn-account', currentFilter||'');
   fillCatSelect('txn-category',false,'Groceries');
 
   // Populate quick-fill chips from unmatched recurring payments
