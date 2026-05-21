@@ -2083,16 +2083,9 @@ var importBuffer=[];
 function renderTransactions(){
   var fa=el('filter-account');
   var curAcc=fa.value;
-  fa.innerHTML='';
-  var optAll=mk('option'); optAll.value=''; optAll.textContent='All accounts';
-  fa.appendChild(optAll);
+  fillAccountSelect('filter-account', curAcc, true);
   // Rebuild month options dynamically each time
   buildMonthOptions('filter-month',false);
-  db.accounts.forEach(function(a){
-    var o=mk('option'); o.value=a.id; o.textContent=a.name;
-    if(a.id===curAcc) o.selected=true;
-    fa.appendChild(o);
-  });
   // Repopulate filter-cat preserving current selection
   var curCat=el('filter-cat').value;
   fillCatSelect('filter-cat',true,curCat);
