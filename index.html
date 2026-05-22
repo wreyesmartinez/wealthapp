@@ -3262,7 +3262,11 @@ function makeDebtSection(title, debts){
     }
 
     var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
-    var balEl=mk('div','',isPaidOff?'PAID OFF':fmt(bal)); balEl.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+(isPaidOff?'var(--green)':'var(--red)')+';';
+    var liveBal=computeLiveBalance(d.id);
+    var isCredit=liveBal>0; // overpaid — in credit
+    var balColor=isPaidOff?'var(--green)':isCredit?'var(--green)':'var(--red)';
+    var balText=isPaidOff?'PAID OFF':isCredit?'+'+fmt(liveBal):fmt(bal);
+    var balEl=mk('div','',balText); balEl.style.cssText='font-size:15px;font-weight:600;font-family:var(--font-mono);color:'+balColor+';';
     right.appendChild(balEl);
     if(monthly>0&&!isPaidOff){var mo=mk('div','',fmt(monthly)+'/mo');mo.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;';right.appendChild(mo);}
     if(mtp){var mtpEl=mk('div','',mtp+'mo left');mtpEl.style.cssText='font-size:10px;color:'+(mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--text3)')+';margin-top:1px;';right.appendChild(mtpEl);}
