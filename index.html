@@ -3922,20 +3922,13 @@ function getPaymentStatus(rp,yearMonth){
   var txn=db.transactions.find(function(t){
     if(t.type!=='expense') return false;
     if(t.date<dateMin||t.date>dateMax) return false;
-    if(Math.abs(t.amount-rp.amount)>(rp.amount*0.2)) return false;
+    if(Math.abs(t.amount-rp.amount)>(rp.amount*0.05)) return false;
     if(!keywords.length) return true;
     var desc=t.description.toLowerCase();
     return keywords.some(function(k){return desc.includes(k);});
   });
   if(txn) return{paid:true,manual:false,txn:txn};
-  var txnLoose=db.transactions.find(function(t){
-    if(t.type!=='expense') return false;
-    if(!t.date.startsWith(yearMonth)) return false;
-    if(Math.abs(t.amount-rp.amount)>(rp.amount*0.2)) return false;
-    var desc=t.description.toLowerCase();
-    return !keywords.length||keywords.some(function(k){return desc.includes(k);});
-  });
-  return{paid:!!txnLoose,manual:false,txn:txnLoose||null};
+  return{paid:false,manual:false,txn:null};
 }
 
 function toggleManual(rpId,yearMonth,markPaid){
