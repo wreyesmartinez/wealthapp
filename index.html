@@ -159,6 +159,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .txn-quick-chip{font-size:11px;padding:5px 10px;border-radius:99px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--text2);}
 .txn-quick-chip:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .txn-quick-chip.matched{opacity:0.45;text-decoration:line-through;cursor:default;}
+.recon-mode tr.txn-row{cursor:pointer;}
+.recon-mode tr.txn-row:hover{background:rgba(46,110,166,.06);}
+tr.txn-reconciled{background:rgba(58,125,82,.07) !important;border-left:3px solid var(--green) !important;}
+tr.txn-reconciled td{opacity:0.7;}
+.recon-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-size:12px;}
+tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green);color:#fff;}
 .goal-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;}
 .goal-card-accent{position:absolute;top:0;left:0;right:0;height:3px;}
 .goal-prog-track{height:10px;background:var(--bg3);border-radius:99px;overflow:hidden;margin:14px 0 8px;}
@@ -293,7 +299,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.5 - William R.M.</div>
+    <div class="logo-sub">v2.4.6 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -361,10 +367,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
   <div class="page" id="page-transactions">
     <div class="sec-header">
       <div><div class="sec-title">Transactions</div><div class="sec-sub" id="txn-count">Loading...</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-ghost btn-sm" id="btn-export-csv">Export CSV</button>
+        <button class="btn btn-ghost btn-sm" id="btn-reconcile-toggle" style="color:var(--blue);border-color:var(--blue);">&#10003; Reconcile</button>
         <button class="btn btn-sm btn-ai" id="btn-ai-txn">AI Analysis</button>
         <button class="btn btn-primary btn-sm" id="btn-add-txn2">+ Add</button>
+      </div>
+    </div>
+    <!-- Reconciliation status bar (hidden by default) -->
+    <div id="reconcile-bar" style="display:none;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:12px;display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div>
+          <span style="font-size:13px;font-weight:600;color:var(--blue);">Reconciliation mode</span>
+          <span style="font-size:12px;color:var(--text3);margin-left:10px;">Tap any transaction to mark as reviewed</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="reconcile-stats" style="font-size:12px;color:var(--blue);font-family:var(--font-mono);"></span>
+          <button class="btn btn-ghost btn-sm" id="btn-reconcile-clear" style="font-size:11px;color:var(--text3);">Clear all</button>
+          <button class="btn btn-primary btn-sm" id="btn-reconcile-done" style="font-size:11px;">Done</button>
+        </div>
       </div>
     </div>
     <div class="filter-bar">
@@ -379,6 +400,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
     <div class="card" style="padding:0;overflow:hidden;">
       <table class="tbl">
         <thead><tr>
+          <th style="width:28px;"></th>
           <th style="cursor:pointer;" data-sort="date">Date</th>
           <th>Description</th>
           <th class="col-account">Account</th>
@@ -1500,6 +1522,7 @@ function migrateData(d){
     if(a.type==='Credit card'&&a.dueDayOfMonth===undefined){a.dueDayOfMonth=null;}
   });
   if(!d.savingsGoals) d.savingsGoals=[];
+  if(!d.reconciledTxns) d.reconciledTxns={};  // {txnId: true}
   if(!d.investmentSettings) d.investmentSettings={accountId:'ws-nonreg',currentBalance:0,monthlyTarget:0,annualRate:7,lastUpdated:null,birthYear:1989};
   if(!d.aiHistory) d.aiHistory=[];
   if(!d.floatHistory) d.floatHistory=[];
@@ -2153,13 +2176,39 @@ function renderTransactions(){
     txns.forEach(function(t){
       var a=db.accounts.find(function(x){return x.id===t.account;});
       var tr=document.createElement('tr');
+      tr.setAttribute('data-txn-id', t.id);
+      var isReconciled = !!(db.reconciledTxns && db.reconciledTxns[t.id]);
       var pairKey=transferPairs[t.id];
       var pairColor=pairKey?pairColors[pairKey]:null;
 
-      // Transfer pair visual treatment
-      if(pairColor){
+      // Reconciled row styling
+      if(isReconciled) tr.classList.add('txn-reconciled');
+
+      // Transfer pair styling (only when not reconciled)
+      if(pairColor && !isReconciled){
         tr.style.cssText='border-left:3px solid '+pairColor+';background:'+pairColor+'08;';
       }
+
+      // Click row to toggle reconcile in reconcile mode
+      if(_reconcileMode){
+        tr.style.cursor='pointer';
+        tr.addEventListener('click', function(e){
+          if(e.target.tagName==='BUTTON') return; // don't intercept edit/delete
+          toggleReconcile(t.id);
+        });
+      }
+
+      // Reconcile check cell (only in reconcile mode)
+      var tdCheck=mk('td','');
+      tdCheck.style.cssText='width:28px;padding:8px 4px;';
+      if(_reconcileMode){
+        var check=mk('span','recon-check', isReconciled?'✓':'');
+        check.style.background = isReconciled?'var(--green)':'';
+        check.style.borderColor = isReconciled?'var(--green)':'';
+        check.style.color = isReconciled?'#fff':'';
+        tdCheck.appendChild(check);
+      }
+      tr.appendChild(tdCheck);
 
       var tdDate=mk('td','',t.date); tdDate.style.cssText='font-family:var(--font-mono);font-size:11px;';
       if(pairColor) tdDate.style.paddingLeft='8px';
@@ -5343,6 +5392,75 @@ function renderReport(){
 }
 el('report-month').addEventListener('change',renderReport);
 el('report-group').addEventListener('change',renderReport);
+
+// ---- RECONCILIATION ----
+var _reconcileMode = false;
+
+function updateReconcileStats(){
+  var reconciled = Object.keys(db.reconciledTxns||{}).filter(function(id){return db.reconciledTxns[id];});
+  var total = reconciled.length;
+  var amount = reconciled.reduce(function(s, id){
+    var t = db.transactions.find(function(x){return x.id===id;});
+    return s + (t ? (t.type==='income' ? t.amount : -t.amount) : 0);
+  }, 0);
+  var statsEl = el('reconcile-stats');
+  if(statsEl) statsEl.textContent = total + ' reviewed · net ' + (amount>=0?'+':'') + fmt(Math.abs(amount));
+}
+
+function enterReconcileMode(){
+  _reconcileMode = true;
+  el('btn-reconcile-toggle').textContent = '✕ Exit Reconcile';
+  el('btn-reconcile-toggle').style.cssText = 'color:var(--red);border-color:var(--red);font-size:11px;padding:5px 10px;';
+  el('reconcile-bar').style.display = 'block';
+  document.getElementById('page-transactions').querySelector('table').classList.add('recon-mode');
+  updateReconcileStats();
+  renderTransactions();
+}
+
+function exitReconcileMode(){
+  _reconcileMode = false;
+  el('btn-reconcile-toggle').textContent = '✓ Reconcile';
+  el('btn-reconcile-toggle').style.cssText = 'color:var(--blue);border-color:var(--blue);font-size:11px;padding:5px 10px;';
+  el('reconcile-bar').style.display = 'none';
+  var tbl = document.getElementById('page-transactions').querySelector('table');
+  if(tbl) tbl.classList.remove('recon-mode');
+  renderTransactions();
+}
+
+function toggleReconcile(txnId){
+  if(!db.reconciledTxns) db.reconciledTxns = {};
+  if(db.reconciledTxns[txnId]){
+    delete db.reconciledTxns[txnId];
+  } else {
+    db.reconciledTxns[txnId] = true;
+  }
+  saveData(null,'reconciledTxns');
+  updateReconcileStats();
+  // Update just this row visually without full re-render
+  var row = document.querySelector('tr[data-txn-id="'+txnId+'"]');
+  if(row){
+    var isRec = !!db.reconciledTxns[txnId];
+    row.classList.toggle('txn-reconciled', isRec);
+    var check = row.querySelector('.recon-check');
+    if(check) check.textContent = isRec ? '✓' : '';
+  }
+}
+
+el('btn-reconcile-toggle').addEventListener('click', function(){
+  if(_reconcileMode) exitReconcileMode();
+  else enterReconcileMode();
+});
+
+el('btn-reconcile-done').addEventListener('click', exitReconcileMode);
+
+el('btn-reconcile-clear').addEventListener('click', function(){
+  if(!confirm('Clear all reconciliation marks?')) return;
+  db.reconciledTxns = {};
+  saveData(null,'reconciledTxns');
+  updateReconcileStats();
+  renderTransactions();
+});
+
 
 // ---- IMPORT ----
 function renderImportPage(){
