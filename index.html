@@ -299,7 +299,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.6 - William R.M.</div>
+    <div class="logo-sub">v2.4.7 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -869,6 +869,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="modal">
     <div class="modal-title" id="edit-debt-title">Edit debt details</div>
     <input type="hidden" id="edit-debt-id">
+    <div class="form-group"><label class="form-label">Opening balance ($)</label><input type="number" step="0.01" class="form-input" id="edit-debt-opening" placeholder="e.g. -1554 (negative = you owe)"><div style="font-size:11px;color:var(--text3);margin-top:3px;">Enter as negative if you owe money. Positive if overpaid.</div></div>
     <div class="form-group"><label class="form-label">Interest rate</label><input type="text" class="form-input" id="edit-debt-rate" placeholder="e.g. 19.99%, 0% promo, Fixed"></div>
     <div class="form-group"><label class="form-label">Monthly payment ($)</label><input type="number" step="0.01" class="form-input" id="edit-debt-payment" placeholder="0.00"></div>
     <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="edit-debt-note" placeholder="e.g. promo ends Dec 2026"></div>
@@ -877,7 +878,15 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
         <div class="form-group"><label class="form-label">Statement day of month</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-statement-day" placeholder="e.g. 4"></div>
         <div class="form-group"><label class="form-label">Payment due day of month</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-due-day" placeholder="e.g. 29"></div>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:10px;">Statement day = when balance gets reported to credit bureau. Leave blank if unknown.</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:10px;">Statement day = when balance gets reported to credit bureau.</div>
+    </div>
+    <!-- Detection criteria section -->
+    <div style="margin-top:8px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:4px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;">Payment detection criteria</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">How the app finds this payment in your transactions to mark it as paid.</div>
+      <div class="form-group"><label class="form-label">Paid from account</label><select class="form-select" id="edit-debt-from-account"></select></div>
+      <div class="form-group"><label class="form-label">Expected payment day</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-payment-day" placeholder="e.g. 14"></div>
+      <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="edit-debt-keywords" placeholder="e.g. amex, loan payment"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-debt">Cancel</button>
@@ -976,6 +985,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <div class="form-group"><label class="form-label">Paycheque period</label><select class="form-select" id="rp-paycheque"><option value="1">Paycheque 1</option><option value="2">Paycheque 2</option></select></div>
     </div>
     <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="rp-keywords" placeholder="e.g. rogers, 4700"></div>
+    <div class="form-group"><label class="form-label">Paid from account</label><select class="form-select" id="rp-from-account"></select></div>
     <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="rp-category"></select></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-rp">Cancel</button>
@@ -1000,6 +1010,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <div class="form-group"><label class="form-label">Paycheque period</label><select class="form-select" id="edit-rp-paycheque"><option value="1">Paycheque 1</option><option value="2">Paycheque 2</option></select></div>
     </div>
     <div class="form-group"><label class="form-label">Detection keywords</label><input type="text" class="form-input" id="edit-rp-keywords"></div>
+    <div class="form-group"><label class="form-label">Paid from account</label><select class="form-select" id="edit-rp-from-account"></select></div>
     <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="edit-rp-category"></select></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-rp">Cancel</button>
@@ -3496,26 +3507,30 @@ el('btn-save-account').addEventListener('click',function(){
 });
 
 function openEditDebt(accountId){
-  var a=db.accounts.find(function(x){return x.id===accountId;});
-  if(!a) return;
+  var a=db.accounts.find(function(x){return x.id===accountId;}); if(!a) return;
   el('edit-debt-title').textContent='Edit: '+a.name;
   el('edit-debt-id').value=accountId;
+  el('edit-debt-opening').value=a.openingBalance||0;
   el('edit-debt-rate').value=a.rate||'';
   el('edit-debt-payment').value=a.monthlyPayment||'';
   el('edit-debt-note').value=a.rateNote||'';
-  // Show statement fields only for credit cards
   var stFields=el('edit-debt-statement-fields');
   if(stFields) stFields.style.display=a.type==='Credit card'?'block':'none';
   el('edit-debt-statement-day').value=a.statementDay||'';
   el('edit-debt-due-day').value=a.dueDayOfMonth||'';
+  // Detection criteria
+  fillAccountSelect('edit-debt-from-account', a.fromAccountId||'ws-chq');
+  el('edit-debt-payment-day').value=a.paymentDay||'';
+  el('edit-debt-keywords').value=(a.keywords||[]).join(', ');
   openModal('modal-edit-debt');
 }
 
 el('btn-cancel-edit-debt').addEventListener('click',function(){closeModal('modal-edit-debt');});
 el('btn-save-edit-debt').addEventListener('click',function(){
   var id=el('edit-debt-id').value;
-  var a=db.accounts.find(function(x){return x.id===id;});
-  if(!a) return;
+  var a=db.accounts.find(function(x){return x.id===id;}); if(!a) return;
+  var newOpening=parseFloat(el('edit-debt-opening').value);
+  if(!isNaN(newOpening)) a.openingBalance=newOpening;
   a.rate=el('edit-debt-rate').value.trim();
   a.monthlyPayment=parseFloat(el('edit-debt-payment').value)||0;
   a.rateNote=el('edit-debt-note').value.trim();
@@ -3525,6 +3540,11 @@ el('btn-save-edit-debt').addEventListener('click',function(){
     a.statementDay=isNaN(sd)?null:sd;
     a.dueDayOfMonth=isNaN(dd)?null:dd;
   }
+  // Save detection criteria
+  a.fromAccountId=el('edit-debt-from-account').value||'ws-chq';
+  var pd=parseInt(el('edit-debt-payment-day').value);
+  a.paymentDay=isNaN(pd)?null:pd;
+  a.keywords=el('edit-debt-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
   saveData(null,'accounts'); closeModal('modal-edit-debt'); renderDebts();
   renderAccounts(); renderDashboard(); showToast('Updated');
 });
@@ -3901,24 +3921,18 @@ function buildDebtCard(item){
   if(item.isPaidOff){ card.style.opacity='0.6'; card.style.background='var(--bg3)'; }
   else{ card.style.background=ident.bg; }
 
-  // Header row with identity badge
+  // Header row
   var hdr=mk('div',''); hdr.style.cssText='display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;';
   hdr.appendChild(makeLogoBadge(item.isPaidOff?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident,44));
-
   var mid=mk('div',''); mid.style.flex='1';
   var typeLabel=mk('div','',d.type.toUpperCase()); typeLabel.style.cssText='font-size:9px;font-weight:700;letter-spacing:.1em;color:'+ident.color+';margin-bottom:3px;opacity:0.7;';
   var nameEl=mk('div','',d.name); nameEl.style.cssText='font-size:14px;font-weight:600;color:var(--text);';
   mid.appendChild(typeLabel); mid.appendChild(nameEl);
-  if(d.rateNote){
-    var noteEl=mk('div','',d.rateNote); noteEl.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
-    mid.appendChild(noteEl);
-  }
-
+  if(d.rateNote){var noteEl=mk('div','',d.rateNote);noteEl.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';mid.appendChild(noteEl);}
   var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
   var balEl=mk('div','',item.isPaidOff?'PAID OFF':fmt(bal));
   balEl.style.cssText='font-family:var(--font-mono);font-size:20px;font-weight:600;color:'+(item.isPaidOff?'var(--green)':ident.color)+';';
-  var rateTag=mk('span','tag tag-'+rcolor,rate);
-  rateTag.style.display='inline-block'; rateTag.style.marginTop='4px';
+  var rateTag=mk('span','tag tag-'+rcolor,rate); rateTag.style.display='inline-block'; rateTag.style.marginTop='4px';
   right.appendChild(balEl); right.appendChild(rateTag);
   hdr.appendChild(mid); hdr.appendChild(right);
   card.appendChild(hdr);
@@ -3936,7 +3950,7 @@ function buildDebtCard(item){
   if(d.limit) stats.appendChild(statItem('Limit',fmt(d.limit),'var(--text3)'));
   card.appendChild(stats);
 
-  // Utilization bar
+  // Utilization bar (credit cards)
   if(d.limit&&!item.isPaidOff){
     var pct=Math.min(100,(bal/d.limit)*100);
     var pw=mk('div','progress-wrap'); var pb=mk('div','progress-bar');
@@ -3946,12 +3960,64 @@ function buildDebtCard(item){
     card.appendChild(pw); card.appendChild(ul);
   }
 
+  // Payment timeline for loans (like installment cards)
+  if(d.type==='Loan'&&monthly>0&&!item.isPaidOff){
+    var today=new Date();
+    var todayStr=todayLocal();
+    var timelineWrap=mk('div',''); timelineWrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:14px;padding-bottom:4px;';
+    var timeline=mk('div',''); timeline.style.cssText='display:flex;gap:8px;min-width:max-content;';
+
+    // Generate upcoming payment tiles based on expectedDay or 1st of month
+    var expDay=d.paymentDay||d.expectedDay||1;
+    var keywords=(d.keywords||[]);
+    var numTiles=Math.min(mtp,12); // show up to 12
+    var runBal=bal;
+
+    for(var ti=0;ti<numTiles;ti++){
+      var pmtDate=new Date(today.getFullYear(),today.getMonth()+ti,expDay);
+      var pmtDateStr=pmtDate.getFullYear()+'-'+String(pmtDate.getMonth()+1).padStart(2,'0')+'-'+String(pmtDate.getDate()).padStart(2,'0');
+      var pmtMonth=pmtDateStr.substring(0,7);
+
+      // Check if this month's payment is matched
+      var isPaid=false;
+      var matchedTxn=db.transactions.find(function(t){
+        if(t.type!=='expense') return false;
+        if(!t.date.startsWith(pmtMonth)) return false;
+        if(Math.abs(t.amount-monthly)>(monthly*0.05)) return false;
+        if(keywords.length){var desc=t.description.toLowerCase();return keywords.some(function(k){return desc.includes(k);});}
+        return t.account===(d.fromAccountId||'ws-chq');
+      });
+      if(matchedTxn) isPaid=true;
+
+      var isNext=!isPaid&&ti===0||(!isPaid&&pmtDate>today&&timeline.querySelectorAll&&ti>0);
+      // Simpler: first unpaid future tile is "next"
+      var isPast=pmtDate<today&&!isPaid;
+
+      var tileBg=isPaid?'var(--green-bg)':isPast?'var(--bg3)':'var(--bg2)';
+      var tileBorder=isPaid?'rgba(58,125,82,.25)':ident.color+'40';
+      var tileColor=isPaid?'var(--green)':ident.color;
+
+      var pCard=mk('div','');
+      pCard.style.cssText='min-width:80px;text-align:center;padding:8px 6px;border-radius:var(--radius-sm);background:'+tileBg+';border:1px solid '+tileBorder+';flex-shrink:0;';
+
+      var dateEl=mk('div','',fmtDate(pmtDateStr)); dateEl.style.cssText='font-size:10px;color:var(--text3);margin-bottom:3px;';
+      var amtEl=mk('div','',fmt(monthly)); amtEl.style.cssText='font-size:12px;font-weight:600;font-family:var(--font-mono);color:'+tileColor+';';
+      var statusEl=mk('div','',isPaid?'Paid':isPast?'Missed':'Upcoming'); statusEl.style.cssText='font-size:10px;margin-top:3px;color:'+tileColor+';';
+
+      pCard.appendChild(dateEl); pCard.appendChild(amtEl); pCard.appendChild(statusEl);
+      timeline.appendChild(pCard);
+    }
+    timelineWrap.appendChild(timeline);
+    card.appendChild(timelineWrap);
+  }
+
   var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:flex-end;';
   var editBtn=mk('button','btn btn-ghost btn-sm','Edit rate / payment'); editBtn.style.fontSize='11px';
   editBtn.addEventListener('click',function(){openEditDebt(d.id);});
   footer.appendChild(editBtn); card.appendChild(footer);
   return card;
 }
+
 
 
 
@@ -3971,6 +4037,7 @@ function getPaymentStatus(rp,yearMonth){
   var txn=db.transactions.find(function(t){
     if(t.type!=='expense') return false;
     if(t.date<dateMin||t.date>dateMax) return false;
+    if(rp.fromAccountId&&t.account!==rp.fromAccountId) return false;
     if(Math.abs(t.amount-rp.amount)>(rp.amount*0.05)) return false;
     if(!keywords.length) return true;
     var desc=t.description.toLowerCase();
@@ -4225,6 +4292,7 @@ function renderRecurring(){
 
 el('btn-add-recurring').addEventListener('click',function(){
   fillCatSelect('rp-category',false,'Loan payment');
+  fillAccountSelect('rp-from-account','ws-chq');
   el('rp-name').value=''; el('rp-amount').value='';
   el('rp-day').value=''; el('rp-keywords').value='';
   el('rp-tolerance').value='5'; el('rp-paycheque').value='1';
@@ -4279,6 +4347,7 @@ el('btn-save-rp').addEventListener('click',function(){
     id:'rp'+Date.now(),name:name,amount:amount,expectedDay:day,
     tolerance:tolerance,keywords:keywords,paycheque:paycheque,
     active:true,category:category,
+    fromAccountId:el('rp-from-account').value||'ws-chq',
     linkedInstallmentId:linkedInstId||undefined
   });
   saveData(null,'recurringPayments'); closeModal('modal-add-recurring');
@@ -4292,6 +4361,7 @@ function openEditRecurring(id){
   el('edit-rp-day').value=rp.expectedDay; el('edit-rp-tolerance').value=rp.tolerance||5;
   el('edit-rp-keywords').value=(rp.keywords||[]).join(', '); el('edit-rp-paycheque').value=rp.paycheque;
   fillCatSelect('edit-rp-category',false,rp.category||'Other');
+  fillAccountSelect('edit-rp-from-account', rp.fromAccountId||'ws-chq');
 
   // Show linked debt if present
   var linkedEl=el('edit-rp-linked-debt');
@@ -4321,6 +4391,7 @@ el('btn-save-edit-rp').addEventListener('click',function(){
   rp.expectedDay=parseInt(el('edit-rp-day').value)||rp.expectedDay; rp.tolerance=parseInt(el('edit-rp-tolerance').value)||5;
   rp.keywords=el('edit-rp-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
   rp.paycheque=parseInt(el('edit-rp-paycheque').value); rp.category=el('edit-rp-category').value;
+  rp.fromAccountId=el('edit-rp-from-account').value||'ws-chq';
   saveData(null,'recurringPayments'); closeModal('modal-edit-recurring'); renderRecurring(); renderPaycheque(); showToast('Updated');
 });
 
@@ -5159,26 +5230,11 @@ function getCalEvents(year, month){
     addEvent(a.dueDayOfMonth,{type:'payment-due',color:'#b84040',label:a.name+' payment due',icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name});
   });
 
-  // Recurring bills — skip entries linked to an installment (shown separately below)
   db.recurringPayments.filter(function(r){return r.active&&!r.linkedInstallmentId;}).forEach(function(rp){
-    // Bills always come from chequing — use ws-chq as default, don't guess from transactions
-    var ws=db.accounts.find(function(a){return a.id==='ws-chq';});
-    var fromAcc=ws?ws.name:'Wealthsimple Chequing';
-    // Only override if we find a match on a chequing/savings account specifically
-    var matched=db.transactions.filter(function(t){
-      if(t.type!=='expense') return false;
-      var acc=db.accounts.find(function(a){return a.id===t.account;});
-      if(!acc||acc.type==='Credit card') return false; // skip credit card transactions
-      var kws=(rp.keywords||[]);
-      if(!kws.length) return false;
-      var desc=t.description.toLowerCase();
-      return kws.some(function(k){return desc.includes(k);});
-    });
-    if(matched.length){
-      var acc=db.accounts.find(function(a){return a.id===matched[matched.length-1].account;});
-      if(acc) fromAcc=acc.name;
-    }
-    addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id,fromAccount:fromAcc});
+    var fromAccId=rp.fromAccountId||'ws-chq';
+    var fromAcc=db.accounts.find(function(a){return a.id===fromAccId;});
+    var fromAcc2=fromAcc?fromAcc.name:'Wealthsimple Chequing';
+    addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id,fromAccount:fromAcc2});
   });
 
   // Installment payments
@@ -5187,22 +5243,12 @@ function getCalEvents(year, month){
     inst.payments.filter(function(p){return p.dueDate.startsWith(yearMonthStr);}).forEach(function(p){
       var day=parseInt(p.dueDate.split('-')[2]);
       var isLinked=db.recurringPayments.some(function(r){return r.linkedInstallmentId===inst.id;});
-      // Find which chequing/savings account pays this installment
-      var fromAcc=null;
-      var matched=db.transactions.filter(function(t){
-        if(t.type!=='expense') return false;
-        var acc=db.accounts.find(function(a){return a.id===t.account;});
-        if(!acc||acc.type==='Credit card') return false; // skip credit card transactions
-        var kws=(inst.keywords||[]);
-        if(!kws.length) return false;
-        var desc=t.description.toLowerCase();
-        return kws.some(function(k){return desc.includes(k);});
-      });
-      if(matched.length){
-        var acc=db.accounts.find(function(a){return a.id===matched[matched.length-1].account;});
-        if(acc) fromAcc=acc.name;
-      }
-      if(!fromAcc){var ws=db.accounts.find(function(a){return a.id==='ws-chq';});fromAcc=ws?ws.name:'Wealthsimple Chequing';}
+      // Use fromAccountId from linked recurring if set
+      var linkedRp2=db.recurringPayments.find(function(r){return r.linkedInstallmentId===inst.id;});
+      var fromAccId2=linkedRp2?linkedRp2.fromAccountId||'ws-chq':'ws-chq';
+      var fromAccObj2=db.accounts.find(function(a){return a.id===fromAccId2;});
+      var fromAcc=fromAccObj2?fromAccObj2.name:'Wealthsimple Chequing';
+      var isLinked=!!linkedRp2;
       addEvent(day,{type:'installment',color:'#b07020',
         label:inst.name+' — '+fmt(p.amount)+(p.paid?' (paid)':''),
         icon:'K',paid:p.paid,fromAccount:fromAcc+(isLinked?' · tracked in recurring':'')});
