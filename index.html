@@ -3123,7 +3123,17 @@ function renderBudget(){
   var uncappedList=el('uncapped-list'); uncappedList.innerHTML='';
   uncapped.forEach(function(cat){
     var s=spent[cat.name]||0;
-    var row=mk('div','card'); row.style.cssText='margin-bottom:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;';
+    var row=mk('div','card'); row.style.cssText='margin-bottom:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;transition:background .15s;';
+    row.onmouseenter=function(){row.style.background='var(--bg3)';};
+    row.onmouseleave=function(){row.style.background='';};
+    row.addEventListener('click',function(){
+      nav('transactions');
+      setTimeout(function(){
+        var fc=el('filter-cat');
+        if(fc){for(var i=0;i<fc.options.length;i++){if(fc.options[i].value===cat.name){fc.selectedIndex=i;break;}}}
+        renderTransactions();
+      },50);
+    });
     var left=mk('div',''); left.style.cssText='display:flex;align-items:center;gap:8px;flex:1;';
     var dot=mk('span',''); dot.style.cssText='width:9px;height:9px;border-radius:50%;background:'+catColor(cat.name)+';flex-shrink:0;';
     left.appendChild(dot); left.appendChild(mk('span','',cat.name));
