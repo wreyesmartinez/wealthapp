@@ -299,7 +299,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.8 - William R.M.</div>
+    <div class="logo-sub">v2.4.9 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -5712,7 +5712,7 @@ async function callClaude(messages,systemExtra,maxTokens){
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens||1000,system:system,messages:messages})
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTokens||1000,system:system,messages:messages})
   });
   if(!resp.ok){var e=await resp.json();throw new Error(e.error&&e.error.message?e.error.message:'API error '+resp.status);}
   var data=await resp.json();
@@ -5724,7 +5724,7 @@ async function callClaudeVision(base64Data,mediaType,prompt){
   var resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:base64Data}},{type:'text',text:prompt}]}]})
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mediaType,data:base64Data}},{type:'text',text:prompt}]}]})
   });
   if(!resp.ok){var e=await resp.json();throw new Error('Vision error '+resp.status);}
   var data=await resp.json();
