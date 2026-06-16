@@ -299,7 +299,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.4.7 - William R.M.</div>
+    <div class="logo-sub">v2.4.8 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1135,6 +1135,7 @@ async function pushSetting(key,value){
 // ---- SYNC: PULL and MERGE all data ----
 async function pullAndMerge(){
   var changed=false;
+  if(!db._deletedIds) db._deletedIds=[]; // local tombstone list — never resurrect these
 
   // Pull ALL transactions (including deleted ones)
   var rows=await sbGet('wealthtrack_transactions','order=updated_at.asc');
@@ -1145,7 +1146,15 @@ async function pullAndMerge(){
       var before=db.transactions.length;
       db.transactions=db.transactions.filter(function(t){return t.id!==row.id;});
       if(db.transactions.length!==before) changed=true;
+      // Clean up tombstone once cloud confirms deletion
+      db._deletedIds=db._deletedIds.filter(function(tid){return tid!==row.id;});
     } else {
+      // Never resurrect a transaction the user explicitly deleted locally
+      if(db._deletedIds.indexOf(row.id)!==-1){
+        // Re-push the delete to Supabase since cloud still has it as active
+        pushTransaction(row.data, true).catch(function(){});
+        return;
+      }
       // Add if not present locally
       var existing=db.transactions.find(function(t){return t.id===row.id;});
       if(!existing){
@@ -1534,6 +1543,7 @@ function migrateData(d){
   });
   if(!d.savingsGoals) d.savingsGoals=[];
   if(!d.reconciledTxns) d.reconciledTxns={};  // {txnId: true}
+  if(!d._deletedIds) d._deletedIds=[];  // local tombstone list — transactions deleted but not yet confirmed deleted in cloud
   if(!d.investmentSettings) d.investmentSettings={accountId:'ws-nonreg',currentBalance:0,monthlyTarget:0,annualRate:7,lastUpdated:null,birthYear:1989};
   if(!d.aiHistory) d.aiHistory=[];
   if(!d.floatHistory) d.floatHistory=[];
@@ -2427,6 +2437,9 @@ function deleteTxn(id){
     toDelete=[t];
     db.transactions=db.transactions.filter(function(x){return x.id!==id;});
   }
+  // Add to local tombstone list so a stale Supabase row never resurrects this
+  if(!db._deletedIds) db._deletedIds=[];
+  toDelete.forEach(function(td){ if(db._deletedIds.indexOf(td.id)===-1) db._deletedIds.push(td.id); });
   saveLocalOnly();
   // Soft delete in Supabase
   if(syncState.online){
