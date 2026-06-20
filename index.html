@@ -156,6 +156,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .inv-bar-track{height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:6px;}
 .inv-bar-fill{height:100%;border-radius:99px;}
 
+.audit-row{padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:6px;border-left:3px solid var(--border);font-size:12px;}
+.audit-row.event-created{border-left-color:var(--blue);background:var(--blue-bg);}
+.audit-row.event-deleted{border-left-color:var(--text3);background:var(--bg3);}
+.audit-row.event-resurrected{border-left-color:var(--red);background:var(--red-bg);}
+.audit-row.event-tombstone-blocked{border-left-color:var(--green);background:var(--green-bg);}
+.audit-row.event-pushed-delete{border-left-color:var(--amber);background:var(--amber-bg);}
+.audit-ts{font-family:var(--font-mono);font-size:10px;color:var(--text3);}
+.audit-event{font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.05em;margin:0 6px;}
+.audit-detail{margin-top:3px;color:var(--text2);}
 .txn-quick-chip{font-size:11px;padding:5px 10px;border-radius:99px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--text2);}
 .txn-quick-chip:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .txn-quick-chip.matched{opacity:0.45;text-decoration:line-through;cursor:default;}
@@ -299,7 +308,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
 <div class="sidebar" id="sidebar">
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
-    <div class="logo-sub">v2.5.0 - William R.M.</div>
+    <div class="logo-sub">v2.5.1 - William R.M.</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -551,6 +560,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <div style="display:flex;gap:8px;">
         <button class="btn btn-sm btn-ai" id="btn-ai-report">Weekly Summary</button>
         <button class="btn btn-ghost btn-sm" id="btn-export-csv2">Export CSV</button>
+        <button class="btn btn-ghost btn-sm" id="btn-open-audit">Transaction Audit</button>
       </div>
     </div>
     <div class="grid3" style="margin-bottom:16px;">
@@ -723,6 +733,20 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-export">Cancel</button>
       <button class="btn btn-primary" id="btn-confirm-export">Export CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction Audit Log Modal -->
+<div class="modal-overlay" id="modal-audit-log">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-title">Transaction Audit Log</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Search by description or amount to trace a transaction's full history — created, deleted, resurrected, or blocked.</div>
+    <div class="form-group"><input type="text" class="form-input" id="audit-search" placeholder="Search description, amount, or transaction ID..."></div>
+    <div id="audit-log-list" style="max-height:420px;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-clear-audit-log" style="color:var(--red);">Clear log</button>
+      <button class="btn btn-primary" id="btn-close-audit">Close</button>
     </div>
   </div>
 </div>
@@ -1175,12 +1199,14 @@ async function pullAndMerge(){
       // Never resurrect a transaction the user explicitly deleted locally
       if(db._deletedIds.indexOf(row.id)!==-1){
         // Re-push the delete to Supabase since cloud still has it as active
+        logAudit(row.id,'tombstone-blocked','sync-pull','Stale cloud row found active, blocked resurrection, re-pushing delete. Desc: '+(row.data?row.data.description:'?'));
         pushTransaction(row.data, true).catch(function(){});
         return;
       }
       // Add if not present locally
       var existing=db.transactions.find(function(t){return t.id===row.id;});
       if(!existing){
+        logAudit(row.id,'resurrected','sync-pull','Pulled from cloud, not found locally, not on tombstone list. Desc: '+(row.data?row.data.description:'?')+' Amt: '+(row.data?row.data.amount:'?'));
         db.transactions.push(row.data);
         changed=true;
       }
@@ -1567,6 +1593,7 @@ function migrateData(d){
   if(!d.savingsGoals) d.savingsGoals=[];
   if(!d.reconciledTxns) d.reconciledTxns={};  // {txnId: true}
   if(!d._deletedIds) d._deletedIds=[];  // local tombstone list — transactions deleted but not yet confirmed deleted in cloud
+  if(!d.auditLog) d.auditLog=[];  // {ts, txnId, event, source, detail} — transaction lifecycle trace
   if(!d.investmentSettings) d.investmentSettings={accountId:'ws-nonreg',currentBalance:0,monthlyTarget:0,annualRate:7,lastUpdated:null,birthYear:1989};
   if(!d.aiHistory) d.aiHistory=[];
   if(!d.floatHistory) d.floatHistory=[];
@@ -1590,6 +1617,21 @@ if(!db.budgetEnvelopes) db.budgetEnvelopes=buildDefaultData().budgetEnvelopes;
 function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtDate(d){try{return new Date(d+'T12:00:00').toLocaleDateString('en-CA',{month:'short',day:'numeric'});}catch(e){return d;}}
 function todayLocal(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+// Audit log — tracks transaction lifecycle events for debugging ghost/resurrection issues
+function logAudit(txnId, event, source, detail){
+  if(!db.auditLog) db.auditLog=[];
+  db.auditLog.push({
+    ts: new Date().toISOString(),
+    txnId: txnId,
+    event: event,       // 'created' | 'deleted' | 'resurrected' | 'tombstone-blocked' | 'pushed-delete'
+    source: source,      // 'manual' | 'sync-pull' | 'demo-seed' | 'import' | 'edit'
+    detail: detail||''
+  });
+  // Keep log bounded — last 500 events
+  if(db.auditLog.length>500) db.auditLog=db.auditLog.slice(-500);
+  saveData(null,'auditLog');
+}
 
 // Grouped account dropdown helper
 function fillAccountSelect(selectId, selectedId, includeAll){
@@ -2401,7 +2443,9 @@ el('btn-save-txn').addEventListener('click',function(){
   var category=el('txn-category').value, type=document.querySelector('input[name="txn-type"]:checked').value;
   var notes=el('txn-notes').value.trim();
   if(!date||!amount||!desc||!account){showToast('Please fill required fields');return;}
-  db.transactions.push({id:'t'+Date.now(),date:date,description:desc,account:account,category:category,amount:Math.abs(amount),type:type,notes:notes,linkedId:null});
+  var newId='t'+Date.now();
+  db.transactions.push({id:newId,date:date,description:desc,account:account,category:category,amount:Math.abs(amount),type:type,notes:notes,linkedId:null});
+  logAudit(newId,'created','manual','User added via Add Transaction modal. Desc: '+desc+' Amt: '+amount+' Date: '+date);
   saveData(); closeModal('modal-add-txn'); showToast('Transaction added');
   renderTransactions(); renderDashboard();
 });
@@ -2462,7 +2506,10 @@ function deleteTxn(id){
   }
   // Add to local tombstone list so a stale Supabase row never resurrects this
   if(!db._deletedIds) db._deletedIds=[];
-  toDelete.forEach(function(td){ if(db._deletedIds.indexOf(td.id)===-1) db._deletedIds.push(td.id); });
+  toDelete.forEach(function(td){
+    if(db._deletedIds.indexOf(td.id)===-1) db._deletedIds.push(td.id);
+    logAudit(td.id,'deleted','manual','User deleted via Transactions tab. Desc: '+td.description+' Amt: '+td.amount+' Date: '+td.date);
+  });
   saveLocalOnly();
   // Soft delete in Supabase
   if(syncState.online){
@@ -5548,6 +5595,64 @@ function renderReport(){
 }
 el('report-month').addEventListener('change',renderReport);
 el('report-group').addEventListener('change',renderReport);
+
+// ---- TRANSACTION AUDIT LOG ----
+var EVENT_LABELS = {
+  'created': 'Created',
+  'deleted': 'Deleted',
+  'resurrected': 'Resurrected (pulled from cloud)',
+  'tombstone-blocked': 'Blocked — tombstone protected',
+  'pushed-delete': 'Re-pushed delete to cloud'
+};
+
+function renderAuditLog(filterText){
+  var list = el('audit-log-list'); list.innerHTML='';
+  var log = (db.auditLog||[]).slice().reverse(); // most recent first
+  var ft = (filterText||'').toLowerCase().trim();
+  if(ft){
+    log = log.filter(function(entry){
+      return entry.txnId.toLowerCase().includes(ft) ||
+             (entry.detail||'').toLowerCase().includes(ft) ||
+             (entry.source||'').toLowerCase().includes(ft);
+    });
+  }
+  if(!log.length){
+    var empty = mk('div','',ft?'No audit entries match your search.':'No audit history yet. Events will appear here as transactions are created, deleted, or synced.');
+    empty.style.cssText='text-align:center;padding:30px;color:var(--text3);font-size:13px;';
+    list.appendChild(empty);
+    return;
+  }
+  log.slice(0,200).forEach(function(entry){
+    var row = mk('div','audit-row event-'+entry.event);
+    var top = mk('div','');
+    var tsEl = mk('span','audit-ts', new Date(entry.ts).toLocaleString('en-CA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+    var evEl = mk('span','audit-event', EVENT_LABELS[entry.event]||entry.event);
+    var srcEl = mk('span','', 'via '+entry.source); srcEl.style.cssText='font-size:11px;color:var(--text3);';
+    top.appendChild(tsEl); top.appendChild(evEl); top.appendChild(srcEl);
+    var detailEl = mk('div','audit-detail', entry.detail||'');
+    var idEl = mk('div','', 'ID: '+entry.txnId); idEl.style.cssText='font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--font-mono);';
+    row.appendChild(top); row.appendChild(detailEl); row.appendChild(idEl);
+    list.appendChild(row);
+  });
+}
+
+el('btn-open-audit').addEventListener('click', function(){
+  el('audit-search').value='';
+  renderAuditLog('');
+  openModal('modal-audit-log');
+});
+el('audit-search').addEventListener('input', function(){
+  renderAuditLog(this.value);
+});
+el('btn-close-audit').addEventListener('click', function(){closeModal('modal-audit-log');});
+el('btn-clear-audit-log').addEventListener('click', function(){
+  if(!confirm('Clear the entire audit log? This cannot be undone.')) return;
+  db.auditLog=[];
+  saveData(null,'auditLog');
+  renderAuditLog('');
+  showToast('Audit log cleared');
+});
+
 
 // ---- RECONCILIATION ----
 var _reconcileMode = false;
