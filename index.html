@@ -746,6 +746,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div id="audit-log-list" style="max-height:420px;overflow-y:auto;"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-clear-audit-log" style="color:var(--red);">Clear log</button>
+      <button class="btn btn-ghost" id="btn-tombstone-from-audit" style="color:var(--amber);">Force tombstone ID</button>
       <button class="btn btn-primary" id="btn-close-audit">Close</button>
     </div>
   </div>
@@ -1612,6 +1613,24 @@ function saveDataSync(){saveLocalOnly();}
 
 var db=loadData();
 if(!db.budgetEnvelopes) db.budgetEnvelopes=buildDefaultData().budgetEnvelopes;
+
+// One-time fix: tombstone known ghost transaction IDs that were deleted before the tombstone system existed
+(function(){
+  var knownGhosts=['t1777230178516b','t1777230178516a']; // Balance transfer $1500 pair
+  if(!db._deletedIds) db._deletedIds=[];
+  var added=false;
+  knownGhosts.forEach(function(id){
+    if(db._deletedIds.indexOf(id)===-1){
+      db._deletedIds.push(id);
+      added=true;
+    }
+    // Remove from local transactions if present
+    var before=db.transactions.length;
+    db.transactions=db.transactions.filter(function(t){return t.id!==id;});
+    if(db.transactions.length<before) added=true;
+  });
+  if(added) saveLocalOnly();
+})();
 
 // ---- UTILS ----
 function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -5649,6 +5668,32 @@ el('audit-search').addEventListener('input', function(){
   renderAuditLog(this.value);
 });
 el('btn-close-audit').addEventListener('click', function(){closeModal('modal-audit-log');});
+el('btn-tombstone-from-audit').addEventListener('click', function(){
+  var id=prompt('Enter the transaction ID to permanently tombstone (e.g. t1777230178516b):\n\nThis will block it from ever being resurrected by sync, and push a delete to Supabase.');
+  if(!id||!id.trim()) return;
+  id=id.trim();
+  if(!db._deletedIds) db._deletedIds=[];
+  if(db._deletedIds.indexOf(id)===-1) db._deletedIds.push(id);
+  // Also remove from local transactions just in case it's currently present
+  var before=db.transactions.length;
+  db.transactions=db.transactions.filter(function(t){return t.id!==id;});
+  var removed=db.transactions.length<before;
+  // Push delete to Supabase
+  var fakeTxn={id:id};
+  pushTransaction(fakeTxn,true).then(function(){
+    logAudit(id,'pushed-delete','manual','Force tombstoned via audit log tool. Was present locally: '+removed);
+    showToast('Tombstoned '+id+' — Supabase delete pushed');
+  }).catch(function(){
+    logAudit(id,'pushed-delete','manual','Force tombstoned locally. Supabase push failed — queued for retry.');
+    syncState.queue.push({type:'txn_delete',id:id,data:{id:id},ts:new Date().toISOString()});
+    saveSyncQueue();
+    showToast('Tombstoned locally — Supabase push queued');
+  });
+  saveLocalOnly();
+  if(removed){ renderTransactions(); renderDashboard(); }
+  renderAuditLog(el('audit-search').value);
+});
+
 el('btn-clear-audit-log').addEventListener('click', function(){
   if(!confirm('Clear the entire audit log? This cannot be undone.')) return;
   db.auditLog=[];
@@ -6086,6 +6131,11 @@ async function init(){
 
   // Cloud sync
   if(syncState.online){
+    // Push deletes for any known ghost IDs still active in Supabase
+    var knownGhosts=['t1777230178516b','t1777230178516a'];
+    knownGhosts.forEach(function(id){
+      pushTransaction({id:id},true).catch(function(){});
+    });
     setSyncStatus('syncing','Connecting...');
     try{
       // Check if cloud has data
