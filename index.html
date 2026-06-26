@@ -4614,11 +4614,13 @@ function openAddCategoryModal(){
   el('cat-name').value=''; el('cat-newgroup').value='';
   _addCatColor='#3a7d52';
   buildColorPicker('cat-color-picker',_addCatColor,function(c){_addCatColor=c;});
-  // populate existing groups in the select
+  // Always include default groups + any custom ones
+  var defaultGroups=['Income','Housing','Debt payments','Living expenses','Transport','Subscriptions','Transfers','Other'];
+  var customGroups=db.customCategories.map(function(x){return x.group;}).filter(Boolean);
+  var allGroups=[...new Set(defaultGroups.concat(customGroups))];
   var grpSel=el('cat-group');
-  var existingGroups=[...new Set(db.customCategories.map(function(x){return x.group;}))];
   grpSel.innerHTML='';
-  existingGroups.forEach(function(g){var o=mk('option',null,g);grpSel.appendChild(o);});
+  allGroups.forEach(function(g){var o=mk('option');o.value=g;o.textContent=g;grpSel.appendChild(o);});
   openModal('modal-add-category');
 }
 
@@ -4629,9 +4631,11 @@ function openEditCategory(id){
   _editCatColor=cat.color;
   // populate groups
   var grpSel=el('edit-cat-group');
-  var existingGroups=[...new Set(db.customCategories.map(function(x){return x.group;}))];
+  var defaultGroups=['Income','Housing','Debt payments','Living expenses','Transport','Subscriptions','Transfers','Other'];
+  var customGroups=db.customCategories.map(function(x){return x.group;}).filter(Boolean);
+  var allGroups=[...new Set(defaultGroups.concat(customGroups))];
   grpSel.innerHTML='';
-  existingGroups.forEach(function(g){var o=mk('option',null,g);if(g===cat.group)o.selected=true;grpSel.appendChild(o);});
+  allGroups.forEach(function(g){var o=mk('option');o.value=g;o.textContent=g;if(g===cat.group)o.selected=true;grpSel.appendChild(o);});
   buildColorPicker('edit-cat-color-picker',_editCatColor,function(c){_editCatColor=c;});
   openModal('modal-edit-category');
 }
