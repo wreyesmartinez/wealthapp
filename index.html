@@ -1614,23 +1614,6 @@ function saveDataSync(){saveLocalOnly();}
 var db=loadData();
 if(!db.budgetEnvelopes) db.budgetEnvelopes=buildDefaultData().budgetEnvelopes;
 
-// One-time fix: tombstone known ghost transaction IDs that were deleted before the tombstone system existed
-(function(){
-  var knownGhosts=['t1777230178516b','t1777230178516a']; // Balance transfer $1500 pair
-  if(!db._deletedIds) db._deletedIds=[];
-  var added=false;
-  knownGhosts.forEach(function(id){
-    if(db._deletedIds.indexOf(id)===-1){
-      db._deletedIds.push(id);
-      added=true;
-    }
-    // Remove from local transactions if present
-    var before=db.transactions.length;
-    db.transactions=db.transactions.filter(function(t){return t.id!==id;});
-    if(db.transactions.length<before) added=true;
-  });
-  if(added) saveLocalOnly();
-})();
 
 // ---- UTILS ----
 function fmt(n){return '$'+Math.abs(n).toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -6131,11 +6114,6 @@ async function init(){
 
   // Cloud sync
   if(syncState.online){
-    // Push deletes for any known ghost IDs still active in Supabase
-    var knownGhosts=['t1777230178516b','t1777230178516a'];
-    knownGhosts.forEach(function(id){
-      pushTransaction({id:id},true).catch(function(){});
-    });
     setSyncStatus('syncing','Connecting...');
     try{
       // Check if cloud has data
