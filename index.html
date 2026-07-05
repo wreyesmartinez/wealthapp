@@ -460,7 +460,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   </div>
 
   <div class="page" id="page-accounts">
-    <div class="sec-header"><div><div class="sec-title">Accounts</div><div class="sec-sub">Live ledger-based balances</div></div><button class="btn btn-primary btn-sm" id="btn-add-account">+ Account</button></div>
+    <div class="sec-header"><div><div class="sec-title">Accounts &amp; Credit Cards</div><div class="sec-sub">Live ledger-based balances — loans tracked in Debts</div></div><button class="btn btn-primary btn-sm" id="btn-add-account">+ Account</button></div>
     <div class="opening-bal-banner">
       <span>Balance ledger - Cut date: <strong id="cut-date-display">Apr 14, 2026</strong></span>
       <button class="btn btn-ghost btn-sm" id="btn-edit-balances">Edit opening balances</button>
@@ -3560,12 +3560,10 @@ function renderAccounts(){
 
   var assets=db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';});
   var creditCards=db.accounts.filter(function(a){return a.type==='Credit card';});
-  var loans=db.accounts.filter(function(a){return a.type==='Loan';});
 
-  // Sort debts highest first
+  // Sort credit cards highest balance first
   function sortByBal(arr){ return arr.slice().sort(function(a,b){return Math.abs(computeLiveBalance(b.id))-Math.abs(computeLiveBalance(a.id));}); }
   creditCards=sortByBal(creditCards);
-  loans=sortByBal(loans);
 
   // Assets
   var assetsWrap=mk('div','');
@@ -3579,10 +3577,6 @@ function renderAccounts(){
   // Credit cards
   var ccSection=makeDebtSection('Credit cards',creditCards);
   if(ccSection) c.appendChild(ccSection);
-
-  // Loans
-  var loanSection=makeDebtSection('Loans',loans);
-  if(loanSection) c.appendChild(loanSection);
 
   // Balance history chart
   var chartCard=mk('div','card'); chartCard.style.marginTop='20px';
@@ -4122,6 +4116,25 @@ function buildDebtCard(item){
   var rcolor=rateColor(rate);
   var ident=getDebtIdentity(d.id);
 
+  // Parse interest rate for loan calculations
+  var rateNum=parseFloat(rate);
+  var hasRate=!isNaN(rateNum)&&rateNum>0&&d.type==='Loan';
+  var monthlyRate=hasRate?rateNum/100/12:0;
+  var thisMonthInterest=hasRate?bal*monthlyRate:0;
+  var thisMonthPrincipal=hasRate?Math.max(0,monthly-thisMonthInterest):0;
+
+  // Total interest remaining over loan life
+  var totalInterestRemaining=0;
+  if(hasRate&&monthly>0&&mtp<9999){
+    var b=bal;
+    for(var i=0;i<mtp;i++){
+      var intr=b*monthlyRate;
+      totalInterestRemaining+=intr;
+      b-=(monthly-intr);
+      if(b<=0) break;
+    }
+  }
+
   var card=mk('div','debt-card');
   card.style.borderLeft='4px solid '+ident.color;
   if(item.isPaidOff){ card.style.opacity='0.6'; card.style.background='var(--bg3)'; }
@@ -4155,6 +4168,32 @@ function buildDebtCard(item){
   if(!item.isPaidOff&&mtp<9999) stats.appendChild(statItem('Months left',mtp+'mo',mtp<=6?'var(--green)':mtp<=12?'var(--amber)':'var(--red)'));
   if(d.limit) stats.appendChild(statItem('Limit',fmt(d.limit),'var(--text3)'));
   card.appendChild(stats);
+
+  // Interest/principal breakdown for loans with a known rate
+  if(hasRate&&!item.isPaidOff&&monthly>0){
+    var breakdown=mk('div',''); breakdown.style.cssText='background:rgba(0,0,0,.04);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;';
+    var bTitle=mk('div','','This payment breakdown'); bTitle.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;';
+    breakdown.appendChild(bTitle);
+    // Interest vs principal bar
+    var iPct=monthly>0?Math.min(100,(thisMonthInterest/monthly)*100):0;
+    var barWrap=mk('div',''); barWrap.style.cssText='height:8px;border-radius:99px;overflow:hidden;background:var(--bg3);margin-bottom:6px;display:flex;';
+    var iBar=mk('div',''); iBar.style.cssText='height:100%;width:'+iPct+'%;background:var(--red);border-radius:99px 0 0 99px;';
+    var pBar=mk('div',''); pBar.style.cssText='height:100%;width:'+(100-iPct)+'%;background:var(--green);';
+    barWrap.appendChild(iBar); barWrap.appendChild(pBar);
+    breakdown.appendChild(barWrap);
+    var bRow=mk('div',''); bRow.style.cssText='display:flex;justify-content:space-between;font-size:12px;';
+    var iEl=mk('div',''); iEl.innerHTML='<span style="color:var(--red);">●</span> Interest <strong>'+fmt(thisMonthInterest)+'</strong>';
+    var pEl=mk('div',''); pEl.innerHTML='<span style="color:var(--green);">●</span> Principal <strong>'+fmt(thisMonthPrincipal)+'</strong>';
+    bRow.appendChild(iEl); bRow.appendChild(pEl);
+    breakdown.appendChild(bRow);
+    // Total interest remaining
+    var totalEl=mk('div',''); totalEl.style.cssText='margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;color:var(--text3);display:flex;justify-content:space-between;';
+    var tLabel=mk('span','','Total interest remaining over '+mtp+' months:');
+    var tVal=mk('span','',fmt(totalInterestRemaining)); tVal.style.cssText='font-weight:600;color:var(--red);font-family:var(--font-mono);';
+    totalEl.appendChild(tLabel); totalEl.appendChild(tVal);
+    breakdown.appendChild(totalEl);
+    card.appendChild(breakdown);
+  }
 
   // Utilization bar (credit cards)
   if(d.limit&&!item.isPaidOff){
