@@ -808,6 +808,12 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       </div>
     </div>
     <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="edit-txn-notes" rows="2"></textarea></div>
+    <!-- Link to account (convert to transfer) -->
+    <div style="padding:12px;background:var(--bg3);border-radius:var(--radius-sm);margin-top:4px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Link to account (transfer)</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Optionally link this transaction to another account — creates a matching paired entry there, converting this into a transfer.</div>
+      <div class="form-group" style="margin-bottom:0;"><label class="form-label">Target account</label><select class="form-select" id="edit-txn-link-account"><option value="">— Don't link —</option></select></div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-txn">Cancel</button>
       <button class="btn btn-primary" id="btn-save-edit-txn">Save</button>
@@ -2478,6 +2484,17 @@ function openEditTxn(id){
   el('edit-txn-amount').value=t.amount; el('edit-txn-desc').value=t.description;
   el('edit-txn-notes').value=t.notes||'';
   fillAccountSelect('edit-txn-account', t.account);
+  // Populate link-to-account dropdown (exclude the transaction's own account)
+  var linkSel=el('edit-txn-link-account'); linkSel.innerHTML='<option value="">— Don\'t link —</option>';
+  db.accounts.filter(function(a){return a.id!==t.account;}).forEach(function(a){
+    var o=mk('option'); o.value=a.id; o.textContent=a.name;
+    // Pre-select if already linked
+    if(t.linkedId){
+      var pair=db.transactions.find(function(x){return x.linkedId===t.linkedId&&x.id!==t.id;});
+      if(pair&&pair.account===a.id) o.selected=true;
+    }
+    linkSel.appendChild(o);
+  });
   fillCatSelect('edit-txn-category',false,t.category);
   document.querySelectorAll('input[name="edit-txn-type"]').forEach(function(r){r.checked=r.value===t.type;});
   openModal('modal-edit-txn');
@@ -2490,7 +2507,37 @@ el('btn-save-edit-txn').addEventListener('click',function(){
   t.description=el('edit-txn-desc').value.trim(); t.account=el('edit-txn-account').value;
   t.category=el('edit-txn-category').value; t.notes=el('edit-txn-notes').value.trim();
   t.type=document.querySelector('input[name="edit-txn-type"]:checked').value;
-  saveData(); closeModal('modal-edit-txn'); showToast('Transaction updated');
+
+  // Handle link-to-account — create paired transaction
+  var linkAccId=el('edit-txn-link-account').value;
+  if(linkAccId){
+    // Remove any existing pair first
+    if(t.linkedId){
+      db.transactions=db.transactions.filter(function(x){return x.linkedId!==t.linkedId||x.id===t.id;});
+    }
+    var lid=t.linkedId||('link'+Date.now());
+    t.linkedId=lid;
+    // Paired transaction is opposite type on the linked account
+    var pairedType=t.type==='expense'?'income':'expense';
+    var paired={
+      id:'t'+Date.now()+'p',
+      date:t.date,
+      description:t.description,
+      account:linkAccId,
+      category:t.category,
+      amount:t.amount,
+      type:pairedType,
+      notes:t.notes||'',
+      linkedId:lid
+    };
+    logAudit(paired.id,'created','edit','Paired transaction created via Edit link-to-account. Linked to: '+t.id);
+    db.transactions.push(paired);
+    showToast('Transaction updated and linked');
+  } else {
+    showToast('Transaction updated');
+  }
+
+  saveData(); closeModal('modal-edit-txn');
   renderTransactions(); renderDashboard();
 });
 
