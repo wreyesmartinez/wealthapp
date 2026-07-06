@@ -5566,17 +5566,20 @@ function getCalEvents(year, month){
     addEvent(a.statementDay,{type:'statement',color:'#6b44a8',label:a.name+' statement — '+fmt(bal)+' will be reported',icon:'C',accountId:a.id});
   });
 
-  // Credit card payment due dates — calculated using statement close + grace period
-  // shifted past weekends and Canadian holidays
+  // Credit card payment due dates — calculated using PREVIOUS month's statement close + grace period
+  // e.g. viewing July calendar: statement closed June 14, due date falls in July
   db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay;}).forEach(function(a){
-    var dueDate=getPredictedDueDate(a, year, month+1);
+    // Statement that CLOSED last month → due date falls THIS month
+    var prevMonth=month===0?11:month-1;
+    var prevYear=month===0?year-1:year;
+    var dueDate=getPredictedDueDate(a, prevYear, prevMonth+1);
     if(!dueDate) return;
-    // Only show if due date falls in this calendar month
+    // Only show if due date actually falls in current calendar month
     if(dueDate.getMonth()!==month||dueDate.getFullYear()!==year) return;
     var dueDay=dueDate.getDate();
     var wsAcc=db.accounts.find(function(x){return x.id==='ws-chq';});
     var fromName=wsAcc?wsAcc.name:'Wealthsimple Chequing';
-    var isEstimate=!a.gracePeriod; // no custom grace period set = estimated
+    var isEstimate=!a.gracePeriod;
     var label=a.name+' payment due'+(isEstimate?' (~est.)':'');
     addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name});
   });
