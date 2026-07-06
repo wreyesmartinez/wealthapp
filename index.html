@@ -2237,34 +2237,24 @@ function renderTransactions(){
     emptyCell.style.cssText='color:var(--text3);text-align:center;padding:24px;';
     emptyRow.appendChild(emptyCell); tbody.appendChild(emptyRow);
   }else{
-    // Detect transfer pairs: same date, same amount (within $0.01), one expense + one income
-    // categorized as Transfer or Internal transfer
-    var transferCats=['Transfer','Internal transfer','Credit card payment'];
+    // Detect transfer pairs using linkedId — reliable across different posting dates
     var transferPairs={};
-    var allTxns=db.transactions;
     txns.forEach(function(t){
-      if(!transferCats.some(function(c){return t.category===c;})) return;
-      // Find matching transaction in full db
-      var match=allTxns.find(function(x){
-        if(x.id===t.id) return false;
-        if(x.date!==t.date) return false;
-        if(Math.abs(x.amount-t.amount)>0.01) return false;
-        if(x.type===t.type) return false; // must be opposite
-        return transferCats.some(function(c){return x.category===c;});
-      });
-      if(match){
-        // Use smaller id as key to avoid duplicates
-        var key=[t.id,match.id].sort().join('|');
-        transferPairs[t.id]=key;
-      }
+      if(!t.linkedId) return;
+      transferPairs[t.id]=t.linkedId;
     });
-    // Assign colors to transfer pairs
+    // Assign colors to transfer pairs — one color per unique linkedId
     var pairColors={};
     var pairColorList=['#2e6ea6','#6b44a8','#1D9E75','#b07020','#D4537E'];
     var colorIdx=0;
-    Object.values(transferPairs).filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(key){
-      pairColors[key]=pairColorList[colorIdx%pairColorList.length];
-      colorIdx++;
+    var seenLinks={};
+    txns.forEach(function(t){
+      if(!t.linkedId) return;
+      if(!seenLinks[t.linkedId]){
+        seenLinks[t.linkedId]=pairColorList[colorIdx%pairColorList.length];
+        colorIdx++;
+      }
+      pairColors[t.linkedId]=seenLinks[t.linkedId];
     });
 
     txns.forEach(function(t){
@@ -2272,7 +2262,7 @@ function renderTransactions(){
       var tr=document.createElement('tr');
       tr.setAttribute('data-txn-id', t.id);
       var isReconciled = !!(db.reconciledTxns && db.reconciledTxns[t.id]);
-      var pairKey=transferPairs[t.id];
+      var pairKey=t.linkedId||null;
       var pairColor=pairKey?pairColors[pairKey]:null;
 
       // Reconciled row styling
