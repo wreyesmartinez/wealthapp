@@ -825,15 +825,19 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="modal">
     <div class="modal-title">Transfer Between Accounts</div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="tr-date"></div>
       <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="tr-amount" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="tr-category"></select></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">From</label><select class="form-select" id="tr-from"></select></div>
-      <div class="form-group"><label class="form-label">To</label><select class="form-select" id="tr-to"></select></div>
+      <div class="form-group"><label class="form-label">From account</label><select class="form-select" id="tr-from"></select></div>
+      <div class="form-group"><label class="form-label">Sent date</label><input type="date" class="form-input" id="tr-date-from"></div>
     </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">To account</label><select class="form-select" id="tr-to"></select></div>
+      <div class="form-group"><label class="form-label">Posted date</label><input type="date" class="form-input" id="tr-date-to"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:-6px;margin-bottom:10px;">Posted date can differ from sent date — common for bank transfers taking 1-3 days.</div>
     <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="tr-desc" placeholder="e.g. CC payment"></div>
-    <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="tr-category"></select></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-transfer">Cancel</button>
       <button class="btn btn-primary" id="btn-save-transfer">Add Transfer</button>
@@ -2457,7 +2461,8 @@ function openEditTxn(id){
     var pair=db.transactions.find(function(x){return x.linkedId===t.linkedId&&x.id!==t.id;});
     var fromTxn=t.type==='expense'?t:pair;
     var toTxn=t.type==='income'?t:pair;
-    el('tr-date').value=t.date;
+    el('tr-date-from').value=fromTxn?fromTxn.date:t.date;
+    el('tr-date-to').value=toTxn?toTxn.date:t.date;
     el('tr-amount').value=t.amount;
     el('tr-desc').value=t.description.replace(' (out)','').replace(' (in)','');
     fillAccountSelect('tr-from', fromTxn?fromTxn.account:'');
@@ -2570,7 +2575,7 @@ function deleteTxn(id){
 
 // Transfer modal
 function openTransferModal(){
-  el('tr-date').value=todayLocal();
+  el('tr-date-from').value=todayLocal(); el('tr-date-to').value=todayLocal();
   el('tr-amount').value=''; el('tr-desc').value='';
   ['tr-from','tr-to'].forEach(function(sid){
     fillAccountSelect(sid, '');
@@ -2587,26 +2592,26 @@ el('btn-cancel-transfer').addEventListener('click',function(){
   el('btn-save-transfer').textContent='Add Transfer';
 });
 el('btn-save-transfer').addEventListener('click',function(){
-  var date=el('tr-date').value, amount=parseFloat(el('tr-amount').value);
+  var dateFrom=el('tr-date-from').value, dateTo=el('tr-date-to').value, amount=parseFloat(el('tr-amount').value);
   var fromId=el('tr-from').value, toId=el('tr-to').value;
   var desc=el('tr-desc').value.trim(), cat=el('tr-category').value;
-  if(!date||!amount||!fromId||!toId||!desc){showToast('Please fill all fields');return;}
+  if(!dateFrom||!dateTo||!amount||!fromId||!toId||!desc){showToast('Please fill all fields');return;}
   if(fromId===toId){showToast('Source and destination must differ');return;}
   var editLid=el('modal-transfer').getAttribute('data-edit-lid');
   if(editLid){
-    // Edit mode — update existing transfer pair
+    // Edit mode — update existing transfer pair with independent dates
     var fromTxn=db.transactions.find(function(x){return x.linkedId===editLid&&x.type==='expense';});
     var toTxn=db.transactions.find(function(x){return x.linkedId===editLid&&x.type==='income';});
-    if(fromTxn){fromTxn.date=date;fromTxn.amount=Math.abs(amount);fromTxn.account=fromId;fromTxn.category=cat;fromTxn.description=desc+' (out)';}
-    if(toTxn){toTxn.date=date;toTxn.amount=Math.abs(amount);toTxn.account=toId;toTxn.category=cat;toTxn.description=desc+' (in)';}
+    if(fromTxn){fromTxn.date=dateFrom;fromTxn.amount=Math.abs(amount);fromTxn.account=fromId;fromTxn.category=cat;fromTxn.description=desc+' (out)';}
+    if(toTxn){toTxn.date=dateTo;toTxn.amount=Math.abs(amount);toTxn.account=toId;toTxn.category=cat;toTxn.description=desc+' (in)';}
     el('modal-transfer').removeAttribute('data-edit-lid');
     el('btn-save-transfer').textContent='Add Transfer';
     saveData(); closeModal('modal-transfer'); showToast('Transfer updated');
   } else {
     // Create mode
     var lid='link'+Date.now();
-    db.transactions.push({id:'t'+Date.now()+'a',date:date,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
-    db.transactions.push({id:'t'+Date.now()+'b',date:date,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
+    db.transactions.push({id:'t'+Date.now()+'a',date:dateFrom,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
+    db.transactions.push({id:'t'+Date.now()+'b',date:dateTo,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
     saveData(); closeModal('modal-transfer'); showToast('Transfer recorded');
   }
   renderTransactions(); renderDashboard();
