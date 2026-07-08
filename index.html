@@ -309,6 +309,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-07 19:45 ET</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4256,10 +4257,16 @@ function buildDebtCard(item){
     card.appendChild(timelineWrap);
   }
 
-  var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:flex-end;';
+  var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:flex-end;gap:8px;';
   var editBtn=mk('button','btn btn-ghost btn-sm','Edit rate / payment'); editBtn.style.fontSize='11px';
   editBtn.addEventListener('click',function(){openEditDebt(d.id);});
-  footer.appendChild(editBtn); card.appendChild(footer);
+  var rmBtn=mk('button','btn btn-ghost btn-sm','Remove'); rmBtn.style.cssText='font-size:11px;color:var(--red);';
+  rmBtn.addEventListener('click',function(){
+    if(!confirm('Remove "'+d.name+'"? This cannot be undone.')) return;
+    db.accounts=db.accounts.filter(function(x){return x.id!==d.id;});
+    saveData(null,'accounts'); renderDebts(); renderAccounts(); showToast('Removed');
+  });
+  footer.appendChild(editBtn); footer.appendChild(rmBtn); card.appendChild(footer);
   return card;
 }
 
