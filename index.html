@@ -3992,7 +3992,8 @@ function renderDebts(){
   // Sort: lowest sortKey first (fewest remaining / months to payoff), paid-off at bottom
   items.sort(function(a,b){return a.sortKey-b.sortKey;});
 
-  // Stats — total includes credit cards for accuracy
+  // Stats
+  var allDebts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
   var totalDebt=allDebts.filter(function(d){return computeLiveBalance(d.id)<0;}).reduce(function(s,d){return s+Math.abs(computeLiveBalance(d.id));},0);
   var instDebt=db.installmentPlans.filter(function(i){return i.active;})
     .reduce(function(s,i){return s+i.payments.filter(function(p){return !p.paid;}).reduce(function(ss,p){return ss+p.amount;},0);},0);
