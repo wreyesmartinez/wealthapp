@@ -461,7 +461,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   </div>
 
   <div class="page" id="page-accounts">
-    <div class="sec-header"><div><div class="sec-title">Accounts &amp; Credit Cards</div><div class="sec-sub">Live ledger-based balances — loans tracked in Debts</div></div><button class="btn btn-primary btn-sm" id="btn-add-account">+ Account</button></div>
+    <div class="sec-header"><div><div class="sec-title">Accounts</div><div class="sec-sub">Chequing, savings &amp; investments — credit cards in Debts</div></div><button class="btn btn-primary btn-sm" id="btn-add-account">+ Account</button></div>
     <div class="opening-bal-banner">
       <span>Balance ledger - Cut date: <strong id="cut-date-display">Apr 14, 2026</strong></span>
       <button class="btn btn-ghost btn-sm" id="btn-edit-balances">Edit opening balances</button>
@@ -856,6 +856,11 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     </div>
     <div class="form-group" id="acc-last4-group" style="display:none;"><label class="form-label">Last 4 digits of card</label><input type="text" maxlength="4" class="form-input" id="acc-last4" placeholder="e.g. 1234"><div style="font-size:11px;color:var(--text3);margin-top:4px;">Will show as ••1234 in the app</div></div>
     <div class="form-group"><label class="form-label">Credit limit (credit cards only)</label><input type="number" step="0.01" class="form-input" id="acc-limit" placeholder="0.00"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Logo initials (optional)</label><input type="text" maxlength="4" class="form-input" id="acc-initials" placeholder="e.g. RBC, MBNA"></div>
+      <div class="form-group"><label class="form-label">Color (optional)</label><input type="color" class="form-input" id="acc-color" value="#185FA5" style="height:38px;padding:2px 4px;cursor:pointer;"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:4px;">Leave blank to use defaults based on account name.</div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-account">Cancel</button>
       <button class="btn btn-primary" id="btn-save-account">Add</button>
@@ -3560,13 +3565,8 @@ function renderAccounts(){
   var c=el('accounts-list'); c.innerHTML='';
 
   var assets=db.accounts.filter(function(a){return a.type!=='Credit card'&&a.type!=='Loan';});
-  var creditCards=db.accounts.filter(function(a){return a.type==='Credit card';});
 
-  // Sort credit cards highest balance first
-  function sortByBal(arr){ return arr.slice().sort(function(a,b){return Math.abs(computeLiveBalance(b.id))-Math.abs(computeLiveBalance(a.id));}); }
-  creditCards=sortByBal(creditCards);
-
-  // Assets
+  // Assets only — credit cards and loans both in Debts tab now
   var assetsWrap=mk('div','');
   var assetsHdr=mk('div','ASSETS'); assetsHdr.style.cssText='font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:0 0 8px;';
   assetsWrap.appendChild(assetsHdr);
@@ -3574,10 +3574,6 @@ function renderAccounts(){
   assets.forEach(function(a,idx){ assetList.appendChild(makeAssetRow(a,idx===assets.length-1)); });
   assetsWrap.appendChild(assetList);
   c.appendChild(assetsWrap);
-
-  // Credit cards
-  var ccSection=makeDebtSection('Credit cards',creditCards);
-  if(ccSection) c.appendChild(ccSection);
 
   // Balance history chart
   var chartCard=mk('div','card'); chartCard.style.marginTop='20px';
@@ -3676,7 +3672,8 @@ function deleteInstallment(id){
 
 // ---- ADD ACCOUNT ----
 el('btn-add-account').addEventListener('click',function(){
-  el('acc-name').value=''; el('acc-balance').value=''; el('acc-limit').value=''; el('acc-last4').value='';
+  el('acc-name').value=''; el('acc-balance').value=''; el('acc-limit').value='';
+  el('acc-last4').value=''; el('acc-initials').value=''; el('acc-color').value='#185FA5';
   el('acc-type').value='Chequing';
   el('acc-last4-group').style.display='none';
   openModal('modal-add-account');
@@ -3697,9 +3694,13 @@ el('btn-save-account').addEventListener('click',function(){
     name=name+' ••'+last4;
   }
   var id='acc'+Date.now();
+  var customInitials=el('acc-initials').value.trim().toUpperCase();
+  var customColor=el('acc-color').value;
   var newAcc={id:id,name:name,type:type,openingBalance:balance,currency:'CAD'};
   if(limit) newAcc.limit=limit;
-  if(type==='Credit card'||type==='Loan'){newAcc.rate='?';newAcc.monthlyPayment=0;newAcc.rateNote='';newAcc.statementDay=null;newAcc.dueDayOfMonth=null;}
+  if(customInitials) newAcc.customInitials=customInitials;
+  if(customColor&&customColor!=='#185FA5') newAcc.customColor=customColor;
+  if(type==='Credit card'||type==='Loan'){newAcc.rate='?';newAcc.monthlyPayment=0;newAcc.rateNote='';newAcc.statementDay=null;newAcc.gracePeriod=21;}
   db.accounts.push(newAcc);
   saveData(null,'accounts');
   closeModal('modal-add-account');
@@ -3854,7 +3855,14 @@ var PROVIDER_IDENTITY = {
 };
 
 function getDebtIdentity(accountId){
-  return DEBT_IDENTITY[accountId]||{initials:accountId.substring(0,2).toUpperCase(),color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'};
+  var acc=db.accounts.find(function(a){return a.id===accountId;});
+  var base=DEBT_IDENTITY[accountId]||{initials:(acc?acc.name.substring(0,2):accountId.substring(0,2)).toUpperCase(),color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'};
+  // Override with custom color/initials if set
+  if(acc){
+    if(acc.customInitials) base=Object.assign({},base,{initials:acc.customInitials});
+    if(acc.customColor) base=Object.assign({},base,{color:acc.customColor,bg:acc.customColor+'18'});
+  }
+  return base;
 }
 
 function getInstIdentity(inst){
@@ -3952,9 +3960,23 @@ function renderDebts(){
     });
   });
 
-  // 2. Loans only — credit cards live in Accounts tab
-  var allDebts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
+  // 2. Credit cards — shown in Debts tab separately (paid-in-full goal, no roadmap)
+  var creditCards=db.accounts.filter(function(a){return a.type==='Credit card';});
   var loans=db.accounts.filter(function(a){return a.type==='Loan';});
+
+  creditCards.forEach(function(d){
+    var bal=Math.abs(computeLiveBalance(d.id));
+    var monthly=d.monthlyPayment||0;
+    var mtp=monthsToPayoff(bal,monthly);
+    var isPaidOff=bal<0.01;
+    items.push({
+      type:'credit-card',account:d,bal:bal,monthly:monthly,
+      mtp:mtp,isPaidOff:isPaidOff,
+      sortKey:isPaidOff?99999:bal*-1  // sort highest balance first
+    });
+  });
+
+  // 3. Loans
   loans.forEach(function(d){
     var bal=Math.abs(computeLiveBalance(d.id));
     var monthly=d.monthlyPayment||0;
@@ -3985,14 +4007,38 @@ function renderDebts(){
   if(el('monthly-payments-val')) el('monthly-payments-val').textContent=fmt(monthlyPmts);
 
   var c=el('debt-list'); c.innerHTML='';
-  var completedItems=items.filter(function(i){
+
+  // ---- CREDIT CARDS SECTION (no roadmap — goal is paid in full) ----
+  var ccItems=items.filter(function(i){return i.type==='credit-card';});
+  var activeCC=ccItems.filter(function(i){return !i.isPaidOff;});
+  var paidCC=ccItems.filter(function(i){return i.isPaidOff;});
+
+  if(ccItems.length){
+    var ccHdr=mk('div',''); ccHdr.style.cssText='font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;';
+    ccHdr.textContent='Credit Cards';
+    c.appendChild(ccHdr);
+    activeCC.sort(function(a,b){return b.bal-a.bal;}).forEach(function(item){c.appendChild(buildDebtCard(item));});
+    paidCC.forEach(function(item){c.appendChild(buildDebtCard(item));});
+    var divider=mk('div',''); divider.style.cssText='border-top:1px solid var(--border);margin:20px 0;';
+    c.appendChild(divider);
+  }
+
+  // ---- LOANS & INSTALLMENTS SECTION ----
+  var loanItems=items.filter(function(i){return i.type==='debt'||i.type==='installment';});
+  var completedItems=loanItems.filter(function(i){
     return (i.type==='debt'&&i.isPaidOff)||(i.type==='installment'&&i.allDone);
   });
-  var activeItems=items.filter(function(i){
+  var activeItems=loanItems.filter(function(i){
     return !((i.type==='debt'&&i.isPaidOff)||(i.type==='installment'&&i.allDone));
   });
 
-  // ---- RENDER ACTIVE ITEMS ----
+  if(loanItems.length){
+    var loansHdr=mk('div',''); loansHdr.style.cssText='font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;';
+    loansHdr.textContent='Loans & Installments';
+    c.appendChild(loansHdr);
+  }
+
+  // ---- RENDER ACTIVE LOAN/INSTALLMENT ITEMS ----
   activeItems.forEach(function(item){
     if(item.type==='installment') c.appendChild(buildInstCard(item,today));
     else c.appendChild(buildDebtCard(item));
