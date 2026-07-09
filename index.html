@@ -309,7 +309,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-07 19:45 ET</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-08 23:00 ET</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4185,6 +4185,11 @@ function buildDebtCard(item){
 
   var card=mk('div','debt-card');
   card.style.borderLeft='4px solid '+ident.color;
+  card.style.cursor='pointer';
+  card.addEventListener('click',function(e){
+    if(e.target.tagName==='BUTTON') return; // don't intercept edit/remove buttons
+    navToAccount(d.id);
+  });
   if(item.isPaidOff){ card.style.opacity='0.6'; card.style.background='var(--bg3)'; }
   else{ card.style.background=ident.bg; }
 
@@ -5620,16 +5625,26 @@ function getCalEvents(year, month){
     addEvent(a.statementDay,{type:'statement',color:'#6b44a8',label:a.name+' statement — '+fmt(bal)+' will be reported',icon:'C',accountId:a.id});
   });
 
-  // Credit card payment due dates — calculated using PREVIOUS month's statement close + grace period
-  // e.g. viewing July calendar: statement closed June 14, due date falls in July
+  // Credit card payment due dates — check both same-month and prev-month statement closes
+  // Some cards (e.g. BMO closes on 4th, due 25th) have due date in same month as close
+  // Others (e.g. Amex closes on 14th, due ~5th next month) have due date in following month
   db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay;}).forEach(function(a){
-    // Statement that CLOSED last month → due date falls THIS month
-    var prevMonth=month===0?11:month-1;
-    var prevYear=month===0?year-1:year;
-    var dueDate=getPredictedDueDate(a, prevYear, prevMonth+1);
+    var dueDate=null;
+    // Try: statement closed THIS month → due date might be THIS month (e.g. close 4th, due 25th)
+    var dueSameMonth=getPredictedDueDate(a, year, month+1);
+    if(dueSameMonth&&dueSameMonth.getMonth()===month&&dueSameMonth.getFullYear()===year){
+      dueDate=dueSameMonth;
+    }
+    // Try: statement closed PREVIOUS month → due date might be THIS month (e.g. close 14th, due ~5th next month)
+    if(!dueDate){
+      var prevMonth=month===0?11:month-1;
+      var prevYear=month===0?year-1:year;
+      var duePrevMonth=getPredictedDueDate(a, prevYear, prevMonth+1);
+      if(duePrevMonth&&duePrevMonth.getMonth()===month&&duePrevMonth.getFullYear()===year){
+        dueDate=duePrevMonth;
+      }
+    }
     if(!dueDate) return;
-    // Only show if due date actually falls in current calendar month
-    if(dueDate.getMonth()!==month||dueDate.getFullYear()!==year) return;
     var dueDay=dueDate.getDate();
     var wsAcc=db.accounts.find(function(x){return x.id==='ws-chq';});
     var fromName=wsAcc?wsAcc.name:'Wealthsimple Chequing';
