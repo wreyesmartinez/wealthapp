@@ -309,7 +309,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-09 00:15 ET</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-09 00:45 ET</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1267,6 +1267,11 @@ async function pullAndMerge(){
     var localTs=db._settingsTs&&db._settingsTs[key]?db._settingsTs[key]:'1970-01-01';
     var cloudTs=row.updated_at||'1970-01-01';
     if(cloudTs>localTs){
+      // Never restore archived accounts from cloud
+      if(key==='accounts'&&Array.isArray(val)&&db.archivedAccounts&&db.archivedAccounts.length){
+        var archivedIds=db.archivedAccounts.map(function(e){return e.account.id;});
+        val=val.filter(function(a){return archivedIds.indexOf(a.id)===-1;});
+      }
       db[key]=val;
       if(!db._settingsTs) db._settingsTs={};
       db._settingsTs[key]=cloudTs;
@@ -4032,7 +4037,8 @@ function renderDebts(){
   items.sort(function(a,b){return a.sortKey-b.sortKey;});
 
   // Stats
-  var allDebts=db.accounts.filter(function(a){return a.type==='Credit card'||a.type==='Loan';});
+  var archivedIds=(db.archivedAccounts||[]).map(function(e){return e.account.id;});
+  var allDebts=db.accounts.filter(function(a){return (a.type==='Credit card'||a.type==='Loan')&&archivedIds.indexOf(a.id)===-1;});
   var totalDebt=allDebts.filter(function(d){return computeLiveBalance(d.id)<0;}).reduce(function(s,d){return s+Math.abs(computeLiveBalance(d.id));},0);
   var instDebt=db.installmentPlans.filter(function(i){return i.active;})
     .reduce(function(s,i){return s+i.payments.filter(function(p){return !p.paid;}).reduce(function(ss,p){return ss+p.amount;},0);},0);
@@ -4049,7 +4055,7 @@ function renderDebts(){
   var c=el('debt-list'); c.innerHTML='';
 
   // ---- CREDIT CARDS SECTION (no roadmap — goal is paid in full) ----
-  var ccItems=items.filter(function(i){return i.type==='credit-card';});
+  var ccItems=items.filter(function(i){return i.type==='credit-card'&&archivedIds.indexOf(i.account.id)===-1;});
   var activeCC=ccItems.filter(function(i){return !i.isPaidOff;});
   var paidCC=ccItems.filter(function(i){return i.isPaidOff;});
 
@@ -4064,7 +4070,7 @@ function renderDebts(){
   }
 
   // ---- LOANS & INSTALLMENTS SECTION ----
-  var loanItems=items.filter(function(i){return i.type==='debt'||i.type==='installment';});
+  var loanItems=items.filter(function(i){return (i.type==='debt'||i.type==='installment')&&archivedIds.indexOf(i.account?i.account.id:null)===-1;});
   var completedItems=loanItems.filter(function(i){
     return (i.type==='debt'&&i.isPaidOff)||(i.type==='installment'&&i.allDone);
   });
