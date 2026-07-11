@@ -309,7 +309,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-09 00:45 ET</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-11 10:30 ET</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -6370,9 +6370,11 @@ el('btn-confirm-import').addEventListener('click',function(){
 // ---- AI ENGINE ----
 function buildFinancialContext(){
   var cut=db.cutDate||'2026-04-14';
+  var today=todayLocal();
+
+  // Last 6 months of transaction stats
   var months=[];
   for(var mi=5;mi>=0;mi--){var md=new Date();md.setDate(1);md.setMonth(md.getMonth()-mi);months.push(md.getFullYear()+'-'+String(md.getMonth()+1).padStart(2,'0'));}
-  // Only include months that have transactions
   months=months.filter(function(m){return db.transactions.some(function(t){return t.date.startsWith(m);});});
   var stats=months.map(function(m){
     var tx=db.transactions.filter(function(t){return t.date.startsWith(m);});
@@ -6380,11 +6382,57 @@ function buildFinancialContext(){
     var exp=tx.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
     return m+': income $'+inc.toFixed(0)+', expenses $'+exp.toFixed(0)+', net $'+(inc-exp).toFixed(0);
   });
-  var aprSpent={};
-  db.transactions.filter(function(t){return t.date.startsWith('2026-04')&&t.type==='expense';})
-    .forEach(function(t){aprSpent[t.category]=(aprSpent[t.category]||0)+t.amount;});
-  var balances=db.accounts.map(function(a){return a.name+': '+fmt(computeLiveBalance(a.id));}).join(', ');
-  return 'You are a personal financial advisor for William David Reyes Martinez, North York, Toronto.\n\nINCOME: Bi-weekly ~$2,859 from AIC. Monthly ~$5,719 CAD.\n\nACCOUNT BALANCES (cut date '+cut+'): '+balances+'\n\nMONTHLY OBLIGATIONS: RBC Loan $1,285.42 (~25th), Amex Personal Loan $461.41 (~13th, ~5 months left), Rogers phone $145, Uplift $65.40, BMO e-transfer $620, Rogers MC BT $130, Scotia Visa rent $1,383.80, Rent $1,360. Cushion ~$182.\n\nDEBT NOTES: MBNA paid off Apr 9. Rogers BT ~$1,554 at 0% 12mo. BMO 0% promo at risk. Affirm and Klarna paid off March 2026.\n\nMONTHLY STATS: '+stats.join('; ')+'\n\nAPRIL SPENDING: '+Object.entries(aprSpent).map(function(e){return e[0]+' $'+e[1].toFixed(0);}).join(', ')+'\n\nBe direct, use actual numbers, give short actionable alerts.';
+
+  // Current month spending by category
+  var curMonth=today.substring(0,7);
+  var curSpent={};
+  db.transactions.filter(function(t){return t.date.startsWith(curMonth)&&t.type==='expense';})
+    .forEach(function(t){curSpent[t.category]=(curSpent[t.category]||0)+t.amount;});
+
+  // Live account balances
+  var archivedIds=(db.archivedAccounts||[]).map(function(e){return e.account.id;});
+  var activeAccounts=db.accounts.filter(function(a){return archivedIds.indexOf(a.id)===-1;});
+  var chequing=activeAccounts.filter(function(a){return a.type==='Chequing'||a.type==='Savings';});
+  var creditCards=activeAccounts.filter(function(a){return a.type==='Credit card';});
+  var loans=activeAccounts.filter(function(a){return a.type==='Loan';});
+  var investments=activeAccounts.filter(function(a){return a.type==='Investment'||a.type==='TFSA'||a.type==='FHSA';});
+
+  var debtLines=[];
+  creditCards.forEach(function(a){
+    var bal=computeLiveBalance(a.id);
+    debtLines.push(a.name+': '+fmt(Math.abs(bal))+(bal>=0?' (in credit)':' owed')+(a.rate?', '+a.rate:'')+(a.limit?', limit '+fmt(a.limit):''));
+  });
+  loans.forEach(function(a){
+    var bal=computeLiveBalance(a.id);
+    var mtp=a.monthlyPayment&&bal<0?', ~'+Math.round(Math.abs(bal)/a.monthlyPayment)+'mo left':'';
+    debtLines.push(a.name+': '+fmt(Math.abs(bal))+' owed'+(a.rate?', '+a.rate:'')+(a.monthlyPayment?', $'+a.monthlyPayment+'/mo':'')+mtp);
+  });
+
+  var totalDebt=creditCards.concat(loans).filter(function(a){return computeLiveBalance(a.id)<0;})
+    .reduce(function(s,a){return s+Math.abs(computeLiveBalance(a.id));},0);
+
+  var obligations=db.recurringPayments.filter(function(r){return r.active;})
+    .map(function(r){return r.name+' $'+r.amount+' (day '+r.expectedDay+')';});
+
+  var archived=(db.archivedAccounts||[]).map(function(e){
+    return e.account.name+' — completed '+e.completedDate+(e.note?': '+e.note:'');
+  });
+
+  var curIncome=db.transactions.filter(function(t){return t.type==='income'&&t.date.startsWith(curMonth);})
+    .reduce(function(s,t){return s+t.amount;},0);
+
+  var ctx='You are a personal financial advisor for William David Reyes Martinez, North York, Toronto, Canada. Born 1989 (age 36). You have his complete live financial data below — never say you need more information.\n\n';
+  ctx+='TODAY: '+today+'\n';
+  ctx+='INCOME: Bi-weekly ~$2,859 net from AIC (~$5,719/mo). Current month received: $'+curIncome.toFixed(0)+'\n\n';
+  ctx+='BANK/SAVINGS:\n'+chequing.map(function(a){return '- '+a.name+': '+fmt(computeLiveBalance(a.id));}).join('\n')+'\n\n';
+  ctx+='ACTIVE DEBTS (total: '+fmt(totalDebt)+'):\n'+debtLines.map(function(d){return '- '+d;}).join('\n')+'\n\n';
+  if(investments.length) ctx+='INVESTMENTS:\n'+investments.map(function(a){return '- '+a.name+': '+fmt(computeLiveBalance(a.id));}).join('\n')+'\n\n';
+  if(obligations.length) ctx+='MONTHLY RECURRING PAYMENTS:\n'+obligations.map(function(o){return '- '+o;}).join('\n')+'\n\n';
+  if(archived.length) ctx+='COMPLETED/ARCHIVED ACCOUNTS:\n'+archived.map(function(a){return '- '+a;}).join('\n')+'\n\n';
+  ctx+='MONTHLY STATS:\n'+stats.map(function(s){return '- '+s;}).join('\n')+'\n\n';
+  ctx+='CURRENT MONTH SPENDING BY CATEGORY:\n'+Object.entries(curSpent).sort(function(a,b){return b[1]-a[1];}).map(function(e){return '- '+e[0]+': $'+e[1].toFixed(0);}).join('\n')+'\n\n';
+  ctx+='Be direct, use actual numbers. Give short actionable advice. Do not ask for info already provided above.';
+  return ctx;
 }
 
 async function callClaude(messages,systemExtra,maxTokens){
