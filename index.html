@@ -309,7 +309,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-08 23:00 ET</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-09 00:15 ET</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -318,6 +318,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="nav-section">Finance</div>
   <div class="nav-item" data-page="accounts"><span class="nav-icon">&#9635;</span>Accounts</div>
   <div class="nav-item" data-page="debts"><span class="nav-icon">&#9671;</span>Debts</div>
+  <div class="nav-item" data-page="history"><span class="nav-icon">&#128218;</span>History</div>
   <div class="nav-item" data-page="goals"><span class="nav-icon">&#9733;</span>Goals</div>
   <div class="nav-item" data-page="invest"><span class="nav-icon">&#128200;</span>Invest</div>
   <div class="nav-item" data-page="calendar"><span class="nav-icon">&#128197;</span>Calendar</div>
@@ -503,6 +504,13 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <div class="stat-card"><div class="stat-label">Monthly payments</div><div class="stat-val" id="monthly-payments-val" style="color:var(--blue);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">loans + installments</div></div>
     </div>
     <div id="debt-list"></div>
+  </div>
+
+  <div class="page" id="page-history">
+    <div class="sec-header">
+      <div><div class="sec-title">History</div><div class="sec-sub">Completed, paid off &amp; cancelled accounts</div></div>
+    </div>
+    <div id="history-list"></div>
   </div>
 
   <div class="page" id="page-paycheque">
@@ -753,6 +761,21 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   </div>
 </div>
 
+<!-- Archive / Mark Complete Modal -->
+<div class="modal-overlay" id="modal-archive">
+  <div class="modal">
+    <div class="modal-title" id="archive-modal-title">Mark as Complete</div>
+    <input type="hidden" id="archive-account-id">
+    <div id="archive-summary" style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:13px;"></div>
+    <div class="form-group"><label class="form-label">Completion date</label><input type="date" class="form-input" id="archive-date"></div>
+    <div class="form-group"><label class="form-label">Note (optional)</label><input type="text" class="form-input" id="archive-note" placeholder="e.g. Sold car, Card cancelled, Paid off early"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-archive">Cancel</button>
+      <button class="btn btn-primary" id="btn-confirm-archive">Move to History</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODALS -->
 <div class="modal-overlay" id="modal-add-txn">
   <div class="modal">
@@ -952,6 +975,12 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <div class="form-group"><label class="form-label">Expected payment day</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-payment-day" placeholder="e.g. 14"></div>
       <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="edit-debt-keywords" placeholder="e.g. amex, loan payment"></div>
     </div>
+    <!-- Visual identity -->
+    <div class="form-row" style="margin-top:8px;">
+      <div class="form-group"><label class="form-label">Logo initials</label><input type="text" maxlength="4" class="form-input" id="edit-debt-initials" placeholder="e.g. RBC, MBNA"></div>
+      <div class="form-group"><label class="form-label">Color</label><input type="color" class="form-input" id="edit-debt-color" style="height:38px;padding:2px 4px;cursor:pointer;"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:10px;">Customize the badge and card accent. Leave initials blank to use default.</div>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-debt">Cancel</button>
       <button class="btn btn-primary" id="btn-save-edit-debt">Save</button>
@@ -1608,7 +1637,8 @@ function migrateData(d){
     if(a.type==='Credit card'&&a.dueDayOfMonth===undefined){a.dueDayOfMonth=null;}
   });
   if(!d.savingsGoals) d.savingsGoals=[];
-  if(!d.reconciledTxns) d.reconciledTxns={};  // {txnId: true}
+  if(!d.reconciledTxns) d.reconciledTxns={};
+  if(!d.archivedAccounts) d.archivedAccounts=[];  // [{account, completedDate, note, stats}]  // {txnId: true}
   if(!d._deletedIds) d._deletedIds=[];  // local tombstone list — transactions deleted but not yet confirmed deleted in cloud
   if(!d.auditLog) d.auditLog=[];  // {ts, txnId, event, source, detail} — transaction lifecycle trace
   if(!d.investmentSettings) d.investmentSettings={accountId:'ws-nonreg',currentBalance:0,monthlyTarget:0,annualRate:7,lastUpdated:null,birthYear:1989};
@@ -1862,7 +1892,7 @@ async function checkSetup(){
 }
 
 // ---- NAVIGATION ----
-var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',goals:'Savings Goals',invest:'Investment Projector',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
+var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',history:'History',goals:'Savings Goals',invest:'Investment Projector',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
 
 function nav(page){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
@@ -1904,6 +1934,7 @@ function renderPage(page){
   }
   else if(page==='accounts') renderAccounts();
   else if(page==='debts') renderDebts();
+  else if(page==='history') renderHistory();
   else if(page==='goals') renderGoals();
   else if(page==='invest') renderInvest();
   else if(page==='budget') renderBudget();
@@ -3724,6 +3755,9 @@ function openEditDebt(accountId){
   fillAccountSelect('edit-debt-from-account', a.fromAccountId||'ws-chq');
   el('edit-debt-payment-day').value=a.paymentDay||'';
   el('edit-debt-keywords').value=(a.keywords||[]).join(', ');
+  // Visual identity
+  el('edit-debt-initials').value=a.customInitials||'';
+  el('edit-debt-color').value=a.customColor||'#185FA5';
   openModal('modal-edit-debt');
 }
 
@@ -3747,6 +3781,11 @@ el('btn-save-edit-debt').addEventListener('click',function(){
   var pd=parseInt(el('edit-debt-payment-day').value);
   a.paymentDay=isNaN(pd)?null:pd;
   a.keywords=el('edit-debt-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  // Visual identity
+  var initials=el('edit-debt-initials').value.trim().toUpperCase();
+  a.customInitials=initials||undefined;
+  var color=el('edit-debt-color').value;
+  a.customColor=(color&&color!=='#185FA5')?color:undefined;
   saveData(null,'accounts'); closeModal('modal-edit-debt'); renderDebts();
   renderAccounts(); renderDashboard(); showToast('Updated');
 });
@@ -4312,13 +4351,15 @@ function buildDebtCard(item){
   var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:flex-end;gap:8px;';
   var editBtn=mk('button','btn btn-ghost btn-sm','Edit rate / payment'); editBtn.style.fontSize='11px';
   editBtn.addEventListener('click',function(){openEditDebt(d.id);});
+  var archiveBtn=mk('button','btn btn-ghost btn-sm','Archive'); archiveBtn.style.cssText='font-size:11px;color:var(--blue);';
+  archiveBtn.addEventListener('click',function(e){e.stopPropagation();openArchiveModal(d.id);});
   var rmBtn=mk('button','btn btn-ghost btn-sm','Remove'); rmBtn.style.cssText='font-size:11px;color:var(--red);';
   rmBtn.addEventListener('click',function(){
     if(!confirm('Remove "'+d.name+'"? This cannot be undone.')) return;
     db.accounts=db.accounts.filter(function(x){return x.id!==d.id;});
     saveData(null,'accounts'); renderDebts(); renderAccounts(); showToast('Removed');
   });
-  footer.appendChild(editBtn); footer.appendChild(rmBtn); card.appendChild(footer);
+  footer.appendChild(editBtn); footer.appendChild(archiveBtn); footer.appendChild(rmBtn); card.appendChild(footer);
   return card;
 }
 
@@ -5861,6 +5902,156 @@ function renderReport(){
 }
 el('report-month').addEventListener('change',renderReport);
 el('report-group').addEventListener('change',renderReport);
+
+// ---- HISTORY / ARCHIVE ----
+
+function openArchiveModal(accountId){
+  var a=db.accounts.find(function(x){return x.id===accountId;}); if(!a) return;
+  el('archive-account-id').value=accountId;
+  el('archive-date').value=todayLocal();
+  el('archive-note').value='';
+  el('archive-modal-title').textContent='Archive: '+a.name;
+
+  // Build summary
+  var summary=el('archive-summary');
+  summary.innerHTML='';
+  var bal=Math.abs(computeLiveBalance(accountId));
+  var txns=db.transactions.filter(function(t){return t.account===accountId;});
+  var totalSpent=txns.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var totalPaid=txns.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+
+  // Interest paid estimate for loans
+  var interestNote='';
+  var rateNum=parseFloat(a.rate);
+  if(!isNaN(rateNum)&&rateNum>0&&a.type==='Loan'){
+    var monthlyRate=rateNum/100/12;
+    var openBal=Math.abs(a.openingBalance||0);
+    interestNote=' · ~'+fmt(openBal*monthlyRate*(a.monthlyPayment?Math.round(openBal/a.monthlyPayment):0))+' interest paid';
+  }
+
+  var lines=[
+    a.type==='Credit card'?'Current balance: '+fmt(bal):'Remaining balance: '+fmt(bal),
+    'Total transactions: '+txns.length,
+    a.type==='Loan'?'Total paid: '+fmt(totalPaid)+interestNote:'Total spent: '+fmt(totalSpent),
+  ];
+  lines.forEach(function(line){
+    var p=mk('div','',line); p.style.cssText='margin-bottom:4px;color:var(--text2);';
+    summary.appendChild(p);
+  });
+
+  openModal('modal-archive');
+}
+
+el('btn-cancel-archive').addEventListener('click',function(){closeModal('modal-archive');});
+el('btn-confirm-archive').addEventListener('click',function(){
+  var id=el('archive-account-id').value;
+  var a=db.accounts.find(function(x){return x.id===id;}); if(!a) return;
+  var completedDate=el('archive-date').value||todayLocal();
+  var note=el('archive-note').value.trim();
+
+  // Compute final stats
+  var txns=db.transactions.filter(function(t){return t.account===id;});
+  var totalSpent=txns.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var totalPaid=txns.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
+  var firstTxn=txns.slice().sort(function(a,b){return a.date.localeCompare(b.date);})[0];
+  var startDate=firstTxn?firstTxn.date:(db.cutDate||'');
+
+  if(!db.archivedAccounts) db.archivedAccounts=[];
+  db.archivedAccounts.push({
+    account: a,
+    completedDate: completedDate,
+    note: note,
+    stats: {
+      totalSpent: totalSpent,
+      totalPaid: totalPaid,
+      startDate: startDate,
+      finalBalance: computeLiveBalance(id)
+    }
+  });
+
+  // Remove from active accounts
+  db.accounts=db.accounts.filter(function(x){return x.id!==id;});
+  saveData(null,'accounts');
+  saveData(null,'archivedAccounts');
+  closeModal('modal-archive');
+  renderDebts();
+  showToast(a.name+' moved to History');
+});
+
+function renderHistory(){
+  var c=el('history-list'); c.innerHTML='';
+  var archived=db.archivedAccounts||[];
+
+  if(!archived.length){
+    var empty=mk('div','card'); empty.style.cssText='text-align:center;padding:40px;color:var(--text3);';
+    empty.textContent='No archived accounts yet. When you pay off a loan or cancel a card, archive it here to preserve the history.';
+    c.appendChild(empty);
+    return;
+  }
+
+  // Sort most recently completed first
+  archived.slice().sort(function(a,b){return b.completedDate.localeCompare(a.completedDate);}).forEach(function(entry){
+    var a=entry.account;
+    var ident=getDebtIdentity(a.id);
+    var card=mk('div','card'); card.style.cssText='margin-bottom:14px;border-left:4px solid '+ident.color+';opacity:0.85;';
+
+    // Header
+    var hdr=mk('div',''); hdr.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:10px;';
+    hdr.appendChild(makeLogoBadge(ident,40));
+    var mid=mk('div',''); mid.style.flex='1';
+    var nameEl=mk('div','',a.name); nameEl.style.cssText='font-size:14px;font-weight:600;';
+    var typeEl=mk('div','',a.type); typeEl.style.cssText='font-size:11px;color:var(--text3);margin-top:2px;';
+    mid.appendChild(nameEl); mid.appendChild(typeEl);
+    var badge=mk('span','tag tag-green','Completed'); badge.style.cssText='align-self:flex-start;';
+    hdr.appendChild(mid); hdr.appendChild(badge);
+    card.appendChild(hdr);
+
+    // Date range
+    var dateRow=mk('div',''); dateRow.style.cssText='font-size:12px;color:var(--text3);margin-bottom:8px;';
+    dateRow.textContent=(entry.stats.startDate?fmtDate(entry.stats.startDate)+' → ':'')+fmtDate(entry.completedDate);
+    card.appendChild(dateRow);
+
+    // Stats grid
+    var stats=mk('div',''); stats.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;';
+    function statBox(label,val){
+      var b=mk('div',''); b.style.cssText='background:var(--bg3);border-radius:var(--radius-sm);padding:8px 10px;';
+      var l=mk('div','',label); l.style.cssText='font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;';
+      var v=mk('div','',val); v.style.cssText='font-size:13px;font-weight:600;font-family:var(--font-mono);';
+      b.appendChild(l); b.appendChild(v); return b;
+    }
+    if(a.type==='Loan'||a.type==='Credit card'){
+      stats.appendChild(statBox('Total paid',fmt(entry.stats.totalPaid)));
+      stats.appendChild(statBox('Total spent',fmt(entry.stats.totalSpent)));
+      stats.appendChild(statBox('Final balance',fmt(Math.abs(entry.stats.finalBalance))));
+    }
+    card.appendChild(stats);
+
+    // Note
+    if(entry.note){
+      var noteEl=mk('div',''); noteEl.style.cssText='font-size:12px;color:var(--text2);padding:8px 10px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:10px;';
+      noteEl.textContent='📝 '+entry.note;
+      card.appendChild(noteEl);
+    }
+
+    // Restore button
+    var footer=mk('div',''); footer.style.cssText='display:flex;justify-content:flex-end;';
+    var restoreBtn=mk('button','btn btn-ghost btn-sm','Restore to active');
+    restoreBtn.style.fontSize='11px';
+    restoreBtn.addEventListener('click',function(){
+      if(!confirm('Restore "'+a.name+'" back to active accounts?')) return;
+      db.accounts.push(a);
+      db.archivedAccounts=db.archivedAccounts.filter(function(e){return e.account.id!==a.id;});
+      saveData(null,'accounts');
+      saveData(null,'archivedAccounts');
+      renderHistory(); renderDebts(); renderAccounts();
+      showToast(a.name+' restored');
+    });
+    footer.appendChild(restoreBtn);
+    card.appendChild(footer);
+    c.appendChild(card);
+  });
+}
+
 
 // ---- TRANSACTION AUDIT LOG ----
 var EVENT_LABELS = {
