@@ -309,7 +309,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-11 7:24 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-12 10:06 AM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -417,7 +417,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
           <th class="col-account">Account</th>
           <th class="col-category">Category</th>
           <th style="text-align:right;cursor:pointer;" data-sort="amount">Amount</th>
-          <th class="col-balance" style="text-align:right;">Balance</th>
+          <th class="col-balance" style="text-align:right;">Actions</th>
           <th></th>
         </tr></thead>
         <tbody id="txn-body"></tbody>
@@ -772,6 +772,26 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-archive">Cancel</button>
       <button class="btn btn-primary" id="btn-confirm-archive">Move to History</button>
+    </div>
+  </div>
+</div>
+
+<!-- Convert Transaction to Recurring Modal -->
+<div class="modal-overlay" id="modal-convert-recurring">
+  <div class="modal">
+    <div class="modal-title">Convert to Recurring Payment</div>
+    <input type="hidden" id="convert-txn-id">
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="convert-rp-name"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Amount ($)</label><input type="number" step="0.01" class="form-input" id="convert-rp-amount"></div>
+      <div class="form-group"><label class="form-label">Expected day of month</label><input type="number" min="1" max="31" class="form-input" id="convert-rp-day" placeholder="e.g. 15"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Paid from account</label><select class="form-select" id="convert-rp-account"></select></div>
+    <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="convert-rp-category"></select></div>
+    <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="convert-rp-keywords" placeholder="e.g. netflix, streaming"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-convert-rp">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-convert-rp">Create Recurring</button>
     </div>
   </div>
 </div>
@@ -2379,11 +2399,25 @@ function renderTransactions(){
       var tdAmt=mk('td','amount',(t.type==='income'?'+':'-')+fmt(t.amount));
       tdAmt.style.color=t.type==='income'?'var(--green)':'var(--red)';
       var tdBal=mk('td','col-balance');
+      tdBal.style.cssText='text-align:right;';
+      // Show running balance only when filtered to single account + sorted by date
       if(showRunning&&t.date>=cut){
         var rb=computeRunningBalance(t.account,t.id);
-        tdBal.textContent=fmt(rb);
-        tdBal.className='col-balance';
-        tdBal.style.cssText='text-align:right;font-family:var(--font-mono);font-size:12px;color:'+(rb<0?'var(--red)':rb<200?'var(--amber)':'var(--text3)')+';';
+        var balSpan=mk('span','',fmt(rb));
+        balSpan.style.cssText='font-family:var(--font-mono);font-size:11px;color:'+(rb<0?'var(--red)':rb<200?'var(--amber)':'var(--text3)')+';display:block;margin-bottom:3px;';
+        tdBal.appendChild(balSpan);
+      }
+      // Only show convert button for expense transactions not already tracked
+      if(t.type==='expense'&&!t.trackedAsRecurring){
+        var recBtn=mk('button','btn btn-ghost btn-sm','→ Rec');
+        recBtn.title='Convert to recurring payment';
+        recBtn.style.cssText='font-size:10px;padding:2px 6px;white-space:nowrap;';
+        recBtn.addEventListener('click',function(e){e.stopPropagation();openConvertToRecurring(t.id);});
+        tdBal.appendChild(recBtn);
+      } else if(t.trackedAsRecurring){
+        var badge=mk('span','','↻ recurring');
+        badge.style.cssText='font-size:10px;color:var(--green);opacity:0.7;';
+        tdBal.appendChild(badge);
       }
       var tdAct=mk('td','');
       var btnEdit=mk('button','btn btn-ghost btn-sm','Edit'); btnEdit.style.marginRight='4px';
@@ -5928,6 +5962,62 @@ function renderReport(){
 }
 el('report-month').addEventListener('change',renderReport);
 el('report-group').addEventListener('change',renderReport);
+
+// ---- CONVERT TRANSACTION TO RECURRING ----
+function openConvertToRecurring(txnId){
+  var t=db.transactions.find(function(x){return x.id===txnId;}); if(!t) return;
+  el('convert-txn-id').value=txnId;
+  el('convert-rp-name').value=t.description;
+  el('convert-rp-amount').value=t.amount.toFixed(2);
+  // Guess day from transaction date
+  el('convert-rp-day').value=t.date?parseInt(t.date.split('-')[2]):'';
+  fillAccountSelect('convert-rp-account', t.account);
+  fillCatSelect('convert-rp-category', false, t.category);
+  // Auto-generate keywords from description
+  var words=t.description.toLowerCase().split(/[^a-z0-9]+/).filter(function(w){return w.length>2;});
+  el('convert-rp-keywords').value=words.slice(0,3).join(', ');
+  openModal('modal-convert-recurring');
+}
+
+el('btn-cancel-convert-rp').addEventListener('click',function(){closeModal('modal-convert-recurring');});
+el('btn-save-convert-rp').addEventListener('click',function(){
+  var txnId=el('convert-txn-id').value;
+  var name=el('convert-rp-name').value.trim();
+  var amount=parseFloat(el('convert-rp-amount').value);
+  var day=parseInt(el('convert-rp-day').value);
+  var accountId=el('convert-rp-account').value;
+  var category=el('convert-rp-category').value;
+  var keywords=el('convert-rp-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+
+  if(!name||!amount||!day){showToast('Fill name, amount and day');return;}
+
+  // Create recurring payment
+  db.recurringPayments.push({
+    id:'rp'+Date.now(),
+    name:name,
+    amount:amount,
+    expectedDay:day,
+    tolerance:5,
+    keywords:keywords,
+    paycheque:day<=15?1:2,
+    active:true,
+    category:category,
+    fromAccountId:accountId
+  });
+  saveData(null,'recurringPayments');
+
+  // Mark the original transaction as tracked
+  var t=db.transactions.find(function(x){return x.id===txnId;});
+  if(t){
+    t.trackedAsRecurring=true;
+    saveData();
+  }
+
+  closeModal('modal-convert-recurring');
+  renderTransactions();
+  showToast(name+' added to Recurring');
+});
+
 
 // ---- HISTORY / ARCHIVE ----
 
