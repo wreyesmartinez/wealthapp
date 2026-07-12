@@ -309,7 +309,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-11 10:30 ET</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-11 7:24 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -5663,8 +5663,28 @@ function getCalEvents(year, month){
   }
 
   // Paycheques (~13th and ~27th)
-  addEvent(13,{type:'paycheque',color:'#3a7d52',label:'Paycheque 1 (~$2,859)',icon:'$'});
-  addEvent(27,{type:'paycheque',color:'#3a7d52',label:'Paycheque 2 (~$2,859)',icon:'$'});
+  // Paycheque dates: base 15th and last day of month, shift BACKWARDS past weekends/holidays
+  var holidays=getCanadianHolidays(year).concat(getCanadianHolidays(year-1)).concat(getCanadianHolidays(year+1));
+  function prevBizDay(d){
+    var dt=new Date(d.getTime());
+    var maxShift=10;
+    while(maxShift-->0){
+      var dow=dt.getDay();
+      var dStr=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+      if(dow===0||dow===6||holidays.indexOf(dStr)!==-1){
+        dt=new Date(dt.getTime()-86400000); // shift backwards
+      } else { break; }
+    }
+    return dt.getDate();
+  }
+  // Paycheque 1 — base: 15th of this month
+  var pc1Base=new Date(year,month,15);
+  var pc1Day=prevBizDay(pc1Base);
+  // Paycheque 2 — base: last day of this month
+  var pc2Base=new Date(year,month+1,0); // last day of month
+  var pc2Day=prevBizDay(pc2Base);
+  addEvent(pc1Day,{type:'paycheque',color:'#3a7d52',label:'Paycheque 1 (~$2,859)',icon:'$'});
+  addEvent(pc2Day,{type:'paycheque',color:'#3a7d52',label:'Paycheque 2 (~$2,859)',icon:'$'});
 
   // Credit card statement dates
   db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay;}).forEach(function(a){
