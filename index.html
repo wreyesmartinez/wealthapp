@@ -168,6 +168,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .audit-ts{font-family:var(--font-mono);font-size:10px;color:var(--text3);}
 .audit-event{font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.05em;margin:0 6px;}
 .audit-detail{margin-top:3px;color:var(--text2);}
+
+.reminder-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:99px;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(192,124,26,.2);font-weight:500;white-space:nowrap;}
+.reminder-badge.overdue{background:#fff0e0;color:#c05c00;border-color:rgba(192,92,0,.25);}
+.dashboard-reminder{background:linear-gradient(135deg,#fff8ee,#fff3e0);border:1.5px solid #f0a030;border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 12px rgba(192,124,26,.15);}
+.dashboard-reminder-icon{font-size:22px;flex-shrink:0;margin-top:1px;}
+.dashboard-reminder-body{flex:1;}
+.dashboard-reminder-title{font-size:13px;font-weight:600;color:#8a4a00;margin-bottom:3px;}
+.dashboard-reminder-note{font-size:12px;color:#a05000;margin-bottom:6px;}
+.dashboard-reminder-meta{font-size:11px;color:#c07020;}
+.dashboard-reminder-dismiss{background:#f0a030;color:#fff;border:none;border-radius:var(--radius-sm);padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.dashboard-reminder-dismiss:hover{background:#d08020;}
 .txn-quick-chip{font-size:11px;padding:5px 10px;border-radius:99px;background:var(--bg3);border:1px solid var(--border);cursor:pointer;transition:all .15s;white-space:nowrap;color:var(--text2);}
 .txn-quick-chip:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
 .txn-quick-chip.matched{opacity:0.45;text-decoration:line-through;cursor:default;}
@@ -312,7 +323,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-12 10:40 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-13 10:45 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -356,6 +367,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   </div>
 
   <div class="page active" id="page-dashboard">
+    <div id="dashboard-reminders" style="display:none;margin-bottom:16px;"></div>
     <div id="dashboard-alerts" style="margin-bottom:12px;"></div>
     <div id="monthly-review-banner" style="display:none;margin-bottom:12px;"></div>
     <!-- Stat cards: 4-col desktop, 2-col mobile -->
@@ -407,7 +419,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <select class="form-select" id="filter-cat"></select>
       <select class="form-select" id="filter-month"></select>
       <select class="form-select" id="filter-type">
-        <option value="">All types</option><option value="income">Income</option><option value="expense">Expense</option>
+        <option value="">All types</option><option value="income">Income</option><option value="expense">Expense</option><option value="reminder">🔔 Reminders</option>
       </select>
       <input type="text" class="form-input" id="filter-search" placeholder="Search..." style="min-width:160px;">
     </div>
@@ -795,6 +807,22 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-convert-rp">Cancel</button>
       <button class="btn btn-primary" id="btn-save-convert-rp">Create Recurring</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction Reminder Modal -->
+<div class="modal-overlay" id="modal-reminder">
+  <div class="modal">
+    <div class="modal-title">Set Reminder</div>
+    <input type="hidden" id="reminder-txn-id">
+    <div id="reminder-txn-preview" style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text2);"></div>
+    <div class="form-group"><label class="form-label">Follow-up date</label><input type="date" class="form-input" id="reminder-date"></div>
+    <div class="form-group"><label class="form-label">Note</label><input type="text" class="form-input" id="reminder-note" placeholder="e.g. Check if deposit was returned, Expect refund from Amazon"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-reminder-remove" style="color:var(--red);margin-right:auto;">Remove reminder</button>
+      <button class="btn btn-ghost" id="btn-cancel-reminder">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-reminder">Set reminder</button>
     </div>
   </div>
 </div>
@@ -1666,7 +1694,8 @@ function migrateData(d){
   });
   if(!d.savingsGoals) d.savingsGoals=[];
   if(!d.reconciledTxns) d.reconciledTxns={};
-  if(!d.archivedAccounts) d.archivedAccounts=[];  // [{account, completedDate, note, stats}]  // {txnId: true}
+  if(!d.archivedAccounts) d.archivedAccounts=[];
+  if(!d.txnReminders) d.txnReminders={};  // {txnId: {date, note, dismissed}}  // [{account, completedDate, note, stats}]  // {txnId: true}
   if(!d._deletedIds) d._deletedIds=[];  // local tombstone list — transactions deleted but not yet confirmed deleted in cloud
   if(!d.auditLog) d.auditLog=[];  // {ts, txnId, event, source, detail} — transaction lifecycle trace
   if(!d.investmentSettings) d.investmentSettings={accountId:'ws-nonreg',currentBalance:0,monthlyTarget:0,annualRate:7,lastUpdated:null,birthYear:1989};
@@ -2130,6 +2159,7 @@ function drawLineChart(canvasId,labels,values){
 
 // ---- DASHBOARD ----
 function renderDashboard(){
+  renderDashboardReminders();
   var live=computeLiveBalance('ws-chq');
   el('stat-chequing').textContent=fmt(live);
   el('stat-chequing').style.color=live<346?'var(--red)':live<500?'var(--amber)':'var(--green)';
@@ -2299,7 +2329,11 @@ function renderTransactions(){
   if(acc) txns=txns.filter(function(t){return t.account===acc;});
   if(cat) txns=txns.filter(function(t){return t.category===cat;});
   if(mo) txns=txns.filter(function(t){return t.date.startsWith(mo);});
-  if(tp) txns=txns.filter(function(t){return t.type===tp;});
+  if(tp==='reminder'){
+    txns=txns.filter(function(t){return db.txnReminders&&db.txnReminders[t.id]&&!db.txnReminders[t.id].dismissed;});
+  } else if(tp){
+    txns=txns.filter(function(t){return t.type===tp;});
+  }
   if(q) txns=txns.filter(function(t){
     var a=db.accounts.find(function(x){return x.id===t.account;});
     var accName=a?a.name.toLowerCase():'';
@@ -2414,6 +2448,14 @@ function renderTransactions(){
       } else {
         tdDesc.appendChild(descDiv);
       }
+      // Reminder badge
+      if(db.txnReminders&&db.txnReminders[t.id]&&!db.txnReminders[t.id].dismissed){
+        var rem=db.txnReminders[t.id];
+        var isOverdue=rem.date<=todayLocal();
+        var remBadge=mk('span','reminder-badge'+(isOverdue?' overdue':''),'🔔 '+fmtDate(rem.date));
+        remBadge.style.marginLeft='6px';
+        tdDesc.appendChild(remBadge);
+      }
       if(t.notes){var notesDiv=mk('div','',t.notes);notesDiv.style.cssText='font-size:11px;color:var(--text3);';tdDesc.appendChild(notesDiv);}
 
       var tdAcc=mk('td','col-account',a?a.name:t.account); tdAcc.style.cssText='font-size:12px;color:var(--text3);';
@@ -2444,9 +2486,14 @@ function renderTransactions(){
       var tdAct=mk('td','');
       var btnEdit=mk('button','btn btn-ghost btn-sm','Edit'); btnEdit.style.marginRight='4px';
       btnEdit.addEventListener('click',function(){openEditTxn(t.id);});
+      var btnBell=mk('button','btn btn-ghost btn-sm','🔔'); btnBell.style.cssText='margin-right:4px;font-size:11px;padding:4px 7px;';
+      btnBell.title='Set follow-up reminder';
+      var hasReminder=db.txnReminders&&db.txnReminders[t.id]&&!db.txnReminders[t.id].dismissed;
+      if(hasReminder) btnBell.style.background='var(--amber-bg)';
+      btnBell.addEventListener('click',function(){openReminderModal(t.id);});
       var btnDel=mk('button','btn btn-danger btn-sm','X');
       btnDel.addEventListener('click',function(){deleteTxn(t.id);});
-      tdAct.appendChild(btnEdit); tdAct.appendChild(btnDel);
+      tdAct.appendChild(btnEdit); tdAct.appendChild(btnBell); tdAct.appendChild(btnDel);
       tr.appendChild(tdDate); tr.appendChild(tdDesc); tr.appendChild(tdAcc);
       tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdBal); tr.appendChild(tdAct);
       tbody.appendChild(tr);
@@ -5984,6 +6031,84 @@ function renderReport(){
 }
 el('report-month').addEventListener('change',renderReport);
 el('report-group').addEventListener('change',renderReport);
+
+// ---- TRANSACTION REMINDERS ----
+function openReminderModal(txnId){
+  var t=db.transactions.find(function(x){return x.id===txnId;}); if(!t) return;
+  el('reminder-txn-id').value=txnId;
+  var existing=db.txnReminders&&db.txnReminders[txnId];
+  // Preview
+  var a=db.accounts.find(function(x){return x.id===t.account;});
+  el('reminder-txn-preview').textContent=t.date+' · '+t.description+' · '+(t.type==='income'?'+':'-')+'$'+t.amount.toFixed(2)+(a?' · '+a.name:'');
+  // Pre-fill if existing
+  el('reminder-date').value=existing?existing.date:todayLocal();
+  el('reminder-note').value=existing?existing.note:'';
+  el('btn-reminder-remove').style.display=existing?'inline-flex':'none';
+  openModal('modal-reminder');
+}
+
+el('btn-cancel-reminder').addEventListener('click',function(){closeModal('modal-reminder');});
+
+el('btn-reminder-remove').addEventListener('click',function(){
+  var id=el('reminder-txn-id').value;
+  if(db.txnReminders) delete db.txnReminders[id];
+  saveData(null,'txnReminders');
+  closeModal('modal-reminder');
+  renderTransactions(); renderDashboard();
+  showToast('Reminder removed');
+});
+
+el('btn-save-reminder').addEventListener('click',function(){
+  var id=el('reminder-txn-id').value;
+  var date=el('reminder-date').value;
+  var note=el('reminder-note').value.trim();
+  if(!date){showToast('Please set a date');return;}
+  if(!db.txnReminders) db.txnReminders={};
+  db.txnReminders[id]={date:date,note:note,dismissed:false};
+  saveData(null,'txnReminders');
+  closeModal('modal-reminder');
+  renderTransactions(); renderDashboard();
+  showToast('Reminder set for '+fmtDate(date));
+});
+
+function renderDashboardReminders(){
+  var container=el('dashboard-reminders');
+  if(!container) return;
+  container.innerHTML='';
+  var today=todayLocal();
+  var reminders=db.txnReminders||{};
+  var due=[];
+  Object.keys(reminders).forEach(function(txnId){
+    var r=reminders[txnId];
+    if(r.dismissed) return;
+    if(r.date>today) return; // not due yet
+    var t=db.transactions.find(function(x){return x.id===txnId;});
+    if(t) due.push({txnId:txnId,r:r,t:t});
+  });
+  if(!due.length){ container.style.display='none'; return; }
+  container.style.display='block';
+  due.sort(function(a,b){return a.r.date.localeCompare(b.r.date);});
+  due.forEach(function(item){
+    var daysOverdue=Math.floor((new Date(today)-new Date(item.r.date))/86400000);
+    var card=mk('div','dashboard-reminder');
+    var icon=mk('div','dashboard-reminder-icon','🔔');
+    var body=mk('div','dashboard-reminder-body');
+    var a=db.accounts.find(function(x){return x.id===item.t.account;});
+    var title=mk('div','dashboard-reminder-title',item.t.description+(a?' · '+a.name:'')+' — '+(item.t.type==='income'?'+':'-')+'$'+item.t.amount.toFixed(2));
+    var note=mk('div','dashboard-reminder-note',item.r.note||'Follow-up required');
+    var meta=mk('div','dashboard-reminder-meta',daysOverdue===0?'Due today':'Overdue by '+daysOverdue+' day'+(daysOverdue>1?'s':'')+' (was '+fmtDate(item.r.date)+')');
+    body.appendChild(title); body.appendChild(note); body.appendChild(meta);
+    var dismiss=mk('button','dashboard-reminder-dismiss','✓ Done');
+    dismiss.addEventListener('click',function(){
+      db.txnReminders[item.txnId].dismissed=true;
+      saveData(null,'txnReminders');
+      renderDashboardReminders();
+    });
+    card.appendChild(icon); card.appendChild(body); card.appendChild(dismiss);
+    container.appendChild(card);
+  });
+}
+
 
 // ---- CONVERT TRANSACTION TO RECURRING ----
 function openConvertToRecurring(txnId){
