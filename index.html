@@ -169,6 +169,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .audit-event{font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.05em;margin:0 6px;}
 .audit-detail{margin-top:3px;color:var(--text2);}
 
+
+/* Three-dot row menu */
+.row-menu-wrap{position:relative;display:inline-block;}
+.row-menu-btn{background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);color:var(--text3);font-size:18px;line-height:1;transition:all .15s;}
+.row-menu-btn:hover{background:var(--bg3);color:var(--text);}
+.row-menu-dropdown{position:absolute;right:0;top:calc(100% + 4px);background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);min-width:160px;z-index:200;overflow:hidden;opacity:0;transform:scale(.95) translateY(-4px);transition:all .12s ease;pointer-events:none;}
+.row-menu-dropdown.open{opacity:1;transform:scale(1) translateY(0);pointer-events:all;}
+.row-menu-item{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:13px;cursor:pointer;color:var(--text2);transition:background .1s;white-space:nowrap;}
+.row-menu-item:hover{background:var(--bg3);color:var(--text);}
+.row-menu-item.danger{color:var(--red);}
+.row-menu-item.danger:hover{background:var(--red-bg);}
+.row-menu-item.amber{color:var(--amber);}
+.row-menu-item.amber:hover{background:var(--amber-bg);}
 .reminder-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:99px;background:var(--amber-bg);color:var(--amber);border:1px solid rgba(192,124,26,.2);font-weight:500;white-space:nowrap;}
 .reminder-badge.overdue{background:#fff0e0;color:#c05c00;border-color:rgba(192,92,0,.25);}
 .dashboard-reminder{background:linear-gradient(135deg,#fff8ee,#fff3e0);border:1.5px solid #f0a030;border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 12px rgba(192,124,26,.15);}
@@ -230,6 +243,10 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   /* Grids - single column except stat cards */
   .grid2,.grid3{grid-template-columns:1fr;}
   .grid4{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  /* Summary bar collapses to 2x2 on mobile */
+  #page-dashboard > div:nth-child(2){flex-wrap:wrap;}
+  #page-dashboard > div:nth-child(2) > div{flex:1 1 45%;border-right:none !important;border-bottom:1px solid var(--border);}
+  #page-dashboard > div:nth-child(2) > div:last-child{border-bottom:none;}
   .form-row{grid-template-columns:1fr;}
 
   /* Topbar - keep both buttons but compact on mobile */
@@ -323,7 +340,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-13 10:45 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-13 11:30 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -370,12 +387,28 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div id="dashboard-reminders" style="display:none;margin-bottom:16px;"></div>
     <div id="dashboard-alerts" style="margin-bottom:12px;"></div>
     <div id="monthly-review-banner" style="display:none;margin-bottom:12px;"></div>
-    <!-- Stat cards: 4-col desktop, 2-col mobile -->
-    <div class="grid4" style="margin-bottom:16px;">
-      <div class="stat-card"><div class="stat-label">Chequing balance</div><div class="stat-val" id="stat-chequing" style="color:var(--green);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">Wealthsimple live</div></div>
-      <div class="stat-card"><div class="stat-label">Monthly income</div><div class="stat-val" id="stat-income" style="color:var(--blue);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">this month</div></div>
-      <div class="stat-card"><div class="stat-label">Total debt</div><div class="stat-val" id="stat-debt" style="color:var(--red);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">all accounts</div></div>
-      <div class="stat-card"><div class="stat-label">Spent this month</div><div class="stat-val" id="stat-spent" style="color:var(--amber);">-</div><div style="font-size:11px;color:var(--text3);margin-top:3px;">expenses only</div></div>
+    <!-- Compact horizontal summary bar -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);display:flex;align-items:stretch;margin-bottom:20px;overflow:hidden;">
+      <div style="flex:1;padding:18px 24px;border-right:1px solid var(--border);">
+        <div class="stat-label">Chequing balance</div>
+        <div class="stat-val" id="stat-chequing" style="color:var(--green);font-size:20px;">-</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Wealthsimple live</div>
+      </div>
+      <div style="flex:1;padding:18px 24px;border-right:1px solid var(--border);">
+        <div class="stat-label">Monthly income</div>
+        <div class="stat-val" id="stat-income" style="color:var(--accent);font-size:20px;">-</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">this month</div>
+      </div>
+      <div style="flex:1;padding:18px 24px;border-right:1px solid var(--border);">
+        <div class="stat-label">Total debt</div>
+        <div class="stat-val" id="stat-debt" style="color:var(--red);font-size:20px;">-</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">all accounts</div>
+      </div>
+      <div style="flex:1;padding:18px 24px;">
+        <div class="stat-label">Spent this month</div>
+        <div class="stat-val" id="stat-spent" style="color:var(--amber);font-size:20px;">-</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">expenses only</div>
+      </div>
     </div>
     <!-- Charts: spending donut + income/expense bar side by side -->
     <div class="grid2" style="margin-bottom:16px;">
@@ -2464,14 +2497,7 @@ function renderTransactions(){
       tdAmt.style.color=t.type==='income'?'var(--green)':'var(--red)';
       var tdBal=mk('td','col-balance');
       tdBal.style.cssText='text-align:right;';
-      // Show running balance only when filtered to single account + sorted by date
-      if(showRunning&&t.date>=cut){
-        var rb=computeRunningBalance(t.account,t.id);
-        var balSpan=mk('span','',fmt(rb));
-        balSpan.style.cssText='font-family:var(--font-mono);font-size:11px;color:'+(rb<0?'var(--red)':rb<200?'var(--amber)':'var(--text3)')+';display:block;margin-bottom:3px;';
-        tdBal.appendChild(balSpan);
-      }
-      // Only show convert button for expense transactions not already tracked
+      // Convert to recurring button for expense transactions not already tracked
       if(t.type==='expense'&&!t.trackedAsRecurring){
         var recBtn=mk('button','btn btn-ghost btn-sm','→ Rec');
         recBtn.title='Convert to recurring payment';
@@ -2484,16 +2510,51 @@ function renderTransactions(){
         tdBal.appendChild(badge);
       }
       var tdAct=mk('td','');
-      var btnEdit=mk('button','btn btn-ghost btn-sm','Edit'); btnEdit.style.marginRight='4px';
-      btnEdit.addEventListener('click',function(){openEditTxn(t.id);});
-      var btnBell=mk('button','btn btn-ghost btn-sm','🔔'); btnBell.style.cssText='margin-right:4px;font-size:11px;padding:4px 7px;';
-      btnBell.title='Set follow-up reminder';
+      tdAct.style.cssText='text-align:right;white-space:nowrap;padding-right:8px;';
+      var menuWrap=mk('div','row-menu-wrap');
+      var menuBtn=mk('button','row-menu-btn','⋯');
+      menuBtn.title='Actions';
+      var menuDrop=mk('div','row-menu-dropdown');
+
+      // Edit
+      var editItem=mk('div','row-menu-item','✏️  Edit');
+      editItem.addEventListener('click',function(){menuDrop.classList.remove('open');openEditTxn(t.id);});
+
+      // Convert to recurring (expense only)
+      if(t.type==='expense'){
+        var recItem=mk('div','row-menu-item',t.trackedAsRecurring?'↻  Already recurring':'↻  Make recurring');
+        if(t.trackedAsRecurring) recItem.style.opacity='0.5';
+        else recItem.addEventListener('click',function(){menuDrop.classList.remove('open');openConvertToRecurring(t.id);});
+        menuDrop.appendChild(editItem);
+        menuDrop.appendChild(recItem);
+      } else {
+        menuDrop.appendChild(editItem);
+      }
+
+      // Reminder
       var hasReminder=db.txnReminders&&db.txnReminders[t.id]&&!db.txnReminders[t.id].dismissed;
-      if(hasReminder) btnBell.style.background='var(--amber-bg)';
-      btnBell.addEventListener('click',function(){openReminderModal(t.id);});
-      var btnDel=mk('button','btn btn-danger btn-sm','X');
-      btnDel.addEventListener('click',function(){deleteTxn(t.id);});
-      tdAct.appendChild(btnEdit); tdAct.appendChild(btnBell); tdAct.appendChild(btnDel);
+      var remItem=mk('div','row-menu-item amber',hasReminder?'🔔  Edit reminder':'🔔  Set reminder');
+      remItem.addEventListener('click',function(){menuDrop.classList.remove('open');openReminderModal(t.id);});
+      menuDrop.appendChild(remItem);
+
+      // Divider
+      var divider=mk('div',''); divider.style.cssText='height:1px;background:var(--border);margin:3px 0;';
+      menuDrop.appendChild(divider);
+
+      // Delete
+      var delItem=mk('div','row-menu-item danger','🗑️  Delete');
+      delItem.addEventListener('click',function(){menuDrop.classList.remove('open');deleteTxn(t.id);});
+      menuDrop.appendChild(delItem);
+
+      menuBtn.addEventListener('click',function(e){
+        e.stopPropagation();
+        // Close all other open menus first
+        document.querySelectorAll('.row-menu-dropdown.open').forEach(function(d){if(d!==menuDrop)d.classList.remove('open');});
+        menuDrop.classList.toggle('open');
+      });
+
+      menuWrap.appendChild(menuBtn); menuWrap.appendChild(menuDrop);
+      tdAct.appendChild(menuWrap);
       tr.appendChild(tdDate); tr.appendChild(tdDesc); tr.appendChild(tdAcc);
       tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdBal); tr.appendChild(tdAct);
       tbody.appendChild(tr);
@@ -6917,6 +6978,13 @@ async function init(){
     setSyncStatus('offline','Offline');
   }
 }
+
+// Close any open row menus when clicking outside
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.row-menu-wrap')){
+    document.querySelectorAll('.row-menu-dropdown.open').forEach(function(d){d.classList.remove('open');});
+  }
+});
 
 document.addEventListener('DOMContentLoaded',function(){checkSetup();});
 </script>
