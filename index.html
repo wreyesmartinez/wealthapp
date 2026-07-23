@@ -338,7 +338,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-22 11:43 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-22 11:51 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1851,16 +1851,6 @@ var _txnAccountFilter=null;
 function navToAccount(accountId){
   _txnAccountFilter=accountId;
   nav('transactions');
-  // Set the account filter after nav renders
-  setTimeout(function(){
-    var fa=el('filter-account');
-    if(fa){
-      for(var i=0;i<fa.options.length;i++){
-        if(fa.options[i].value===accountId){fa.selectedIndex=i;break;}
-      }
-    }
-    renderTransactions();
-  },50);
 }
 function getApiKey(){return localStorage.getItem(SK_KEY)||'';}
 function setApiKey(k){
@@ -2363,14 +2353,15 @@ var importBuffer=[];
 
 function renderTransactions(){
   var fa=el('filter-account');
-  var curAcc=fa.value;
+  var curAcc=_txnAccountFilter||fa.value;
+  _txnAccountFilter=null; // clear after use
   fillAccountSelect('filter-account', curAcc, true);
   // Rebuild month options dynamically each time
   buildMonthOptions('filter-month',false);
   // Repopulate filter-cat preserving current selection
   var curCat=el('filter-cat').value;
   fillCatSelect('filter-cat',true,curCat);
-  var acc=fa.value,cat=el('filter-cat').value,mo=el('filter-month').value,tp=el('filter-type').value,q=el('filter-search').value.toLowerCase();
+  var acc=curAcc,cat=el('filter-cat').value,mo=el('filter-month').value,tp=el('filter-type').value,q=el('filter-search').value.toLowerCase();
   var txns=db.transactions.slice();
   if(acc) txns=txns.filter(function(t){return t.account===acc;});
   if(cat) txns=txns.filter(function(t){return t.category===cat;});
@@ -4548,7 +4539,7 @@ function buildDebtCard(item){
     // Generate upcoming payment tiles based on expectedDay or 1st of month
     var expDay=d.paymentDay||d.expectedDay||1;
     var keywords=(d.keywords||[]);
-    var numTiles=Math.min(mtp,12); // show up to 12
+    var numTiles=Math.max(2, Math.min(mtp,12)); // show at least 2, up to 12
     var runBal=bal;
 
     for(var ti=0;ti<numTiles;ti++){
