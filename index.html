@@ -347,7 +347,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:45 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:58 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -361,7 +361,6 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="nav-item" data-page="invest"><span class="nav-icon">&#128200;</span>Invest</div>
   <div class="nav-item" data-page="calendar"><span class="nav-icon">&#128197;</span>Calendar</div>
   <div class="nav-item" data-page="recurring"><span class="nav-icon">&#8635;</span>Recurring</div>
-  <div class="nav-item nav-sub" data-page="paycheque"><span class="nav-icon">&#8627;</span>Paycheque Plan</div>
   <div class="nav-item" data-page="categories"><span class="nav-icon">&#9632;</span>Categories</div>
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
@@ -2036,7 +2035,7 @@ async function checkSetup(){
 }
 
 // ---- NAVIGATION ----
-var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',history:'History',goals:'Savings Goals',invest:'Investment Projector',paycheque:'Paycheque Plan',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
+var PAGE_TITLES={dashboard:'Dashboard',transactions:'Transactions',budget:'Budget',accounts:'Accounts',debts:'Debt Tracker',history:'History',goals:'Savings Goals',invest:'Investment Projector',recurring:'Recurring Payments',calendar:'Financial Calendar',categories:'Categories',recategorize:'Re-categorize',reports:'Reports',import:'Import Anything',ai:'AI Assistant'};
 
 // Scroll position memory — session only (cleared on browser close)
 var _scrollMemory={};
@@ -2112,7 +2111,6 @@ function renderPage(page){
   else if(page==='goals') renderGoals();
   else if(page==='invest') renderInvest();
   else if(page==='budget') renderBudget();
-  else if(page==='paycheque') renderPaycheque();
   else if(page==='recurring') renderRecurring();
   else if(page==='calendar') renderCalendar();
   else if(page==='categories') renderCategories();
@@ -3967,7 +3965,7 @@ function toggleInstPayment(instId,paymentId,forcePaid){
   if(!p) return;
   p.paid=forcePaid!==undefined?forcePaid:!p.paid;
   p.paidDate=p.paid?todayLocal():null;
-  saveData(null,'installmentPlans'); renderDebts(); renderPaycheque();
+  saveData(null,'installmentPlans'); renderDebts(); renderRecurring();
   showToast(p.paid?'Payment marked as paid':'Payment unmarked');
 }
 
@@ -4133,8 +4131,14 @@ el('btn-save-installment').addEventListener('click',function(){
   var provider=el('inst-provider').value.trim();
   var total=parseFloat(el('inst-total').value)||0;
   var count=parseInt(el('inst-count').value)||4;
+  var firstDate=el('inst-first-date').value;
+  var freq=el('inst-frequency').value;
+  var keywords=el('inst-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  var firstPaid=el('inst-first-paid').checked;
   var firstPmtAmt=parseFloat(el('inst-payment-amt').value)||0;
   var regularPmtAmt=parseFloat(el('inst-regular-amt').value)||0;
+
+  if(!name||!total||!firstDate){showToast('Fill name, total and first date');return;}
 
   // Determine payment amounts:
   // - If only first given: all payments = first, last auto-adjusted
@@ -4155,7 +4159,6 @@ el('btn-save-installment').addEventListener('click',function(){
     lastPmtAmt=Math.round((total-(baseFirst*(count-1)))*100)/100;
   }
 
-  if(!name||!total||!firstDate){showToast('Fill name, total and first date');return;}
   if(lastPmtAmt<=0){showToast('Payment amounts exceed total — check first and regular payment values');return;}
 
   // Build payment schedule
@@ -4790,10 +4793,10 @@ function toggleManual(rpId,yearMonth,markPaid){
   if(markPaid) db.manualOverrides[key]=(current==='paid'?undefined:'paid');
   else db.manualOverrides[key]=(current==='unpaid'?undefined:'unpaid');
   if(db.manualOverrides[key]===undefined) delete db.manualOverrides[key];
-  saveData(null,'manualOverrides'); renderPaycheque(); showToast(markPaid?'Marked as paid':'Marked as unpaid');
+  saveData(null,'manualOverrides'); renderRecurring(); showToast(markPaid?'Marked as paid':'Marked as unpaid');
 }
 
-function renderPaycheque(){
+function renderRecurring(){
   updateTopbarMeta();
   var today=new Date(), day=today.getDate();
   var yearMonth=today.toISOString().substring(0,7);
@@ -4943,8 +4946,65 @@ var RP_CAT_COLORS={
 function rpColor(cat){ return RP_CAT_COLORS[cat]||'#7a7a7a'; }
 
 function renderRecurring(){
-  var yearMonth=new Date().toISOString().substring(0,7);
+  var today=new Date(), day=today.getDate();
+  var yearMonth=today.toISOString().substring(0,7);
+  var inPC1=day>=1&&day<=14, activePC=inPC1?1:2;
   var c=el('recurring-list'); c.innerHTML='';
+
+  // ---- SUMMARY SECTION ----
+  var pc1=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===1;});
+  var pc2=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===2;});
+  var pc1Total=pc1.reduce(function(s,r){return s+r.amount;},0);
+  var pc2Total=pc2.reduce(function(s,r){return s+r.amount;},0);
+  var chequingBal=computeLiveBalance('ws-chq');
+
+  function makeSummaryCard(items,pcNum,total,isActive){
+    var paidAmt=items.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
+    var stillToPay=Math.max(0,total-paidAmt);
+    var diff=chequingBal-stillToPay;
+    var card=mk('div','card'); card.style.cssText='flex:1;min-width:220px;border-left:3px solid '+(isActive?'var(--accent)':'var(--border)')+';';
+    var hdr=mk('div',''); hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;';
+    var title=mk('div','card-title','Paycheque '+pcNum); title.style.marginBottom='0';
+    var activeBadge=mk('span',isActive?'tag tag-blue':'tag tag-gray',isActive?'Active':'Upcoming');
+    hdr.appendChild(title); hdr.appendChild(activeBadge); card.appendChild(hdr);
+
+    function statRow(label,val,color){
+      var row=mk('div',''); row.style.cssText='display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;';
+      row.appendChild(mk('span','',label));
+      var v=mk('span','',val); v.style.cssText='font-family:var(--font-mono);font-weight:600;'+(color?'color:'+color+';':'');
+      row.appendChild(v); return row;
+    }
+    card.appendChild(statRow('Total obligations','-'+fmt(total)));
+    card.appendChild(statRow('Still to pay',stillToPay<=0?'All paid!':'-'+fmt(stillToPay),stillToPay<=0?'var(--green)':'var(--red)'));
+    card.appendChild(statRow('Chequing balance',fmt(chequingBal),chequingBal>=0?'var(--green)':'var(--red)'));
+
+    var sep=mk('div',''); sep.style.cssText='border-top:1px solid var(--border);margin:8px 0;';
+    card.appendChild(sep);
+
+    var indicator=mk('div',''); indicator.style.cssText='padding:7px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;text-align:center;';
+    if(stillToPay<=0){
+      indicator.style.cssText+='background:var(--green-bg);color:var(--green);';
+      indicator.textContent='All paid this period ✓';
+    } else if(diff>=0){
+      indicator.style.cssText+='background:var(--green-bg);color:var(--green);';
+      indicator.textContent='Covered — '+fmt(diff)+' remaining';
+    } else if(diff>=-200){
+      indicator.style.cssText+='background:var(--amber-bg);color:var(--amber);';
+      indicator.textContent='Tight — '+fmt(Math.abs(diff))+' short';
+    } else {
+      indicator.style.cssText+='background:var(--red-bg);color:var(--red);';
+      indicator.textContent='Not enough — '+fmt(Math.abs(diff))+' short';
+    }
+    card.appendChild(indicator);
+    return card;
+  }
+
+  var summaryRow=mk('div',''); summaryRow.style.cssText='display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;';
+  summaryRow.appendChild(makeSummaryCard(pc1,1,pc1Total,activePC===1));
+  summaryRow.appendChild(makeSummaryCard(pc2,2,pc2Total,activePC===2));
+  c.appendChild(summaryRow);
+
+  // ---- PAYMENT LIST ----
   [1,2].forEach(function(pcNum){
     var items=db.recurringPayments.filter(function(r){return r.paycheque===pcNum;});
     var hdr=mk('div','');
@@ -5008,16 +5068,16 @@ function renderRecurring(){
       var btns=mk('div',''); btns.style.cssText='display:flex;gap:4px;flex-wrap:wrap;';
       var markBtn=mk('button','btn btn-ghost btn-sm',status.paid?'Unmark':'Mark paid');
       markBtn.style.cssText='font-size:10px;padding:3px 7px;';
-      markBtn.addEventListener('click',function(){toggleManual(rp.id,yearMonth,!status.paid);renderRecurring();renderPaycheque();});
+      markBtn.addEventListener('click',function(){toggleManual(rp.id,yearMonth,!status.paid);renderRecurring();renderRecurring();});
       var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
       editBtn.style.cssText='font-size:10px;padding:3px 7px;';
       editBtn.addEventListener('click',function(){openEditRecurring(rp.id);});
       var toggleBtn=mk('button','btn btn-ghost btn-sm',rp.active?'Off':'On');
       toggleBtn.style.cssText='font-size:10px;padding:3px 7px;';
-      toggleBtn.addEventListener('click',function(){rp.active=!rp.active;saveData(null,'recurringPayments');renderRecurring();renderPaycheque();showToast(rp.active?'Activated':'Deactivated');});
+      toggleBtn.addEventListener('click',function(){rp.active=!rp.active;saveData(null,'recurringPayments');renderRecurring();renderRecurring();showToast(rp.active?'Activated':'Deactivated');});
       var delBtn=mk('button','btn btn-danger btn-sm','✕');
       delBtn.style.cssText='font-size:10px;padding:3px 7px;';
-      delBtn.addEventListener('click',function(){if(!confirm('Remove?')) return; db.recurringPayments=db.recurringPayments.filter(function(x){return x.id!==rp.id;}); saveData(null,'recurringPayments'); renderRecurring(); renderPaycheque(); showToast('Removed');});
+      delBtn.addEventListener('click',function(){if(!confirm('Remove?')) return; db.recurringPayments=db.recurringPayments.filter(function(x){return x.id!==rp.id;}); saveData(null,'recurringPayments'); renderRecurring(); renderRecurring(); showToast('Removed');});
       btns.appendChild(markBtn); btns.appendChild(editBtn); btns.appendChild(toggleBtn); btns.appendChild(delBtn);
       card.appendChild(btns);
       grid.appendChild(card);
@@ -5088,7 +5148,7 @@ el('btn-save-rp').addEventListener('click',function(){
     linkedInstallmentId:linkedInstId||undefined
   });
   saveData(null,'recurringPayments'); closeModal('modal-add-recurring');
-  renderRecurring(); renderPaycheque(); showToast('Added');
+  renderRecurring(); renderRecurring(); showToast('Added');
   el('rp-name').value=''; el('rp-amount').value=''; el('rp-day').value=''; el('rp-keywords').value='';
 });
 
@@ -5129,7 +5189,7 @@ el('btn-save-edit-rp').addEventListener('click',function(){
   rp.keywords=el('edit-rp-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
   rp.paycheque=parseInt(el('edit-rp-paycheque').value); rp.category=el('edit-rp-category').value;
   rp.fromAccountId=el('edit-rp-from-account').value||'ws-chq';
-  saveData(null,'recurringPayments'); closeModal('modal-edit-recurring'); renderRecurring(); renderPaycheque(); showToast('Updated');
+  saveData(null,'recurringPayments'); closeModal('modal-edit-recurring'); renderRecurring(); renderRecurring(); showToast('Updated');
 });
 
 // ---- CATEGORIES ----
