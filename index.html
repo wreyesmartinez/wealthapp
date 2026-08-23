@@ -347,7 +347,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:23 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:32 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1002,6 +1002,16 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="edit-inst-name"></div>
     <div class="form-group"><label class="form-label">Provider</label><input type="text" class="form-input" id="edit-inst-provider" placeholder="e.g. Klarna, Affirm"></div>
     <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="edit-inst-keywords" placeholder="e.g. klarna, ps5"></div>
+    <!-- Optional cost breakdown -->
+    <div style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-top:4px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Cost breakdown (optional)
+        <span class="info-tooltip tip-left" data-tip="For BNPL plans like Affirm or Klarna. Enter the purchase price and fixed borrowing fee so the app shows the true cost of this plan.">i</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Purchase price ($)</label><input type="number" step="0.01" class="form-input" id="edit-inst-purchase-price" placeholder="e.g. 300.54"></div>
+        <div class="form-group"><label class="form-label">Cost of borrowing ($)</label><input type="number" step="0.01" class="form-input" id="edit-inst-borrowing-cost" placeholder="e.g. 14.23"></div>
+      </div>
+    </div>
     <!-- Split payment toggle -->
     <div style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-top:4px;">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:500;">
@@ -1047,7 +1057,17 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       </select>
     </div>
     <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="inst-keywords" placeholder="e.g. klarna, ticketmaster"></div>
-    <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+    <!-- Optional cost breakdown -->
+    <div style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-top:4px;">
+      <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Cost breakdown (optional)
+        <span class="info-tooltip tip-left" data-tip="For BNPL plans like Affirm or Klarna that show a fixed borrowing cost upfront. Enter the purchase price and borrowing fee separately so the app can show you the true cost of the plan.">i</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Purchase price ($)</label><input type="number" step="0.01" class="form-input" id="inst-purchase-price" placeholder="e.g. 300.54"></div>
+        <div class="form-group"><label class="form-label">Cost of borrowing ($)</label><input type="number" step="0.01" class="form-input" id="inst-borrowing-cost" placeholder="e.g. 14.23"></div>
+      </div>
+    </div>
+    <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-top:8px;">
       <input type="checkbox" id="inst-first-paid" style="width:auto;">
       <label class="form-label" style="margin:0;cursor:pointer;" for="inst-first-paid">First payment already made</label>
     </div>
@@ -3950,6 +3970,9 @@ function openEditInstallment(id){
   el('edit-inst-name').value=inst.name;
   el('edit-inst-provider').value=inst.provider||'';
   el('edit-inst-keywords').value=(inst.keywords||[]).join(', ');
+  // Cost breakdown
+  el('edit-inst-purchase-price').value=inst.purchasePrice||'';
+  el('edit-inst-borrowing-cost').value=inst.borrowingCost||'';
   // Split payment fields
   var isSplit=!!(inst.splitPayment);
   el('edit-inst-split').checked=isSplit;
@@ -3971,6 +3994,10 @@ el('btn-save-edit-inst').addEventListener('click',function(){
   inst.name=el('edit-inst-name').value.trim()||inst.name;
   inst.provider=el('edit-inst-provider').value.trim();
   inst.keywords=el('edit-inst-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
+  var pp=parseFloat(el('edit-inst-purchase-price').value)||0;
+  var bc=parseFloat(el('edit-inst-borrowing-cost').value)||0;
+  if(pp>0) inst.purchasePrice=pp; else delete inst.purchasePrice;
+  if(bc>0) inst.borrowingCost=bc; else delete inst.borrowingCost;
   // Split payment config
   if(el('edit-inst-split').checked){
     var feeAmt=parseFloat(el('edit-inst-fee-amount').value)||0;
@@ -4088,6 +4115,7 @@ el('btn-add-installment').addEventListener('click',function(){
   el('inst-first-date').value=todayLocal();
   el('inst-first-paid').checked=false;
   el('inst-name').value=''; el('inst-provider').value='';
+  el('inst-purchase-price').value=''; el('inst-borrowing-cost').value='';
   el('inst-total').value=''; el('inst-count').value='4';
   el('inst-payment-amt').value=''; el('inst-keywords').value='';
   openModal('modal-add-installment');
@@ -4127,6 +4155,10 @@ el('btn-save-installment').addEventListener('click',function(){
     totalAmount:total,payments:payments,
     provider:provider,keywords:keywords,active:true
   };
+  var purchasePrice=parseFloat(el('inst-purchase-price').value)||0;
+  var borrowingCost=parseFloat(el('inst-borrowing-cost').value)||0;
+  if(purchasePrice>0) newInst.purchasePrice=purchasePrice;
+  if(borrowingCost>0) newInst.borrowingCost=borrowingCost;
   db.installmentPlans.push(newInst);
   saveData(null,'installmentPlans'); closeModal('modal-add-installment'); renderDebts();
   showToast('Installment plan added');
@@ -4438,6 +4470,32 @@ function buildInstCard(item,today){
   right.appendChild(amtEl); right.appendChild(progEl);
   hdr.appendChild(mid); hdr.appendChild(right);
   card.appendChild(hdr);
+
+  // Cost breakdown (shown when purchasePrice/borrowingCost are set)
+  if(inst.purchasePrice&&inst.borrowingCost&&!item.allDone){
+    var totalCost=inst.purchasePrice+inst.borrowingCost;
+    var borrowPct=Math.round((inst.borrowingCost/totalCost)*100);
+    var breakdown=mk('div',''); breakdown.style.cssText='background:var(--bg3);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;';
+    // Bar
+    var barWrap=mk('div',''); barWrap.style.cssText='height:7px;border-radius:99px;overflow:hidden;display:flex;margin-bottom:7px;';
+    var prinBar=mk('div',''); prinBar.style.cssText='height:100%;width:'+(100-borrowPct)+'%;background:var(--green);border-radius:99px 0 0 99px;';
+    var costBar=mk('div',''); costBar.style.cssText='height:100%;width:'+borrowPct+'%;background:var(--red);';
+    barWrap.appendChild(prinBar); barWrap.appendChild(costBar);
+    breakdown.appendChild(barWrap);
+    // Labels row
+    var labRow=mk('div',''); labRow.style.cssText='display:flex;justify-content:space-between;font-size:12px;';
+    var pLabel=mk('div',''); pLabel.innerHTML='<span style="color:var(--green);">●</span> Purchase <strong>'+fmt(inst.purchasePrice)+'</strong>';
+    var cLabel=mk('div',''); cLabel.innerHTML='<span style="color:var(--red);">●</span> Borrowing cost <strong>'+fmt(inst.borrowingCost)+'</strong>';
+    labRow.appendChild(pLabel); labRow.appendChild(cLabel);
+    breakdown.appendChild(labRow);
+    // Total
+    var totRow=mk('div',''); totRow.style.cssText='margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;justify-content:space-between;';
+    var totLabel=mk('span','','Total of payments:');
+    var totVal=mk('span','',fmt(totalCost)); totVal.style.cssText='font-weight:600;color:var(--text);font-family:var(--font-mono);';
+    totRow.appendChild(totLabel); totRow.appendChild(totVal);
+    breakdown.appendChild(totRow);
+    card.appendChild(breakdown);
+  }
 
   // Progress bar
   var pct=item.total>0?(item.paid/item.total)*100:0;
