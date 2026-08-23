@@ -169,10 +169,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 
 /* Three-dot row menu */
+
+/* Info tooltip */
+.info-tooltip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:700;cursor:help;flex-shrink:0;border:1px solid rgba(46,110,166,.2);vertical-align:middle;margin-left:5px;}
+.info-tooltip::after{content:attr(data-tip);position:fixed;background:#1a1d2e;color:#fff;font-size:12px;font-weight:400;line-height:1.5;padding:10px 13px;border-radius:8px;width:260px;white-space:normal;z-index:9999;opacity:0;pointer-events:none;transition:opacity .15s ease;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+.info-tooltip:hover::after{opacity:1;}
+/* Position tooltip to the left on right-side elements */
+.info-tooltip.tip-left::after{right:calc(100% + 8px);top:50%;transform:translateY(-50%);}
+.info-tooltip.tip-top::after{bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);}
+.info-tooltip.tip-right::after{left:calc(100% + 8px);top:50%;transform:translateY(-50%);}
 .row-menu-wrap{position:relative;display:inline-block;}
 .row-menu-btn{background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);color:var(--text3);font-size:18px;line-height:1;transition:all .15s;}
 .row-menu-btn:hover{background:var(--bg3);color:var(--text);}
-.row-menu-dropdown{position:absolute;right:0;top:calc(100% + 4px);background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);min-width:160px;z-index:200;overflow:hidden;opacity:0;transform:scale(.95) translateY(-4px);transition:all .12s ease;pointer-events:none;}
+.row-menu-dropdown{position:fixed;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);min-width:160px;z-index:9999;overflow:hidden;opacity:0;transform:scale(.95) translateY(-4px);transition:all .12s ease;pointer-events:none;}
 .row-menu-dropdown.open{opacity:1;transform:scale(1) translateY(0);pointer-events:all;}
 .row-menu-item{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:13px;cursor:pointer;color:var(--text2);transition:background .1s;white-space:nowrap;}
 .row-menu-item:hover{background:var(--bg3);color:var(--text);}
@@ -338,7 +347,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-07-22 11:55 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:23 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1059,10 +1068,20 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="edit-debt-note" placeholder="e.g. promo ends Dec 2026"></div>
     <div id="edit-debt-statement-fields">
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Statement day of month</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-statement-day" placeholder="e.g. 4"></div>
-        <div class="form-group"><label class="form-label">Grace period (days to due)</label><input type="number" min="1" max="60" class="form-input" id="edit-debt-grace-period" placeholder="21"></div>
+        <div class="form-group">
+          <label class="form-label">Statement day of month
+            <span class="info-tooltip tip-right" data-tip="The day your billing cycle closes each month. Find it on your statement under 'Closing Date' or 'Statement Date'. Example: if your June statement says 'Closing Date: Jun 4' then your statement day is 4.">i</span>
+          </label>
+          <input type="number" min="1" max="31" class="form-input" id="edit-debt-statement-day" placeholder="e.g. 4">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grace period (days to due)
+            <span class="info-tooltip tip-left" data-tip="How to calculate: find your last statement. Count the days from the Statement Closing Date to the Payment Due Date. Example: closes Jul 4, due Jul 29 = 25 days. Common values: Amex = 21, BMO = 25, RBC = 26, Scotia = 25. Check your statement each time to confirm.">i</span>
+          </label>
+          <input type="number" min="1" max="60" class="form-input" id="edit-debt-grace-period" placeholder="21">
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:10px;">Grace period = days from statement close to payment due. Default 21 — confirm with your card issuer. App will auto-adjust for weekends &amp; holidays.</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:10px;">App auto-adjusts for weekends &amp; Canadian holidays.</div>
     </div>
     <!-- Detection criteria section -->
     <div style="margin-top:8px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:4px;">
@@ -1070,7 +1089,12 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">How the app finds this payment in your transactions to mark it as paid.</div>
       <div class="form-group"><label class="form-label">Paid from account</label><select class="form-select" id="edit-debt-from-account"></select></div>
       <div class="form-group"><label class="form-label">Expected payment day</label><input type="number" min="1" max="31" class="form-input" id="edit-debt-payment-day" placeholder="e.g. 14"></div>
-      <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="edit-debt-keywords" placeholder="e.g. amex, loan payment"></div>
+      <div class="form-group">
+        <label class="form-label">Detection keywords (comma separated)
+          <span class="info-tooltip tip-left" data-tip="Words the app searches for in your transaction descriptions to auto-detect this payment. Use part of the merchant name or description that appears consistently. Example: for 'Amex Personal Loan 01004' use 'amex, personal loan, 01004'. Leave blank to match by account + amount only.">i</span>
+        </label>
+        <input type="text" class="form-input" id="edit-debt-keywords" placeholder="e.g. amex, loan payment">
+      </div>
     </div>
     <!-- Visual identity -->
     <div class="form-row" style="margin-top:8px;">
@@ -1851,16 +1875,6 @@ var _txnAccountFilter=null;
 function navToAccount(accountId){
   _txnAccountFilter=accountId;
   nav('transactions');
-  // Set the account filter after nav renders
-  setTimeout(function(){
-    var fa=el('filter-account');
-    if(fa){
-      for(var i=0;i<fa.options.length;i++){
-        if(fa.options[i].value===accountId){fa.selectedIndex=i;break;}
-      }
-    }
-    renderTransactions();
-  },50);
 }
 function getApiKey(){return localStorage.getItem(SK_KEY)||'';}
 function setApiKey(k){
@@ -2051,8 +2065,19 @@ function renderPage(page){
       el('filter-search').value='';
       // Keep month filter as current month
     }
+    var pendingAccountFilter=_txnAccountFilter;
     _txnAccountFilter=null;
     renderTransactions();
+    // Apply account filter after dropdown is built
+    if(pendingAccountFilter){
+      var fa=el('filter-account');
+      if(fa){
+        for(var i=0;i<fa.options.length;i++){
+          if(fa.options[i].value===pendingAccountFilter){fa.selectedIndex=i;break;}
+        }
+        renderTransactions();
+      }
+    }
   }
   else if(page==='accounts') renderAccounts();
   else if(page==='debts') renderDebts();
@@ -2398,7 +2423,10 @@ function renderTransactions(){
   el('txn-count').textContent=txns.length+' shown - '+db.transactions.length+' total';
   var cut=db.cutDate||'2026-04-14';
   var showRunning=!!acc&&f==='date';
-  var tbody=el('txn-body'); tbody.innerHTML='';
+  var tbody=el('txn-body');
+  // Remove any previously appended row-menu dropdowns from body
+  document.querySelectorAll('.row-menu-dropdown').forEach(function(d){d.remove();});
+  tbody.innerHTML='';
   if(!txns.length){
     var emptyRow=document.createElement('tr');
     var emptyCell=document.createElement('td'); emptyCell.colSpan=7; emptyCell.textContent='No transactions match filters';
@@ -2521,15 +2549,36 @@ function renderTransactions(){
       var editItem=mk('div','row-menu-item','✏️  Edit');
       editItem.addEventListener('click',function(){menuDrop.classList.remove('open');openEditTxn(t.id);});
 
+      // Duplicate
+      var dupItem=mk('div','row-menu-item','⧉  Duplicate');
+      dupItem.addEventListener('click',function(){
+        menuDrop.classList.remove('open');
+        // Pre-fill Add Transaction modal with this transaction's data
+        el('txn-date').value=todayLocal();
+        el('txn-amount').value=t.amount.toFixed(2);
+        el('txn-desc').value=t.description;
+        el('txn-notes').value=t.notes||'';
+        fillAccountSelect('txn-account', t.account);
+        fillCatSelect('txn-category', false, t.category);
+        document.querySelectorAll('input[name="txn-type"]').forEach(function(r){r.checked=r.value===t.type;});
+        // Populate quick-fill chips
+        var yearMonth=getCurrentMonth();
+        var chipsEl=el('txn-recurring-chips'); chipsEl.innerHTML='';
+        el('txn-recurring-chips-section').style.display='none';
+        openModal('modal-add-txn');
+      });
+
       // Convert to recurring (expense only)
       if(t.type==='expense'){
         var recItem=mk('div','row-menu-item',t.trackedAsRecurring?'↻  Already recurring':'↻  Make recurring');
         if(t.trackedAsRecurring) recItem.style.opacity='0.5';
         else recItem.addEventListener('click',function(){menuDrop.classList.remove('open');openConvertToRecurring(t.id);});
         menuDrop.appendChild(editItem);
+        menuDrop.appendChild(dupItem);
         menuDrop.appendChild(recItem);
       } else {
         menuDrop.appendChild(editItem);
+        menuDrop.appendChild(dupItem);
       }
 
       // Reminder
@@ -2550,11 +2599,17 @@ function renderTransactions(){
       menuBtn.addEventListener('click',function(e){
         e.stopPropagation();
         // Close all other open menus first
-        document.querySelectorAll('.row-menu-dropdown.open').forEach(function(d){if(d!==menuDrop)d.classList.remove('open');});
+        document.querySelectorAll('.row-menu-dropdown.open').forEach(function(d){d.classList.remove('open');});
+        // Position using fixed coords to escape table overflow clipping
+        var rect=menuBtn.getBoundingClientRect();
+        menuDrop.style.top=(rect.bottom+4)+'px';
+        menuDrop.style.left='auto';
+        menuDrop.style.right=(window.innerWidth-rect.right)+'px';
         menuDrop.classList.toggle('open');
       });
 
-      menuWrap.appendChild(menuBtn); menuWrap.appendChild(menuDrop);
+      menuWrap.appendChild(menuBtn);
+      document.body.appendChild(menuDrop); // attach to body to escape table overflow
       tdAct.appendChild(menuWrap);
       tr.appendChild(tdDate); tr.appendChild(tdDesc); tr.appendChild(tdAcc);
       tr.appendChild(tdCat); tr.appendChild(tdAmt); tr.appendChild(tdBal); tr.appendChild(tdAct);
@@ -4549,19 +4604,24 @@ function buildDebtCard(item){
     var expDay=d.paymentDay||d.expectedDay||1;
     var keywords=(d.keywords||[]);
     var numTiles=Math.max(2, Math.min(mtp,12)); // show at least 2, up to 12
-    var runBal=bal;
+    var runBal=bal; // track running balance to calculate actual final payment
 
     for(var ti=0;ti<numTiles;ti++){
       var pmtDate=new Date(today.getFullYear(),today.getMonth()+ti,expDay);
       var pmtDateStr=pmtDate.getFullYear()+'-'+String(pmtDate.getMonth()+1).padStart(2,'0')+'-'+String(pmtDate.getDate()).padStart(2,'0');
       var pmtMonth=pmtDateStr.substring(0,7);
 
-      // Check if this month's payment is matched
+      // Actual payment amount — final payment may be less than monthly
+      var actualPmt=Math.min(monthly, runBal);
+      runBal=Math.max(0, runBal-actualPmt);
+
+      // Check if this month's payment is matched — use actualPmt for tolerance
       var isPaid=false;
+      var pmt=actualPmt; // capture for closure
       var matchedTxn=db.transactions.find(function(t){
         if(t.type!=='expense') return false;
         if(!t.date.startsWith(pmtMonth)) return false;
-        if(Math.abs(t.amount-monthly)>(monthly*0.05)) return false;
+        if(Math.abs(t.amount-pmt)>(pmt*0.05)) return false;
         var accountMatch=d.fromAccountId?t.account===d.fromAccountId:t.account==='ws-chq';
         if(keywords.length){
           var desc=t.description.toLowerCase();
@@ -4573,8 +4633,8 @@ function buildDebtCard(item){
       if(matchedTxn) isPaid=true;
 
       var isNext=!isPaid&&ti===0||(!isPaid&&pmtDate>today&&timeline.querySelectorAll&&ti>0);
-      // Simpler: first unpaid future tile is "next"
       var isPast=pmtDate<today&&!isPaid;
+      var isFinal=actualPmt<monthly&&actualPmt>0;
 
       var tileBg=isPaid?'var(--green-bg)':isPast?'var(--bg3)':'var(--bg2)';
       var tileBorder=isPaid?'rgba(58,125,82,.25)':ident.color+'40';
@@ -4582,10 +4642,12 @@ function buildDebtCard(item){
 
       var pCard=mk('div','');
       pCard.style.cssText='min-width:80px;text-align:center;padding:8px 6px;border-radius:var(--radius-sm);background:'+tileBg+';border:1px solid '+tileBorder+';flex-shrink:0;';
+      if(isFinal) pCard.title='Final payment';
 
       var dateEl=mk('div','',fmtDate(pmtDateStr)); dateEl.style.cssText='font-size:10px;color:var(--text3);margin-bottom:3px;';
-      var amtEl=mk('div','',fmt(monthly)); amtEl.style.cssText='font-size:12px;font-weight:600;font-family:var(--font-mono);color:'+tileColor+';';
-      var statusEl=mk('div','',isPaid?'Paid':isPast?'Missed':'Upcoming'); statusEl.style.cssText='font-size:10px;margin-top:3px;color:'+tileColor+';';
+      var amtEl=mk('div','',fmt(actualPmt)); amtEl.style.cssText='font-size:12px;font-weight:600;font-family:var(--font-mono);color:'+tileColor+';';
+      var statusLabel=isPaid?'Paid':isPast?'Missed':isFinal?'Final':'Upcoming';
+      var statusEl=mk('div','',statusLabel); statusEl.style.cssText='font-size:10px;margin-top:3px;color:'+tileColor+';';
 
       pCard.appendChild(dateEl); pCard.appendChild(amtEl); pCard.appendChild(statusEl);
       timeline.appendChild(pCard);
@@ -5893,6 +5955,7 @@ var _calSelected=null;
 // Build all events for a given year/month
 function getCalEvents(year, month){
   var events={}; // key = 'YYYY-MM-DD', value = array of event objects
+  var archivedIds=(db.archivedAccounts||[]).map(function(e){return e.account.id;});
   function addEvent(day, event){
     if(!day||day<1||day>31) return;
     var d=new Date(year,month,day);
@@ -5927,7 +5990,7 @@ function getCalEvents(year, month){
   addEvent(pc2Day,{type:'paycheque',color:'#3a7d52',label:'Paycheque 2 (~$2,859)',icon:'$'});
 
   // Credit card statement dates
-  db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay;}).forEach(function(a){
+  db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay&&archivedIds.indexOf(a.id)===-1;}).forEach(function(a){
     var bal=Math.abs(computeLiveBalance(a.id));
     addEvent(a.statementDay,{type:'statement',color:'#6b44a8',label:a.name+' statement — '+fmt(bal)+' will be reported',icon:'C',accountId:a.id});
   });
@@ -5935,7 +5998,7 @@ function getCalEvents(year, month){
   // Credit card payment due dates — check both same-month and prev-month statement closes
   // Some cards (e.g. BMO closes on 4th, due 25th) have due date in same month as close
   // Others (e.g. Amex closes on 14th, due ~5th next month) have due date in following month
-  db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay;}).forEach(function(a){
+  db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay&&archivedIds.indexOf(a.id)===-1;}).forEach(function(a){
     var dueDate=null;
     // Try: statement closed THIS month → due date might be THIS month (e.g. close 4th, due 25th)
     var dueSameMonth=getPredictedDueDate(a, year, month+1);
@@ -5960,7 +6023,7 @@ function getCalEvents(year, month){
     addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name});
   });
 
-  db.recurringPayments.filter(function(r){return r.active&&!r.linkedInstallmentId;}).forEach(function(rp){
+  db.recurringPayments.filter(function(r){return r.active&&!r.linkedInstallmentId&&archivedIds.indexOf(r.fromAccountId)===-1;}).forEach(function(rp){
     var fromAccId=rp.fromAccountId||'ws-chq';
     var fromAcc=db.accounts.find(function(a){return a.id===fromAccId;});
     var fromAcc2=fromAcc?fromAcc.name:'Wealthsimple Chequing';
