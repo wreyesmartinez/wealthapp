@@ -347,7 +347,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:32 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:45 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1045,7 +1045,14 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <div class="form-group"><label class="form-label">Number of payments</label><input type="number" min="1" max="52" class="form-input" id="inst-count" placeholder="4"></div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Amount per payment ($)</label><input type="number" step="0.01" class="form-input" id="inst-payment-amt" placeholder="0.00"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">First payment ($)
+        <span class="info-tooltip tip-left" data-tip="The exact amount of the first payment. Leave blank to divide total equally. If first payment differs (e.g. includes taxes or upfront fee), enter it here.">i</span>
+      </label><input type="number" step="0.01" class="form-input" id="inst-payment-amt" placeholder="e.g. 120.00"></div>
+      <div class="form-group"><label class="form-label">Regular payment ($)
+        <span class="info-tooltip tip-right" data-tip="Amount for payments 2 through N-1. Leave blank if all payments are the same as the first. Last payment is always auto-calculated to match the total exactly.">i</span>
+      </label><input type="number" step="0.01" class="form-input" id="inst-regular-amt" placeholder="e.g. 98.26"></div>
+    </div>
       <div class="form-group"><label class="form-label">First payment date</label><input type="date" class="form-input" id="inst-first-date"></div>
     </div>
     <div class="form-group"><label class="form-label">Payment frequency</label>
@@ -4117,7 +4124,7 @@ el('btn-add-installment').addEventListener('click',function(){
   el('inst-name').value=''; el('inst-provider').value='';
   el('inst-purchase-price').value=''; el('inst-borrowing-cost').value='';
   el('inst-total').value=''; el('inst-count').value='4';
-  el('inst-payment-amt').value=''; el('inst-keywords').value='';
+  el('inst-payment-amt').value=''; el('inst-regular-amt').value=''; el('inst-keywords').value='';
   openModal('modal-add-installment');
 });
 el('btn-cancel-installment').addEventListener('click',function(){closeModal('modal-add-installment');});
@@ -4126,21 +4133,40 @@ el('btn-save-installment').addEventListener('click',function(){
   var provider=el('inst-provider').value.trim();
   var total=parseFloat(el('inst-total').value)||0;
   var count=parseInt(el('inst-count').value)||4;
-  var pmtAmt=parseFloat(el('inst-payment-amt').value)||(total/count);
-  var firstDate=el('inst-first-date').value;
-  var freq=el('inst-frequency').value;
-  var keywords=el('inst-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
-  var firstPaid=el('inst-first-paid').checked;
+  var firstPmtAmt=parseFloat(el('inst-payment-amt').value)||0;
+  var regularPmtAmt=parseFloat(el('inst-regular-amt').value)||0;
+
+  // Determine payment amounts:
+  // - If only first given: all payments = first, last auto-adjusted
+  // - If both given: payment 1 = first, 2..N-1 = regular, last auto-adjusted
+  // - If neither given: divide equally, last auto-adjusted
+  var baseFirst, baseRegular, lastPmtAmt;
+  if(firstPmtAmt>0&&regularPmtAmt>0){
+    baseFirst=Math.round(firstPmtAmt*100)/100;
+    baseRegular=Math.round(regularPmtAmt*100)/100;
+    lastPmtAmt=Math.round((total-baseFirst-(baseRegular*(count-2)))*100)/100;
+  } else if(firstPmtAmt>0){
+    baseFirst=Math.round(firstPmtAmt*100)/100;
+    baseRegular=baseFirst;
+    lastPmtAmt=Math.round((total-(baseFirst*(count-1)))*100)/100;
+  } else {
+    baseFirst=Math.round((total/count)*100)/100;
+    baseRegular=baseFirst;
+    lastPmtAmt=Math.round((total-(baseFirst*(count-1)))*100)/100;
+  }
+
   if(!name||!total||!firstDate){showToast('Fill name, total and first date');return;}
+  if(lastPmtAmt<=0){showToast('Payment amounts exceed total — check first and regular payment values');return;}
 
   // Build payment schedule
   var payments=[];
   var cur=new Date(firstDate+'T12:00:00');
   for(var i=0;i<count;i++){
     var dStr=cur.toISOString().split('T')[0];
+    var thisPmt=i===0?baseFirst:i===count-1?lastPmtAmt:baseRegular;
     payments.push({
       id:'p'+(i+1)+Date.now(),
-      amount:parseFloat(pmtAmt.toFixed(2)),
+      amount:thisPmt,
       dueDate:dStr,
       paid:i===0&&firstPaid,
       paidDate:i===0&&firstPaid?firstDate:null
