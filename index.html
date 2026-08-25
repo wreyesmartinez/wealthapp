@@ -347,7 +347,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-23 2:58 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-24 11:16 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4192,30 +4192,30 @@ el('btn-save-installment').addEventListener('click',function(){
   saveData(null,'installmentPlans'); closeModal('modal-add-installment'); renderDebts();
   showToast('Installment plan added');
 
-  // Ask if user wants to add upcoming payments to Recurring
+  // Ask if user wants to add to Recurring as a single monthly entry
   setTimeout(function(){
     var unpaid=payments.filter(function(p){return !p.paid;});
     if(!unpaid.length) return;
-    if(confirm('Add the '+unpaid.length+' upcoming payments to your Recurring list?\n\nThis will make them appear in your Paycheque Plan automatically.')){
-      unpaid.forEach(function(p){
-        var day=parseInt(p.dueDate.split('-')[2]);
-        var pc=dateToPC(p.dueDate);
-        db.recurringPayments.push({
-          id:'rp'+Date.now()+Math.random(),
-          name:name+' ('+fmtDate(p.dueDate)+')',
-          amount:p.amount,
-          expectedDay:day,
-          tolerance:3,
-          keywords:keywords,
-          paycheque:pc,
-          active:true,
-          category:'Buy now pay later',
-          linkedInstallmentId:newInst.id,
-          linkedPaymentId:p.id
-        });
+    if(confirm('Add "'+name+'" to your Recurring payments?\n\nThis creates one monthly entry so it appears in your payment plan each month.')){
+      var firstUnpaid=unpaid[0];
+      var day=parseInt(firstUnpaid.dueDate.split('-')[2]);
+      var pc=dateToPC(firstUnpaid.dueDate);
+      // Use regular payment amount (not the potentially higher first payment)
+      var regularAmt=unpaid.length>1?unpaid[1].amount:firstUnpaid.amount;
+      db.recurringPayments.push({
+        id:'rp'+Date.now(),
+        name:name,
+        amount:regularAmt,
+        expectedDay:day,
+        tolerance:5,
+        keywords:keywords,
+        paycheque:pc,
+        active:true,
+        category:'Buy now pay later',
+        linkedInstallmentId:newInst.id
       });
       saveData(null,'recurringPayments');
-      showToast(unpaid.length+' payments added to Recurring');
+      showToast(name+' added to Recurring');
       renderRecurring();
     }
   },300);
