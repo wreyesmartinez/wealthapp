@@ -347,7 +347,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-02 11:26 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-02 11:29 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -3900,9 +3900,6 @@ function detectInstPayment(inst,payment){
   var dMin=dateMin.toISOString().split('T')[0];
   var dMax=dateMax.toISOString().split('T')[0];
 
-  // DEBUG logging
-  console.log('[detectInstPayment] '+inst.name+' | due:'+payment.dueDate+' | window:'+dMin+' to '+dMax+' | amt:'+payment.amount+' | kw:'+JSON.stringify(keywords));
-
   if(inst.splitPayment){
     var sp=inst.splitPayment;
     var feeAmt=sp.feeAmount||0;
@@ -3930,8 +3927,6 @@ function detectInstPayment(inst,payment){
     var desc=t.description.toLowerCase();
     return keywords.some(function(k){return desc.includes(k);});
   });
-  if(matched) console.log('[detectInstPayment] MATCHED: '+matched.date+' "'+matched.description+'" $'+matched.amount+' id:'+matched.id);
-  else console.log('[detectInstPayment] no match');
   return !!matched;
 }
 
