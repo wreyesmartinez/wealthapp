@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:05 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:15 AM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -619,6 +619,11 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
 
   <div class="page" id="page-recurring">
     <div class="sec-header"><div><div class="sec-title">Recurring Payments</div><div class="sec-sub">Edit amounts, dates, mark paid</div></div><button class="btn btn-primary btn-sm" id="btn-add-recurring">+ Add payment</button></div>
+    <div style="margin-bottom:14px;">
+      <select class="form-select" id="recurring-filter-account" style="max-width:260px;">
+        <option value="">All accounts</option>
+      </select>
+    </div>
     <div id="recurring-list"></div>
   </div>
 
@@ -4982,6 +4987,7 @@ function renderRecurring(){
   rules.style.marginTop='16px'; c.appendChild(rules);
 }
 el('btn-go-recurring').addEventListener('click',function(){nav('recurring');});
+el('recurring-filter-account').addEventListener('change',function(){renderRecurring();});
 
 // ---- RECURRING ----
 // Category color for recurring payments
@@ -4999,6 +5005,26 @@ function renderRecurring(){
   var yearMonth=today.toISOString().substring(0,7);
   var inPC1=day>=1&&day<=14, activePC=inPC1?1:2;
   var c=el('recurring-list'); c.innerHTML='';
+
+  // Populate account filter dropdown
+  var filterSel=el('recurring-filter-account');
+  var currentFilter=filterSel?filterSel.value:'';
+  if(filterSel){
+    filterSel.innerHTML='<option value="">All accounts</option>';
+    // Get unique accounts used in recurring payments
+    var usedAccIds=[...new Set(db.recurringPayments.map(function(r){return r.fromAccountId||'ws-chq';}))];
+    usedAccIds.forEach(function(id){
+      var acc=db.accounts.find(function(a){return a.id===id;});
+      if(!acc) return;
+      var o=mk('option'); o.value=id; o.textContent=acc.name;
+      if(id===currentFilter) o.selected=true;
+      filterSel.appendChild(o);
+    });
+  }
+
+  // Filter recurring payments by account if selected
+  var allPayments=db.recurringPayments;
+  if(currentFilter) allPayments=allPayments.filter(function(r){return (r.fromAccountId||'ws-chq')===currentFilter;});
 
   // ---- SUMMARY SECTION ----
   var pc1=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===1;});
@@ -5055,7 +5081,7 @@ function renderRecurring(){
 
   // ---- PAYMENT LIST ----
   [1,2].forEach(function(pcNum){
-    var items=db.recurringPayments.filter(function(r){return r.paycheque===pcNum;});
+    var items=allPayments.filter(function(r){return r.paycheque===pcNum;});
     var hdr=mk('div','');
     hdr.style.cssText='font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin:'+(pcNum===1?'0':'20px')+' 0 10px;';
     hdr.textContent='Paycheque '+pcNum+' payments';
@@ -5137,6 +5163,7 @@ function renderRecurring(){
 
 
 el('btn-add-recurring').addEventListener('click',function(){
+  el('recurring-filter-account').value=''; // reset filter when adding
   fillCatSelect('rp-category',false,'Loan payment');
   fillAccountSelect('rp-from-account','ws-chq');
   el('rp-name').value=''; el('rp-amount').value='';
