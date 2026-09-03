@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:15 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:25 AM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4951,29 +4951,51 @@ function renderRecurring(){
     t2.style.cssText='font-family:var(--font-mono);font-weight:600;color:'+(stillToPay<=0?'var(--green)':'var(--red)')+';';
     r2.appendChild(t2); totalRow.appendChild(r2);
 
-    // Chequing balance vs still to pay
+    // Split: chequing vs card obligations
+    var chequingItems=items.filter(function(r){var acc=r.fromAccountId||'ws-chq';return acc==='ws-chq'||acc==='bmo-chq';});
+    var cardItems=items.filter(function(r){var acc=r.fromAccountId||'ws-chq';return acc!=='ws-chq'&&acc!=='bmo-chq';});
+    var chequingUnpaid=chequingItems.filter(function(r){return !getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
+    var cardUnpaid=cardItems.filter(function(r){return !getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
+
+    // Chequing balance vs chequing-only obligations
     var chequingBal=computeLiveBalance('ws-chq');
-    var r3=mk('div',''); r3.style.cssText='display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;';
+    var r3=mk('div',''); r3.style.cssText='display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px;';
     r3.appendChild(mk('span','','Chequing balance'));
     var t3=mk('span','',fmt(chequingBal));
     t3.style.cssText='font-family:var(--font-mono);font-weight:600;color:'+(chequingBal>=0?'var(--green)':'var(--red)')+';';
     r3.appendChild(t3); totalRow.appendChild(r3);
 
-    // Coverage indicator
-    var diff=chequingBal-stillToPay;
+    // Chequing obligations line
+    var r3b=mk('div',''); r3b.style.cssText='display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:2px;';
+    r3b.appendChild(mk('span','','From chequing'));
+    r3b.appendChild(mk('span','','-'+fmt(chequingUnpaid)));
+    totalRow.appendChild(r3b);
+
+    // Card obligations line (if any)
+    if(cardUnpaid>0){
+      var r3c=mk('div',''); r3c.style.cssText='display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:6px;';
+      r3c.appendChild(mk('span','','On credit cards'));
+      r3c.appendChild(mk('span','','-'+fmt(cardUnpaid)));
+      totalRow.appendChild(r3c);
+    } else {
+      r3b.style.marginBottom='6px';
+    }
+
+    // Coverage indicator — based on chequing obligations only
+    var diff=chequingBal-chequingUnpaid;
     var indicator=mk('div',''); indicator.style.cssText='padding:7px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;text-align:center;';
-    if(stillToPay<=0){
+    if(chequingUnpaid<=0){
       indicator.style.cssText+=';background:var(--green-bg);color:var(--green);';
-      indicator.textContent='All obligations paid this period';
+      indicator.textContent='All chequing obligations paid ✓';
     } else if(diff>=0){
       indicator.style.cssText+=';background:var(--green-bg);color:var(--green);';
-      indicator.textContent='Covered — '+fmt(diff)+' left after payments';
+      indicator.textContent='Covered — '+fmt(diff)+' left in chequing';
     } else if(diff>=-200){
       indicator.style.cssText+=';background:var(--amber-bg);color:var(--amber);';
-      indicator.textContent='Tight — '+fmt(Math.abs(diff))+' short of covering all payments';
+      indicator.textContent='Tight — '+fmt(Math.abs(diff))+' short in chequing';
     } else {
       indicator.style.cssText+=';background:var(--red-bg);color:var(--red);';
-      indicator.textContent='Not enough — '+fmt(Math.abs(diff))+' short';
+      indicator.textContent='Not enough cash — '+fmt(Math.abs(diff))+' short';
     }
     totalRow.appendChild(indicator);
     card.appendChild(totalRow);
