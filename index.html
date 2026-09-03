@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:36 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:40 AM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4849,6 +4849,16 @@ function toggleManual(rpId,yearMonth,markPaid){
   if(db.manualOverrides[key]===undefined) delete db.manualOverrides[key];
   saveData(null,'manualOverrides'); renderRecurring(); showToast(markPaid?'Marked as paid':'Marked as unpaid');
 }
+
+// Category color for recurring payments
+var RP_CAT_COLORS={
+  'Loan payment':'#b84040','Credit card payment':'#b84040','Buy now pay later':'#b84040',
+  'Rent':'#6b44a8','Utilities':'#6b44a8',
+  'Subscriptions':'#8a5020','Phone bill':'#8a5020',
+  'Transfer':'#2e6ea6','Internal transfer':'#2e6ea6',
+  'Debt payment':'#b84040'
+};
+function rpColor(cat){ return RP_CAT_COLORS[cat]||'#7a7a7a'; }
 
 function renderRecurring(){
   var today=new Date(), day=today.getDate();
