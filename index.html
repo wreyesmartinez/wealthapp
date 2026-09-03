@@ -347,7 +347,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-08-24 11:16 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-02 11:26 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -3894,40 +3894,35 @@ function detectInstPayment(inst,payment){
   if(payment.paid) return true;
   var keywords=(inst.keywords||[]).map(function(k){return k.toLowerCase();});
   var tolerance=payment.amount*0.05;
-  // Search within 5 days of due date
   var due=new Date(payment.dueDate+'T12:00:00');
   var dateMin=new Date(due); dateMin.setDate(due.getDate()-5);
   var dateMax=new Date(due); dateMax.setDate(due.getDate()+5);
   var dMin=dateMin.toISOString().split('T')[0];
   var dMax=dateMax.toISOString().split('T')[0];
 
-  // Split payment detection (e.g. Amex Plan It: fee + principal posted separately)
+  // DEBUG logging
+  console.log('[detectInstPayment] '+inst.name+' | due:'+payment.dueDate+' | window:'+dMin+' to '+dMax+' | amt:'+payment.amount+' | kw:'+JSON.stringify(keywords));
+
   if(inst.splitPayment){
     var sp=inst.splitPayment;
     var feeAmt=sp.feeAmount||0;
     var principalAmt=payment.amount-feeAmt;
     var feeKw=sp.feeKeyword?sp.feeKeyword.toLowerCase():'';
     var prinKw=sp.principalKeyword?sp.principalKeyword.toLowerCase():'';
-    // Look within the payment's billing month (wider window for split)
     var billMonth=payment.dueDate.substring(0,7);
-    var txns=db.transactions.filter(function(t){
-      return t.type==='expense'&&t.date.startsWith(billMonth);
-    });
+    var txns=db.transactions.filter(function(t){return t.type==='expense'&&t.date.startsWith(billMonth);});
     var feeFound=txns.some(function(t){
       if(Math.abs(t.amount-feeAmt)>feeAmt*0.05) return false;
-      if(!feeKw) return true;
-      return t.description.toLowerCase().includes(feeKw);
+      return !feeKw||t.description.toLowerCase().includes(feeKw);
     });
     var principalFound=txns.some(function(t){
       if(Math.abs(t.amount-principalAmt)>principalAmt*0.05) return false;
-      if(!prinKw) return true;
-      return t.description.toLowerCase().includes(prinKw);
+      return !prinKw||t.description.toLowerCase().includes(prinKw);
     });
     return feeFound&&principalFound;
   }
 
-  // Standard single-transaction detection
-  return db.transactions.some(function(t){
+  var matched=db.transactions.find(function(t){
     if(t.type!=='expense') return false;
     if(t.date<dMin||t.date>dMax) return false;
     if(Math.abs(t.amount-payment.amount)>tolerance) return false;
@@ -3935,6 +3930,9 @@ function detectInstPayment(inst,payment){
     var desc=t.description.toLowerCase();
     return keywords.some(function(k){return desc.includes(k);});
   });
+  if(matched) console.log('[detectInstPayment] MATCHED: '+matched.date+' "'+matched.description+'" $'+matched.amount+' id:'+matched.id);
+  else console.log('[detectInstPayment] no match');
+  return !!matched;
 }
 
 // Check if split payment is partially detected (one of two components found)
@@ -3965,6 +3963,9 @@ function toggleInstPayment(instId,paymentId,forcePaid){
   if(!p) return;
   p.paid=forcePaid!==undefined?forcePaid:!p.paid;
   p.paidDate=p.paid?todayLocal():null;
+  // If manually unmarked, set a flag so auto-detection won't override it
+  if(!p.paid) p.manuallyUnpaid=true;
+  else delete p.manuallyUnpaid;
   saveData(null,'installmentPlans'); renderDebts(); renderRecurring();
   showToast(p.paid?'Payment marked as paid':'Payment unmarked');
 }
@@ -4335,6 +4336,8 @@ function renderDebts(){
   db.installmentPlans.filter(function(inst){return inst.active;}).forEach(function(inst){
     // Auto-detect payments
     inst.payments.forEach(function(p){
+      // Don't auto-detect if user manually unmarked this payment
+      if(p.manuallyUnpaid) return;
       if(!p.paid&&detectInstPayment(inst,p)){p.paid=true;p.paidDate=today;}
     });
     var total=inst.payments.length;
