@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:29 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:32 AM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4851,178 +4851,6 @@ function toggleManual(rpId,yearMonth,markPaid){
 }
 
 function renderRecurring(){
-  updateTopbarMeta();
-  var today=new Date(), day=today.getDate();
-  var yearMonth=today.toISOString().substring(0,7);
-  var inPC1=day>=1&&day<=13, activePC=inPC1?1:2;
-  var c=el('paycheque-plan'); c.innerHTML='';
-  var pc1=allPayments.filter(function(r){return r.active&&r.paycheque===1;});
-  var pc2=allPayments.filter(function(r){return r.active&&r.paycheque===2;});
-
-  // Paycheque Plan only shows recurring payments — installments appear here
-  // only if they were explicitly added to Recurring by the user
-  var pc1Paid=pc1.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).length;
-  var pc2Paid=pc2.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).length;
-  // Period indicator
-  var periodRow=mk('div',''); periodRow.style.cssText='display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;';
-  [1,2].forEach(function(pc){
-    var isActive=(pc===activePC);
-    var badge=mk('div',''); badge.style.cssText='font-size:13px;padding:8px 14px;border-radius:var(--radius-sm);background:'+(isActive?'rgba(193,127,58,.12)':'var(--bg3)')+';border:1px solid '+(isActive?'var(--accent)':'var(--border)')+';color:'+(isActive?'var(--accent)':'var(--text3)')+';';
-    badge.textContent=(isActive?'Active now - ':'Upcoming - ')+'Paycheque '+pc+(pc===1?' (days 1-13)':' (days 14-31)');
-    periodRow.appendChild(badge);
-  });
-  var dateLabel=mk('div','','Today: '+today.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}));
-  dateLabel.style.cssText='font-size:12px;color:var(--text3);';
-  periodRow.appendChild(dateLabel);
-  c.appendChild(periodRow);
-  // Two columns
-  var grid=mk('div','grid2'); c.appendChild(grid);
-  function buildPCCard(items,pcNum,paid,total,isActive){
-    var card=mk('div','card'); card.className='card '+(isActive?'pc-active':'pc-dim');
-    var hdr=mk('div',''); hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;';
-    var title=mk('div','card-title','Paycheque '+pcNum+' - '+(pcNum===1?'~13th-15th':'~27th-30th'));
-    title.style.marginBottom='0';
-    var counter=mk('span','',paid+'/'+items.length+' paid');
-    counter.style.cssText='font-size:11px;color:'+(paid===items.length?'var(--green)':'var(--text3)')+';';
-    hdr.appendChild(title); hdr.appendChild(counter); card.appendChild(hdr);
-    if(isActive){
-      var alert=mk('div','alert alert-amber','Active period - click circle to mark items paid manually');
-      alert.style.marginBottom='12px'; card.appendChild(alert);
-    }
-    items.forEach(function(rp){
-      var status=getPaymentStatus(rp,yearMonth);
-      var row=mk('div','pc-row');
-      var left=mk('div',''); left.style.flex='1';
-      var nameRow=mk('div',''); nameRow.style.cssText='display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;';
-      var circle=mk('button','');
-      circle.style.cssText='background:none;border:none;cursor:pointer;font-size:15px;padding:0;color:'+(status.paid?'var(--green)':'var(--text3)')+';';
-      circle.textContent=status.paid?'v':'o';
-      circle.title=status.paid?'Click to mark unpaid':'Click to mark paid';
-      circle.addEventListener('click',function(){toggleManual(rp.id,yearMonth,!status.paid);});
-      var nameEl=mk('span','',rp.name); if(status.paid) nameEl.style.textDecoration='line-through';
-      if(status.manual){var mTag=mk('span','','(manual)');mTag.style.cssText='font-size:10px;color:var(--text3);';nameRow.appendChild(mTag);}
-      nameRow.appendChild(circle); nameRow.appendChild(nameEl);
-      // Show badge if linked to an installment plan
-      if(rp.linkedInstallmentId){
-        var inst=db.installmentPlans.find(function(x){return x.id===rp.linkedInstallmentId;});
-        if(inst){
-          var instBadge=mk('span','',inst.provider||'Installment');
-          instBadge.style.cssText='font-size:9px;padding:1px 5px;border-radius:8px;background:var(--purple-bg);color:var(--purple);margin-left:4px;font-weight:600;';
-          instBadge.title='Linked to: '+inst.name;
-          nameRow.appendChild(instBadge);
-        }
-      }
-      var dueEl=mk('div','','Due ~'+rp.expectedDay+'th +/-'+( rp.tolerance||5)+' days');
-      dueEl.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;margin-left:22px;';
-      if(status.paid&&status.txn){
-        var matchEl=mk('div','');
-        matchEl.style.cssText='font-size:10px;color:var(--green);margin-left:22px;margin-top:2px;';
-        var matchAmtColor=Math.abs(status.txn.amount-rp.amount)>0.05?'color:var(--amber);':'color:var(--green);';
-        matchEl.textContent='Matched: '+status.txn.date+' · '+status.txn.description.substring(0,30)+(status.txn.description.length>30?'...':'')+' · '+fmt(status.txn.amount);
-        if(Math.abs(status.txn.amount-rp.amount)>0.05){
-          matchEl.style.color='var(--amber)';
-          matchEl.textContent+=' ⚠ expected '+fmt(rp.amount);
-        }
-        left.appendChild(nameRow); left.appendChild(dueEl); left.appendChild(matchEl);
-      }else{left.appendChild(nameRow); left.appendChild(dueEl);}
-      var right=mk('div',''); right.style.cssText='display:flex;align-items:center;gap:8px;flex-shrink:0;';
-      var amtEl=mk('span','',status.paid?'paid':'-'+fmt(rp.amount));
-      amtEl.style.cssText='font-family:var(--font-mono);font-size:13px;color:'+(status.paid?'var(--green)':'var(--red)')+';';
-      var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
-      editBtn.style.fontSize='11px';
-      editBtn.addEventListener('click',function(){openEditRecurring(rp.id);});
-      right.appendChild(amtEl); right.appendChild(editBtn);
-      row.appendChild(left); row.appendChild(right); card.appendChild(row);
-    });
-    var totalRow=mk('div',''); totalRow.style.cssText='border-top:1px solid var(--border);margin-top:8px;padding-top:10px;';
-
-    // Total obligations
-    var r1=mk('div',''); r1.style.cssText='display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:4px;';
-    r1.appendChild(mk('span','','Total obligations'));
-    var t1=mk('span','','-'+fmt(total)); t1.style.cssText='font-family:var(--font-mono);font-weight:600;';
-    r1.appendChild(t1); totalRow.appendChild(r1);
-
-    // Still to pay (total minus paid items)
-    var paidAmt=items.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
-    var stillToPay=total-paidAmt;
-    var r2=mk('div',''); r2.style.cssText='display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;';
-    r2.appendChild(mk('span','','Still to pay'));
-    var t2=mk('span','',stillToPay<=0?'All paid!':'-'+fmt(stillToPay));
-    t2.style.cssText='font-family:var(--font-mono);font-weight:600;color:'+(stillToPay<=0?'var(--green)':'var(--red)')+';';
-    r2.appendChild(t2); totalRow.appendChild(r2);
-
-    // Split: chequing vs card obligations
-    var chequingItems=items.filter(function(r){var acc=r.fromAccountId||'ws-chq';return acc==='ws-chq'||acc==='bmo-chq';});
-    var cardItems=items.filter(function(r){var acc=r.fromAccountId||'ws-chq';return acc!=='ws-chq'&&acc!=='bmo-chq';});
-    var chequingUnpaid=chequingItems.filter(function(r){return !getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
-    var cardUnpaid=cardItems.filter(function(r){return !getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
-
-    // Chequing balance vs chequing-only obligations
-    var chequingBal=computeLiveBalance('ws-chq');
-    var r3=mk('div',''); r3.style.cssText='display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px;';
-    r3.appendChild(mk('span','','Chequing balance'));
-    var t3=mk('span','',fmt(chequingBal));
-    t3.style.cssText='font-family:var(--font-mono);font-weight:600;color:'+(chequingBal>=0?'var(--green)':'var(--red)')+';';
-    r3.appendChild(t3); totalRow.appendChild(r3);
-
-    // Chequing obligations line
-    var r3b=mk('div',''); r3b.style.cssText='display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:2px;';
-    r3b.appendChild(mk('span','','From chequing'));
-    r3b.appendChild(mk('span','','-'+fmt(chequingUnpaid)));
-    totalRow.appendChild(r3b);
-
-    // Card obligations line (if any)
-    if(cardUnpaid>0){
-      var r3c=mk('div',''); r3c.style.cssText='display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:6px;';
-      r3c.appendChild(mk('span','','On credit cards'));
-      r3c.appendChild(mk('span','','-'+fmt(cardUnpaid)));
-      totalRow.appendChild(r3c);
-    } else {
-      r3b.style.marginBottom='6px';
-    }
-
-    // Coverage indicator — based on chequing obligations only
-    var diff=chequingBal-chequingUnpaid;
-    var indicator=mk('div',''); indicator.style.cssText='padding:7px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;text-align:center;';
-    if(chequingUnpaid<=0){
-      indicator.style.cssText+=';background:var(--green-bg);color:var(--green);';
-      indicator.textContent='All chequing obligations paid ✓';
-    } else if(diff>=0){
-      indicator.style.cssText+=';background:var(--green-bg);color:var(--green);';
-      indicator.textContent='Covered — '+fmt(diff)+' left in chequing';
-    } else if(diff>=-200){
-      indicator.style.cssText+=';background:var(--amber-bg);color:var(--amber);';
-      indicator.textContent='Tight — '+fmt(Math.abs(diff))+' short in chequing';
-    } else {
-      indicator.style.cssText+=';background:var(--red-bg);color:var(--red);';
-      indicator.textContent='Not enough cash — '+fmt(Math.abs(diff))+' short';
-    }
-    totalRow.appendChild(indicator);
-    card.appendChild(totalRow);
-    return card;
-  }
-  var pc1Total=pc1.reduce(function(s,r){return s+r.amount;},0);
-  var pc2Total=pc2.reduce(function(s,r){return s+r.amount;},0);
-  grid.appendChild(buildPCCard(pc1,1,pc1Paid,pc1Total,activePC===1));
-  grid.appendChild(buildPCCard(pc2,2,pc2Paid,pc2Total,activePC===2));
-  var rules=mk('div','alert alert-amber','3 rules: (1) Never spend the $346 buffer. (2) Pay everything when paycheque lands. (3) Do not use BMO 9207 for purchases.');
-  rules.style.marginTop='16px'; c.appendChild(rules);
-}
-el('btn-go-recurring').addEventListener('click',function(){nav('recurring');});
-el('recurring-filter-account').addEventListener('change',function(){renderRecurring();});
-
-// ---- RECURRING ----
-// Category color for recurring payments
-var RP_CAT_COLORS={
-  'Loan payment':'#b84040','Credit card payment':'#b84040','Buy now pay later':'#b84040',
-  'Rent':'#6b44a8','Utilities':'#6b44a8',
-  'Subscriptions':'#8a5020','Phone bill':'#8a5020',
-  'Transfer':'#2e6ea6','Internal transfer':'#2e6ea6',
-  'Debt payment':'#b84040'
-};
-function rpColor(cat){ return RP_CAT_COLORS[cat]||'#7a7a7a'; }
-
-function renderRecurring(){
   var today=new Date(), day=today.getDate();
   var yearMonth=today.toISOString().substring(0,7);
   var inPC1=day>=1&&day<=14, activePC=inPC1?1:2;
@@ -5049,8 +4877,8 @@ function renderRecurring(){
   if(currentFilter) allPayments=allPayments.filter(function(r){return (r.fromAccountId||'ws-chq')===currentFilter;});
 
   // ---- SUMMARY SECTION ----
-  var pc1=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===1;});
-  var pc2=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===2;});
+  var pc1=allPayments.filter(function(r){return r.active&&r.paycheque===1;});
+  var pc2=allPayments.filter(function(r){return r.active&&r.paycheque===2;});
   var pc1Total=pc1.reduce(function(s,r){return s+r.amount;},0);
   var pc2Total=pc2.reduce(function(s,r){return s+r.amount;},0);
   var chequingBal=computeLiveBalance('ws-chq');
