@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:40 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 2:02 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -428,6 +428,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
         <span id="sync-label">Loading...</span>
       </div>
       <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="btn-open-settings" title="Settings" style="font-size:16px;padding:6px 10px;">⚙️</button>
         <button class="btn btn-ghost btn-sm" id="btn-open-transfer">Transfer</button>
         <button class="btn btn-primary btn-sm" id="btn-open-add-txn">+ Transaction</button>
       </div>
@@ -912,6 +913,72 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       <button class="btn btn-ghost" id="btn-reminder-remove" style="color:var(--red);margin-right:auto;">Remove reminder</button>
       <button class="btn btn-ghost" id="btn-cancel-reminder">Cancel</button>
       <button class="btn btn-primary" id="btn-save-reminder">Set reminder</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-title">⚙️ Settings</div>
+
+    <!-- Alert thresholds -->
+    <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;">Alert Thresholds</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Credit card utilization warning (%)
+          <span class="info-tooltip tip-right" data-tip="Alert fires when a credit card balance exceeds this % of its limit. Default 30%. Also used in daily email.">i</span>
+        </label>
+        <input type="number" min="1" max="100" class="form-input" id="setting-util-threshold" placeholder="30">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cash buffer warning ($)
+          <span class="info-tooltip tip-left" data-tip="Alert fires when chequing balance minus upcoming obligations is below this amount. Default $200.">i</span>
+        </label>
+        <input type="number" min="0" class="form-input" id="setting-cash-buffer" placeholder="200">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Promo expiry warning (days)
+          <span class="info-tooltip tip-right" data-tip="Alert fires this many days before a 0% promo rate expires. Default 30 days.">i</span>
+        </label>
+        <input type="number" min="1" max="90" class="form-input" id="setting-promo-days" placeholder="30">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Paycheque amount ($)
+          <span class="info-tooltip tip-left" data-tip="Your net bi-weekly paycheque. Used in AI context and cash coverage calculations.">i</span>
+        </label>
+        <input type="number" step="0.01" class="form-input" id="setting-paycheque-amt" placeholder="2859">
+      </div>
+    </div>
+
+    <!-- Email alerts -->
+    <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin:16px 0 12px;">Daily Email Alerts</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="setting-alert-utilization" style="width:15px;height:15px;">
+        Credit card over utilization threshold
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="setting-alert-cash" style="width:15px;height:15px;">
+        Cash coverage warning
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="setting-alert-promo" style="width:15px;height:15px;">
+        Promo rate expiry
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="setting-alert-reminders" style="width:15px;height:15px;">
+        Overdue transaction reminders
+      </label>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-settings">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-settings">Save settings</button>
     </div>
   </div>
 </div>
@@ -1843,7 +1910,17 @@ function migrateData(d){
   if(!d.savingsGoals) d.savingsGoals=[];
   if(!d.reconciledTxns) d.reconciledTxns={};
   if(!d.archivedAccounts) d.archivedAccounts=[];
-  if(!d.txnReminders) d.txnReminders={};  // {txnId: {date, note, dismissed}}  // [{account, completedDate, note, stats}]  // {txnId: true}
+  if(!d.txnReminders) d.txnReminders={};
+  if(!d.alertSettings) d.alertSettings={
+    utilizationThreshold:30,
+    cashBuffer:200,
+    promoDays:30,
+    paychequeAmt:2859,
+    alertUtilization:true,
+    alertCash:true,
+    alertPromo:true,
+    alertReminders:true
+  };  // {txnId: {date, note, dismissed}}  // [{account, completedDate, note, stats}]  // {txnId: true}
   if(!d._deletedIds) d._deletedIds=[];  // local tombstone list — transactions deleted but not yet confirmed deleted in cloud
   if(!d.auditLog) d.auditLog=[];  // {ts, txnId, event, source, detail} — transaction lifecycle trace
   if(!d.investmentSettings) d.investmentSettings={accountId:'ws-nonreg',currentBalance:0,monthlyTarget:0,annualRate:7,lastUpdated:null,birthYear:1989};
@@ -6326,6 +6403,39 @@ function renderReport(){
 el('report-month').addEventListener('change',renderReport);
 el('report-group').addEventListener('change',renderReport);
 
+// ---- APP SETTINGS ----
+function openSettings(){
+  var s=db.alertSettings||{};
+  el('setting-util-threshold').value=s.utilizationThreshold||30;
+  el('setting-cash-buffer').value=s.cashBuffer||200;
+  el('setting-promo-days').value=s.promoDays||30;
+  el('setting-paycheque-amt').value=s.paychequeAmt||2859;
+  el('setting-alert-utilization').checked=s.alertUtilization!==false;
+  el('setting-alert-cash').checked=s.alertCash!==false;
+  el('setting-alert-promo').checked=s.alertPromo!==false;
+  el('setting-alert-reminders').checked=s.alertReminders!==false;
+  openModal('modal-settings');
+}
+
+el('btn-open-settings').addEventListener('click', openSettings);
+el('btn-cancel-settings').addEventListener('click', function(){closeModal('modal-settings');});
+el('btn-save-settings').addEventListener('click', function(){
+  if(!db.alertSettings) db.alertSettings={};
+  db.alertSettings.utilizationThreshold=parseInt(el('setting-util-threshold').value)||30;
+  db.alertSettings.cashBuffer=parseFloat(el('setting-cash-buffer').value)||200;
+  db.alertSettings.promoDays=parseInt(el('setting-promo-days').value)||30;
+  db.alertSettings.paychequeAmt=parseFloat(el('setting-paycheque-amt').value)||2859;
+  db.alertSettings.alertUtilization=el('setting-alert-utilization').checked;
+  db.alertSettings.alertCash=el('setting-alert-cash').checked;
+  db.alertSettings.alertPromo=el('setting-alert-promo').checked;
+  db.alertSettings.alertReminders=el('setting-alert-reminders').checked;
+  saveData(null,'alertSettings');
+  closeModal('modal-settings');
+  showToast('Settings saved');
+  renderDashboard();
+});
+
+
 // ---- TRANSACTION REMINDERS ----
 function openReminderModal(txnId){
   var t=db.transactions.find(function(x){return x.id===txnId;}); if(!t) return;
@@ -6370,6 +6480,31 @@ function renderDashboardReminders(){
   if(!container) return;
   container.innerHTML='';
   var today=todayLocal();
+  var s=db.alertSettings||{};
+  var utilThreshold=s.utilizationThreshold||30;
+  var due=[];
+
+  // Credit card utilization alerts
+  if(s.alertUtilization!==false){
+    var archivedIds=(db.archivedAccounts||[]).map(function(e){return e.account.id;});
+    db.accounts.filter(function(a){return a.type==='Credit card'&&a.limit&&archivedIds.indexOf(a.id)===-1;}).forEach(function(a){
+      var bal=Math.abs(computeLiveBalance(a.id));
+      var pct=Math.round((bal/a.limit)*100);
+      if(pct>=utilThreshold){
+        var card=mk('div','dashboard-reminder');
+        card.style.borderColor='#d97706';
+        var icon=mk('div','dashboard-reminder-icon','💳');
+        var body=mk('div','dashboard-reminder-body');
+        var title=mk('div','dashboard-reminder-title',a.name+' — '+pct+'% utilization');
+        var note=mk('div','dashboard-reminder-note',fmt(bal)+' of '+fmt(a.limit)+' limit used. Target: below '+utilThreshold+'%');
+        body.appendChild(title); body.appendChild(note);
+        card.appendChild(icon); card.appendChild(body);
+        container.appendChild(card);
+      }
+    });
+  }
+
+  // Transaction reminders
   var reminders=db.txnReminders||{};
   var due=[];
   Object.keys(reminders).forEach(function(txnId){
@@ -6379,7 +6514,7 @@ function renderDashboardReminders(){
     var t=db.transactions.find(function(x){return x.id===txnId;});
     if(t) due.push({txnId:txnId,r:r,t:t});
   });
-  if(!due.length){ container.style.display='none'; return; }
+  if(!due.length&&!container.children.length){ container.style.display='none'; return; }
   container.style.display='block';
   due.sort(function(a,b){return a.r.date.localeCompare(b.r.date);});
   due.forEach(function(item){
