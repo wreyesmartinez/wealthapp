@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:25 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-03 12:29 AM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4856,8 +4856,8 @@ function renderRecurring(){
   var yearMonth=today.toISOString().substring(0,7);
   var inPC1=day>=1&&day<=13, activePC=inPC1?1:2;
   var c=el('paycheque-plan'); c.innerHTML='';
-  var pc1=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===1;});
-  var pc2=db.recurringPayments.filter(function(r){return r.active&&r.paycheque===2;});
+  var pc1=allPayments.filter(function(r){return r.active&&r.paycheque===1;});
+  var pc2=allPayments.filter(function(r){return r.active&&r.paycheque===2;});
 
   // Paycheque Plan only shows recurring payments — installments appear here
   // only if they were explicitly added to Recurring by the user
