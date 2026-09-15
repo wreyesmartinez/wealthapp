@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-10 10:36 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-14 10:08 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1911,6 +1911,7 @@ function migrateData(d){
   if(!d.reconciledTxns) d.reconciledTxns={};
   if(!d.archivedAccounts) d.archivedAccounts=[];
   if(!d.txnReminders) d.txnReminders={};
+  if(!d.priceChangeAlerts) d.priceChangeAlerts={};
   if(!d.alertSettings) d.alertSettings={
     utilizationThreshold:30,
     cashBuffer:200,
@@ -4916,6 +4917,7 @@ function getPaymentStatus(rp,yearMonth){
   var dateMin=yearMonth+'-'+String(dayMin).padStart(2,'0');
   var dateMax=yearMonth+'-'+String(dayMax).padStart(2,'0');
   var keywords=(rp.keywords||[]).map(function(k){return k.toLowerCase();});
+  // Primary: exact match within 5% amount tolerance
   var txn=db.transactions.find(function(t){
     if(t.type!=='expense') return false;
     if(t.date<dateMin||t.date>dateMax) return false;
@@ -4926,6 +4928,29 @@ function getPaymentStatus(rp,yearMonth){
     return keywords.some(function(k){return desc.includes(k);});
   });
   if(txn) return{paid:true,manual:false,txn:txn};
+  // Secondary: keyword match ignoring amount — detect price changes
+  if(keywords.length){
+    var altTxn=db.transactions.find(function(t){
+      if(t.type!=='expense') return false;
+      if(t.date<dateMin||t.date>dateMax) return false;
+      if(rp.fromAccountId&&t.account!==rp.fromAccountId) return false;
+      var desc=t.description.toLowerCase();
+      return keywords.some(function(k){return desc.includes(k);});
+    });
+    if(altTxn&&Math.abs(altTxn.amount-rp.amount)>1.00){
+      // Price changed — queue alert and treat as paid
+      if(!db.priceChangeAlerts) db.priceChangeAlerts={};
+      var alertKey=rp.id+'-'+yearMonth;
+      if(!db.priceChangeAlerts[alertKey]){
+        db.priceChangeAlerts[alertKey]={
+          rpId:rp.id,rpName:rp.name,oldAmount:rp.amount,
+          newAmount:altTxn.amount,txnId:altTxn.id,yearMonth:yearMonth,dismissed:false
+        };
+        saveData(null,'priceChangeAlerts');
+      }
+      return{paid:true,manual:false,txn:altTxn,priceChanged:true};
+    }
+  }
   return{paid:false,manual:false,txn:null};
 }
 
@@ -6515,8 +6540,44 @@ function renderDashboardReminders(){
     });
   }
 
-  // Transaction reminders
-  var reminders=db.txnReminders||{};
+  // Price change alerts
+  var priceAlerts=db.priceChangeAlerts||{};
+  Object.keys(priceAlerts).forEach(function(key){
+    var alert=priceAlerts[key];
+    if(alert.dismissed) return;
+    var increased=alert.newAmount>alert.oldAmount;
+    var diff=Math.abs(alert.newAmount-alert.oldAmount).toFixed(2);
+    var card=mk('div','dashboard-reminder');
+    card.style.borderColor=increased?'#dc2626':'#2563eb';
+    card.style.background=increased?'#fff5f5':'#eff6ff';
+    var icon=mk('div','dashboard-reminder-icon',increased?'📈':'📉');
+    var body=mk('div','dashboard-reminder-body');
+    var title=mk('div','dashboard-reminder-title',alert.rpName+' price '+(increased?'increased':'decreased'));
+    var note=mk('div','dashboard-reminder-note','Was '+fmt(alert.oldAmount)+' → now '+fmt(alert.newAmount)+' ('+(increased?'+':'-')+'$'+diff+'/month). Update recurring amount?');
+    body.appendChild(title); body.appendChild(note);
+    var actions=mk('div',''); actions.style.cssText='display:flex;gap:8px;margin-top:8px;';
+    var updateBtn=mk('button','dashboard-reminder-dismiss','✓ Update to '+fmt(alert.newAmount));
+    updateBtn.style.background=increased?'#dc2626':'#2563eb';
+    updateBtn.addEventListener('click',function(){
+      var rp=db.recurringPayments.find(function(r){return r.id===alert.rpId;});
+      if(rp){rp.amount=alert.newAmount;saveData(null,'recurringPayments');}
+      alert.dismissed=true;
+      saveData(null,'priceChangeAlerts');
+      renderDashboardReminders(); renderRecurring();
+      showToast(alert.rpName+' updated to '+fmt(alert.newAmount));
+    });
+    var dismissBtn=mk('button','dashboard-reminder-dismiss','Keep old amount');
+    dismissBtn.style.cssText='background:#6b7280;';
+    dismissBtn.addEventListener('click',function(){
+      alert.dismissed=true;
+      saveData(null,'priceChangeAlerts');
+      renderDashboardReminders();
+    });
+    actions.appendChild(updateBtn); actions.appendChild(dismissBtn);
+    card.appendChild(icon); card.appendChild(body);
+    body.appendChild(actions);
+    container.appendChild(card);
+  });
   var due=[];
   Object.keys(reminders).forEach(function(txnId){
     var r=reminders[txnId];
