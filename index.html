@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-14 10:11 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-14 11:33 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -6215,7 +6215,29 @@ function getCalEvents(year, month){
     var fromName=wsAcc?wsAcc.name:'Wealthsimple Chequing';
     var isEstimate=!a.gracePeriod;
     var label=a.name+' payment due'+(isEstimate?' (~est.)':'');
-    addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name});
+
+    // Find payment within the statement period:
+    // period starts day after previous statement close, ends on this statement close date
+    var stmtDay=a.statementDay||1;
+    // Previous close = same stmtDay, one month before dueDate's statement month
+    var closeDate=new Date(year, month, stmtDay); // this month's close
+    // If dueDate came from prev month close, use that month
+    if(dueDate.getMonth()===month){
+      // due date is in current calendar month — close was this month
+      closeDate=new Date(year, month, stmtDay);
+    } else {
+      // due date is next month — close was this month
+      closeDate=new Date(year, month, stmtDay);
+    }
+    var prevCloseDate=new Date(closeDate.getFullYear(), closeDate.getMonth()-1, stmtDay+1);
+    var periodStart=prevCloseDate.toISOString().split('T')[0];
+    var periodEnd=closeDate.toISOString().split('T')[0];
+    var paymentTxn=db.transactions.find(function(t){
+      if(t.type!=='income') return false;
+      if(t.account!==a.id) return false;
+      return t.date>=periodStart&&t.date<=periodEnd;
+    });
+    addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name,paymentTxn:paymentTxn||null});
   });
 
   // Loan payment days
@@ -6314,6 +6336,11 @@ function renderCalendar(){
         var pill=mk('span','cal-pill',cfg.prefix+shortName);
         pill.style.cssText='background:'+cfg.bg+';color:'+cfg.color+';';
         pill.title=e.label;
+        // Green dot if payment was recorded
+        if(e.type==='payment-due'&&e.paymentTxn){
+          var dot=mk('span',''); dot.style.cssText='display:inline-block;width:6px;height:6px;border-radius:50%;background:#22a06b;margin-left:4px;vertical-align:middle;';
+          pill.appendChild(dot);
+        }
         pills.appendChild(pill);
       });
       if(dayEvents.length>3){
@@ -6386,6 +6413,21 @@ function renderCalDetail(evts, dateStr){
       var tip=mk('div','','Pay down before today to lower reported utilization');
       tip.style.cssText='font-size:11px;color:var(--purple);margin-top:3px;';
       info.appendChild(tip);
+    }
+    // Show payment recorded info for payment-due events
+    if(e.type==='payment-due'){
+      if(e.paymentTxn){
+        var paidEl=mk('div',''); paidEl.style.cssText='font-size:11px;margin-top:5px;display:flex;align-items:center;gap:5px;';
+        var dot=mk('span',''); dot.style.cssText='display:inline-block;width:7px;height:7px;border-radius:50%;background:#22a06b;flex-shrink:0;';
+        var paidText=mk('span','','Payment recorded: '+fmt(e.paymentTxn.amount)+' on '+fmtDate(e.paymentTxn.date));
+        paidText.style.color='var(--green)';
+        paidEl.appendChild(dot); paidEl.appendChild(paidText);
+        info.appendChild(paidEl);
+      } else {
+        var unpaidEl=mk('div','','No payment recorded yet');
+        unpaidEl.style.cssText='font-size:11px;color:var(--text3);margin-top:5px;';
+        info.appendChild(unpaidEl);
+      }
     }
     row.appendChild(typePill); row.appendChild(info);
     list.appendChild(row);
