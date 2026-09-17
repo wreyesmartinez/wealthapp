@@ -394,7 +394,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.3.0<br>Account nav + date fix<br>Apr 2026</div>
+  <div class="version-badge">WealthTrack v2.5.1<br>Green dot fix (statement window)<br>Sep 16 2026 10:38 PM</div>
   <div class="debug-toggle" id="debug-toggle">
     <div class="debug-switch"></div>
     <span>Debug mode</span>
@@ -6216,13 +6216,21 @@ function getCalEvents(year, month){
     var isEstimate=!a.gracePeriod;
     var label=a.name+' payment due'+(isEstimate?' (~est.)':'');
 
-    // Find payment between previous due date and this due date
-    // Previous due date = same calculation but one month earlier
-    // Previous due date: one month earlier (dueDate.getMonth()+1 is 1-based current month)
-    var dueMo1=dueDate.getMonth()+1; // 1-based
-    var prevDueMo=dueMo1===1?12:dueMo1-1;
-    var prevDueYear=dueMo1===1?dueDate.getFullYear()-1:dueDate.getFullYear();
-    var prevDueDate=getPredictedDueDate(a, prevDueYear, prevDueMo);
+    // Find payment between previous due date and this due date.
+    // We know which statement month produced dueDate — work backwards from that.
+    // dueSameMonth path: statement = THIS calendar month (month+1, 1-based)
+    // duePrevMonth path: statement = PREVIOUS calendar month (prevMonth+1, 1-based)
+    // In both cases, "previous due date" = same logic but one statement month earlier.
+    var stmtMo1, stmtYear; // the statement month that produced dueDate
+    if(dueDate===dueSameMonth){
+      stmtMo1=month+1; stmtYear=year; // same-month path
+    } else {
+      var _pm=month===0?11:month-1;
+      stmtMo1=_pm+1; stmtYear=month===0?year-1:year; // prev-month path
+    }
+    var prevStmtMo1=stmtMo1===1?12:stmtMo1-1;
+    var prevStmtYear=stmtMo1===1?stmtYear-1:stmtYear;
+    var prevDueDate=getPredictedDueDate(a, prevStmtYear, prevStmtMo1);
     var periodStart=prevDueDate?prevDueDate.toISOString().split('T')[0]:'2020-01-01';
     var periodEnd=dueDate.toISOString().split('T')[0];
     dbg('detection','CC green dot: '+a.name+' | id:'+a.id+' | period:'+periodStart+'→'+periodEnd);
