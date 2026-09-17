@@ -6225,11 +6225,16 @@ function getCalEvents(year, month){
     var prevDueDate=getPredictedDueDate(a, prevDueYear, prevDueMo);
     var periodStart=prevDueDate?prevDueDate.toISOString().split('T')[0]:'2020-01-01';
     var periodEnd=dueDate.toISOString().split('T')[0];
+    dbg('detection','CC green dot: '+a.name+' | id:'+a.id+' | period:'+periodStart+'→'+periodEnd);
+    var incomeOnAccount=db.transactions.filter(function(t){return t.type==='income'&&t.account===a.id;});
+    dbg('detection','  income txns on account: '+incomeOnAccount.length+(incomeOnAccount.length?(' | dates:'+incomeOnAccount.map(function(t){return t.date+'($'+t.amount+')'}).join(', ')):''));
     var paymentTxn=db.transactions.find(function(t){
       if(t.type!=='income') return false;
       if(t.account!==a.id) return false;
       return t.date>=periodStart&&t.date<=periodEnd;
     });
+    if(paymentTxn) dbg('detection','  MATCHED: '+paymentTxn.date+' $'+paymentTxn.amount,true);
+    else dbg('detection','  no match in window',false,true);
     addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name,paymentTxn:paymentTxn||null});
   });
 
