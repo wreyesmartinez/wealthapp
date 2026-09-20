@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-16 1:05 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-20 07:35 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -508,6 +508,17 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       </select>
       <input type="text" class="form-input" id="filter-search" placeholder="Search..." style="min-width:160px;">
     </div>
+    <!-- Pending Transactions Section -->
+    <div id="pending-section" style="display:none;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px;">
+          <span>⏳</span><span>Pending</span><span id="pending-count" style="background:var(--amber);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-add-pending" style="font-size:11px;border-color:var(--amber);color:var(--amber);">+ Add Pending</button>
+      </div>
+      <div id="pending-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
     <div class="card" style="padding:0;overflow:hidden;">
       <table class="tbl">
         <thead><tr>
@@ -1052,6 +1063,37 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-add-pending">
+  <div class="modal">
+    <div class="modal-title">Add Pending Transaction</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Date (expected)</label><input type="date" class="form-input" id="pend-date"></div>
+      <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="pend-amount" placeholder="0.00"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="pend-desc"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Account</label><select class="form-select" id="pend-account"></select></div>
+      <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="pend-category"></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Type</label>
+      <div style="display:flex;gap:14px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="pend-type" value="expense" checked> Expense</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="pend-type" value="income"> Income</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="pend-type" value="transfer"> Transfer</label>
+      </div>
+    </div>
+    <!-- Transfer target (shown only when type=transfer) -->
+    <div class="form-group" id="pend-transfer-row" style="display:none;">
+      <label class="form-label">To account</label><select class="form-select" id="pend-to-account"></select>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="pend-notes" rows="2"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-pending">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-pending" style="background:var(--amber);border-color:var(--amber);">Save as Pending</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-transfer">
   <div class="modal">
     <div class="modal-title">Transfer Between Accounts</div>
@@ -1558,7 +1600,7 @@ async function pushAllToCloud(){
 
   // Push all settings keys
   var ts=new Date().toISOString();
-  var settingsKeys=['accounts','recurringPayments','customCategories','flexBudgets','installmentPlans','manualOverrides','dismissedAlerts','cutDate','varBudgets'];
+  var settingsKeys=['accounts','recurringPayments','customCategories','flexBudgets','installmentPlans','manualOverrides','dismissedAlerts','cutDate','varBudgets','pendingTransactions','dismissedPending'];
   var settingsRows=settingsKeys.map(function(k){return{key:k,value:db[k]!==undefined?db[k]:null,updated_at:ts};});
   await sbUpsert('wealthtrack_settings',settingsRows);
 }
@@ -1926,6 +1968,8 @@ function migrateData(d){
   if(d.installmentPlans) d.installmentPlans.forEach(function(inst){
     if(inst.payments) inst.payments.forEach(function(p){ delete p.manuallyUnpaid; });
   });  // {txnId: {date, note, dismissed}}  // [{account, completedDate, note, stats}]  // {txnId: true}
+  if(!d.pendingTransactions) d.pendingTransactions=[];   // manually created pending transactions
+  if(!d.dismissedPending) d.dismissedPending={};          // { [cycleKey]: true } — dismissed auto-generated pending
   if(!d._deletedIds) d._deletedIds=[];  // local tombstone list — transactions deleted but not yet confirmed deleted in cloud
   if(!d.auditLog) d.auditLog=[];  // {ts, txnId, event, source, detail} — transaction lifecycle trace
   if(!d.investmentSettings) d.investmentSettings={accountId:'ws-nonreg',currentBalance:0,monthlyTarget:0,annualRate:7,lastUpdated:null,birthYear:1989};
@@ -2240,6 +2284,7 @@ function renderPage(page){
     var pendingAccountFilter=_txnAccountFilter;
     _txnAccountFilter=null;
     renderTransactions();
+    renderPendingSection();
     // Apply account filter after dropdown is built
     if(pendingAccountFilter){
       var fa=el('filter-account');
@@ -2551,6 +2596,187 @@ function renderUpcoming(){
     row.appendChild(left); row.appendChild(amt);
     c.appendChild(row);
   });
+}
+
+// ---- PENDING TRANSACTIONS ----
+
+// Generate auto-pending entries from installments and recurring payments
+// called on load and after data changes
+function generatePendingTransactions(){
+  var today=new Date();
+  var todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var yearMonth=todayStr.substring(0,7);
+
+  // -- Recurring payments --
+  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp){
+    var cycleKey='rp-'+rp.id+'-'+yearMonth;
+    if(db.dismissedPending[cycleKey]) return; // dismissed this cycle
+    // Already have a manual pending for this?
+    if(db.pendingTransactions.find(function(p){return p.sourceKey===cycleKey;})) return;
+    // Check if today is in the due window
+    var daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+    var tol=rp.tolerance||5;
+    var dayMin=Math.max(1,rp.expectedDay-tol);
+    var dayMax=Math.min(daysInMonth,rp.expectedDay+tol);
+    var todayDay=today.getDate();
+    if(todayDay<dayMin||todayDay>dayMax) return; // not in window
+    // Already paid this month?
+    var status=getPaymentStatus(rp,yearMonth);
+    if(status.paid) return;
+    // Create auto-pending
+    db.pendingTransactions.push({
+      id:'pend-'+cycleKey+'-'+Date.now(),
+      sourceKey:cycleKey,
+      sourceType:'recurring',
+      sourceId:rp.id,
+      description:rp.name,
+      amount:rp.amount,
+      account:rp.fromAccountId||'ws-chq',
+      category:rp.category||'',
+      type:'expense',
+      notes:'',
+      expectedDate:yearMonth+'-'+String(rp.expectedDay).padStart(2,'0'),
+      createdAt:new Date().toISOString(),
+      auto:true
+    });
+  });
+
+  // -- Installment payments --
+  db.installmentPlans.forEach(function(inst){
+    var nextPmt=inst.payments.find(function(p){return !p.paid;});
+    if(!nextPmt) return;
+    var dueStr=nextPmt.dueDate.substring(0,10);
+    var dueDate=new Date(dueStr+'T12:00:00');
+    var diffDays=Math.round((dueDate-today)/(86400000));
+    if(diffDays>5||diffDays<-5) return; // not in ±5 day window
+    var cycleKey='inst-'+inst.id+'-'+nextPmt.id;
+    if(db.dismissedPending[cycleKey]) return;
+    if(db.pendingTransactions.find(function(p){return p.sourceKey===cycleKey;})) return;
+    // Already paid?
+    if(detectInstPayment(inst,nextPmt)) return;
+    // Create auto-pending
+    var acct=inst.chargedToAccountId||'ws-chq';
+    db.pendingTransactions.push({
+      id:'pend-'+cycleKey+'-'+Date.now(),
+      sourceKey:cycleKey,
+      sourceType:'installment',
+      sourceId:inst.id,
+      paymentId:nextPmt.id,
+      description:inst.provider+' (installment)',
+      amount:nextPmt.amount,
+      account:acct,
+      category:inst.category||'',
+      type:'expense',
+      notes:'',
+      expectedDate:dueStr,
+      createdAt:new Date().toISOString(),
+      auto:true
+    });
+  });
+
+  saveData(null,'pendingTransactions');
+}
+
+function renderPendingSection(){
+  var section=el('pending-section');
+  var list=el('pending-list');
+  list.innerHTML='';
+
+  // Combine auto-generated (db.pendingTransactions) with no extra filter needed — already filtered on generate
+  var items=db.pendingTransactions.slice();
+  if(!items.length){ section.style.display='none'; return; }
+
+  section.style.display='block';
+  el('pending-count').textContent=items.length;
+
+  items.forEach(function(pend){
+    var accId=pend.accountId||pend.account;
+    var acc=db.accounts.find(function(a){return a.id===accId;});
+    var accName=acc?acc.name:accId;
+    var typeIcon=pend.type==='income'?'↑':pend.type==='transfer'?'⇄':'↓';
+    var typeColor=pend.type==='income'?'#22a06b':pend.type==='transfer'?'#0077cc':'#b84040';
+    var autoTag=pend.auto?'<span style="font-size:9px;background:var(--bg3);color:var(--text3);border-radius:4px;padding:1px 5px;margin-left:4px;">AUTO</span>':'';
+
+    var card=document.createElement('div');
+    card.style.cssText='background:var(--bg2);border:1.5px dashed var(--amber);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
+    card.innerHTML=
+      '<span style="font-size:18px;color:'+typeColor+';">'+typeIcon+'</span>'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-size:13px;font-weight:600;color:var(--text1);">'+pend.description+autoTag+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+accName+' · Expected '+pend.expectedDate+'</div>'+
+      '</div>'+
+      '<div style="font-size:15px;font-weight:700;color:'+typeColor+';font-family:var(--font-mono);">$'+pend.amount.toFixed(2)+'</div>'+
+      '<div style="display:flex;gap:6px;">'+
+        '<button class="btn btn-sm btn-primary" data-pend-confirm="'+pend.id+'" style="font-size:11px;">✓ Confirm</button>'+
+        '<button class="btn btn-sm btn-ghost" data-pend-dismiss="'+pend.id+'" style="font-size:11px;color:var(--text3);">✕</button>'+
+      '</div>';
+    list.appendChild(card);
+  });
+
+  // Confirm button
+  list.querySelectorAll('[data-pend-confirm]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var pendId=btn.getAttribute('data-pend-confirm');
+      confirmPending(pendId);
+    });
+  });
+  // Dismiss button
+  list.querySelectorAll('[data-pend-dismiss]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var pendId=btn.getAttribute('data-pend-dismiss');
+      dismissPending(pendId);
+    });
+  });
+}
+
+function confirmPending(pendId){
+  var pend=db.pendingTransactions.find(function(p){return p.id===pendId;});
+  if(!pend) return;
+  // Store which pending we're confirming so save handler knows
+  el('modal-add-txn').setAttribute('data-confirming-pend',pendId);
+  // Pre-fill the add transaction form
+  el('txn-date').value=pend.expectedDate||new Date().toISOString().split('T')[0];
+  el('txn-amount').value=pend.amount;
+  el('txn-desc').value=pend.description;
+  el('txn-notes').value=pend.notes||'';
+  fillAccountSelect('txn-account',pend.account);
+  fillCatSelect('txn-category',false,pend.category);
+  // Set type radio
+  var typeRadio=document.querySelector('input[name="txn-type"][value="'+pend.type+'"]');
+  if(typeRadio) typeRadio.checked=true;
+  // Hide recurring chips so it's clean
+  var chips=el('txn-recurring-chips-section');
+  if(chips) chips.style.display='none';
+  openModal('modal-add-txn');
+}
+
+function dismissPending(pendId){
+  var pend=db.pendingTransactions.find(function(p){return p.id===pendId;});
+  if(!pend) return;
+  // Mark dismissed for this cycle
+  if(pend.sourceKey){
+    db.dismissedPending[pend.sourceKey]=true;
+    saveData(null,'dismissedPending');
+  }
+  // Remove from pending list
+  db.pendingTransactions=db.pendingTransactions.filter(function(p){return p.id!==pendId;});
+  saveData(null,'pendingTransactions');
+  renderPendingSection();
+  showToast('Pending dismissed');
+}
+
+function openAddPendingModal(){
+  var today=new Date().toISOString().split('T')[0];
+  el('pend-date').value=today;
+  el('pend-amount').value='';
+  el('pend-desc').value='';
+  el('pend-notes').value='';
+  fillAccountSelect('pend-account','');
+  fillAccountSelect('pend-to-account','');
+  fillCatSelect('pend-category',false,'');
+  document.querySelector('input[name="pend-type"][value="expense"]').checked=true;
+  el('pend-transfer-row').style.display='none';
+  openModal('modal-add-pending');
 }
 
 // ---- TRANSACTIONS ----
@@ -2871,7 +3097,11 @@ function openAddTxnModal(){
 }
 el('btn-open-add-txn').addEventListener('click',openAddTxnModal);
 el('btn-add-txn2').addEventListener('click',openAddTxnModal);
-el('btn-cancel-txn').addEventListener('click',function(){closeModal('modal-add-txn');});
+el('btn-cancel-txn').addEventListener('click',function(){
+  el('modal-add-txn').removeAttribute('data-confirming-pend');
+  var chips=el('txn-recurring-chips-section'); if(chips) chips.style.display='';
+  closeModal('modal-add-txn');
+});
 el('btn-save-txn').addEventListener('click',function(){
   var date=el('txn-date').value, amount=parseFloat(el('txn-amount').value);
   var desc=el('txn-desc').value.trim(), account=el('txn-account').value;
@@ -2881,8 +3111,64 @@ el('btn-save-txn').addEventListener('click',function(){
   var newId='t'+Date.now();
   db.transactions.push({id:newId,date:date,description:desc,account:account,category:category,amount:Math.abs(amount),type:type,notes:notes,linkedId:null});
   logAudit(newId,'created','manual','User added via Add Transaction modal. Desc: '+desc+' Amt: '+amount+' Date: '+date);
+  // If confirming a pending transaction, remove it from pending list
+  var confirmingPendId=el('modal-add-txn').getAttribute('data-confirming-pend');
+  if(confirmingPendId){
+    var pendItem=db.pendingTransactions.find(function(p){return p.id===confirmingPendId;});
+    if(pendItem&&pendItem.sourceKey) db.dismissedPending[pendItem.sourceKey]=true;
+    db.pendingTransactions=db.pendingTransactions.filter(function(p){return p.id!==confirmingPendId;});
+    saveData(null,'pendingTransactions'); saveData(null,'dismissedPending');
+    el('modal-add-txn').removeAttribute('data-confirming-pend');
+    var chips=el('txn-recurring-chips-section'); if(chips) chips.style.display='';
+    // Offer to create recurring rule if none exists for this pending
+    if(pendItem&&pendItem.sourceType!=='recurring'&&pendItem.sourceType!=='installment'){
+      setTimeout(function(){
+        if(confirm('Create a recurring rule for "'+desc+'" so it appears automatically each month?')){
+          openAddRecurringModal&&openAddRecurringModal({name:desc,amount:Math.abs(amount),account:account,category:category});
+        }
+      },300);
+    }
+  }
   saveData(); closeModal('modal-add-txn'); showToast('Transaction added');
-  renderTransactions(); renderDashboard();
+  renderTransactions(); renderDashboard(); renderPendingSection();
+});
+
+// Add Pending modal listeners
+el('btn-add-pending').addEventListener('click',openAddPendingModal);
+el('btn-cancel-pending').addEventListener('click',function(){closeModal('modal-add-pending');});
+document.querySelectorAll('input[name="pend-type"]').forEach(function(r){
+  r.addEventListener('change',function(){
+    el('pend-transfer-row').style.display=r.value==='transfer'?'':'none';
+  });
+});
+el('btn-save-pending').addEventListener('click',function(){
+  var date=el('pend-date').value, amount=parseFloat(el('pend-amount').value);
+  var desc=el('pend-desc').value.trim(), account=el('pend-account').value;
+  var category=el('pend-category').value;
+  var type=document.querySelector('input[name="pend-type"]:checked').value;
+  var notes=el('pend-notes').value.trim();
+  if(!date||!amount||!desc||!account){showToast('Please fill required fields');return;}
+  var newPend={
+    id:'pend-manual-'+Date.now(),
+    sourceKey:null,
+    sourceType:'manual',
+    sourceId:null,
+    description:desc,
+    amount:Math.abs(amount),
+    account:account,
+    toAccount:type==='transfer'?el('pend-to-account').value:null,
+    category:category,
+    type:type,
+    notes:notes,
+    expectedDate:date,
+    createdAt:new Date().toISOString(),
+    auto:false
+  };
+  db.pendingTransactions.push(newPend);
+  saveData(null,'pendingTransactions');
+  closeModal('modal-add-pending');
+  showToast('Pending transaction saved');
+  renderPendingSection();
 });
 
 // Edit transaction
@@ -5138,12 +5424,15 @@ function renderRecurring(){
 if(el('recurring-filter-account')) el('recurring-filter-account').addEventListener('change',function(){renderRecurring();});
 if(el('btn-go-recurring')) el('btn-go-recurring').addEventListener('click',function(){nav('recurring');});
 
-el('btn-add-recurring').addEventListener('click',function(){
-  el('recurring-filter-account').value=''; // reset filter when adding
-  fillAccountSelect('rp-from-account','ws-chq');
-  el('rp-name').value=''; el('rp-amount').value='';
+function openAddRecurringModal(prefill){
+  el('recurring-filter-account').value='';
+  fillAccountSelect('rp-from-account', prefill&&prefill.account?prefill.account:'ws-chq');
+  el('rp-name').value=prefill&&prefill.name?prefill.name:'';
+  el('rp-amount').value=prefill&&prefill.amount?prefill.amount:'';
   el('rp-day').value=''; el('rp-keywords').value='';
   el('rp-tolerance').value='5'; el('rp-paycheque').value='1';
+  fillCatSelect('rp-category',false,prefill&&prefill.category?prefill.category:'');
+
 
   // Populate link-to-debt dropdown with unlinked installment plans only
   var linkedIds=db.recurringPayments
@@ -5164,7 +5453,8 @@ el('btn-add-recurring').addEventListener('click',function(){
   });
 
   openModal('modal-add-recurring');
-});
+}
+el('btn-add-recurring').addEventListener('click',function(){ openAddRecurringModal(); });
 
 // When a debt is selected in the dropdown, pre-fill the form
 el('rp-link-debt').addEventListener('change',function(){
@@ -7574,6 +7864,8 @@ async function init(){
   buildMonthOptions('report-month',true);
   updateTopbarMeta();
   renderImportPage();
+  generatePendingTransactions();
+  renderPendingSection();
   renderDashboard();
 
   // Cloud sync
