@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-20 07:49 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-20 07:54 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1580,7 +1580,15 @@ async function pullAndMerge(){
         var archivedIds=db.archivedAccounts.map(function(e){return e.account.id;});
         val=val.filter(function(a){return archivedIds.indexOf(a.id)===-1;});
       }
-      db[key]=val;
+      // For pendingTransactions: keep auto-generated (ephemeral) entries, merge with cloud manual ones
+      if(key==='pendingTransactions'&&Array.isArray(val)&&Array.isArray(db.pendingTransactions)){
+        var autoEntries=db.pendingTransactions.filter(function(p){return p.auto;});
+        var manualIds=val.map(function(p){return p.id;});
+        var merged=val.concat(autoEntries.filter(function(p){return manualIds.indexOf(p.id)===-1;}));
+        db[key]=merged;
+      } else {
+        db[key]=val;
+      }
       if(!db._settingsTs) db._settingsTs={};
       db._settingsTs[key]=cloudTs;
       changed=true;
@@ -7883,11 +7891,12 @@ async function init(){
         setSyncStatus('syncing','Merging...');
         var merged=await pullAndMerge();
         await pushAllToCloud();
-        if(merged){ renderDashboard(); showToast('Data merged from cloud'); }
+        if(merged){ generatePendingTransactions(); renderPendingSection(); renderDashboard(); showToast('Data merged from cloud'); }
       } else if(cloudHasData&&!localHasData){
         // Cloud has data, local is empty - pull
         setSyncStatus('syncing','Downloading your data...');
         await pullAndMerge();
+        generatePendingTransactions(); renderPendingSection();
         saveLocalOnly();
         renderDashboard();
         showToast('Data loaded from cloud');
