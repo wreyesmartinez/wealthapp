@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-20 08:13 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-20 08:28 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2731,7 +2731,8 @@ function renderPendingSection(){
 }
 
 function confirmPending(pendId){
-  var pend=db.pendingTransactions.find(function(p){return p.id===pendId;});
+  var pend=(db.pendingTransactions||[]).find(function(p){return p.id===pendId;})
+        ||(db._autoPending||[]).find(function(p){return p.id===pendId;});
   if(!pend) return;
   // Store which pending we're confirming so save handler knows
   el('modal-add-txn').setAttribute('data-confirming-pend',pendId);
@@ -2740,7 +2741,7 @@ function confirmPending(pendId){
   el('txn-amount').value=pend.amount;
   el('txn-desc').value=pend.description;
   el('txn-notes').value=pend.notes||'';
-  fillAccountSelect('txn-account',pend.account);
+  fillAccountSelect('txn-account',pend.accountId||pend.account);
   fillCatSelect('txn-category',false,pend.category);
   // Set type radio
   var typeRadio=document.querySelector('input[name="txn-type"][value="'+pend.type+'"]');
@@ -2752,16 +2753,27 @@ function confirmPending(pendId){
 }
 
 function dismissPending(pendId){
-  var pend=db.pendingTransactions.find(function(p){return p.id===pendId;});
-  if(!pend) return;
-  // Mark dismissed for this cycle
-  if(pend.sourceKey){
-    db.dismissedPending[pend.sourceKey]=true;
-    saveData(null,'dismissedPending');
+  // Check auto entries first
+  var pend=(db._autoPending||[]).find(function(p){return p.id===pendId;});
+  if(pend){
+    // Auto entry — mark dismissed so it doesn't regenerate this cycle
+    if(pend.sourceKey){
+      db.dismissedPending[pend.sourceKey]=true;
+      saveData(null,'dismissedPending');
+    }
+    db._autoPending=db._autoPending.filter(function(p){return p.id!==pendId;});
+    renderPendingSection();
+    showToast('Pending dismissed');
+    return;
   }
-  // Remove from pending list
+  // Check Supabase/manual entries
+  pend=db.pendingTransactions.find(function(p){return p.id===pendId;});
+  if(!pend) return;
   db.pendingTransactions=db.pendingTransactions.filter(function(p){return p.id!==pendId;});
-  saveData(null,'pendingTransactions');
+  // Write updated array back to Supabase directly
+  var ts=new Date().toISOString();
+  sbUpsert('wealthtrack_settings',[{key:'pendingTransactions',value:db.pendingTransactions,updated_at:ts}]).catch(function(e){console.error('dismiss save error',e);});
+  saveLocalOnly();
   renderPendingSection();
   showToast('Pending dismissed');
 }
