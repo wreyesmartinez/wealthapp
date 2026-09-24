@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-22 11:52 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-23 12:19 AM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2454,12 +2454,14 @@ function renderDashboard(){
   el('stat-chequing').style.color=live<346?'var(--red)':live<500?'var(--amber)':'var(--green)';
   var totalDebt=db.accounts.filter(function(a){return (a.type==='Credit card'||a.type==='Loan')&&computeLiveBalance(a.id)<0;})
     .reduce(function(s,a){return s+Math.abs(computeLiveBalance(a.id));},0);
-  el('stat-debt').textContent=fmt(totalDebt);
+  var instDebt=db.installmentPlans.filter(function(i){return i.active;})
+    .reduce(function(s,i){return s+i.payments.filter(function(p){return !p.paid;}).reduce(function(ss,p){return ss+p.amount;},0);},0);
+  el('stat-debt').textContent=fmt(totalDebt+instDebt);
 
   // Dynamic income and spent this month
   var thisMonth=getCurrentMonth();
   var monthIncome=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
-  var monthSpent=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);
+  var monthSpent=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense'&&t.category!=='Internal transfer';}).reduce(function(s,t){return s+t.amount;},0);
   if(el('stat-income')) el('stat-income').textContent=fmt(monthIncome);
   if(el('stat-spent')) el('stat-spent').textContent=fmt(monthSpent);
 
@@ -2469,7 +2471,7 @@ function renderDashboard(){
   setTimeout(function(){
     // Donut: CURRENT MONTH ONLY
     var cats={};
-    db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense';})
+    db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense'&&t.category!=='Internal transfer';})
       .forEach(function(t){cats[t.category]=(cats[t.category]||0)+t.amount;});
     var sorted=Object.entries(cats).sort(function(a,b){return b[1]-a[1];});
     drawDonut('chart-donut',sorted.map(function(d){return[d[0],d[1],catColor(d[0])];}),'donut-legend');
@@ -2483,7 +2485,7 @@ function renderDashboard(){
     }
     drawBarChart('chart-bar',mlabels,[
       {label:'Income',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#3a7d52'},
-      {label:'Expenses',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='expense';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#b84040'}
+      {label:'Expenses',data:months.map(function(m){return db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='expense'&&t.category!=='Internal transfer';}).reduce(function(s,t){return s+t.amount;},0);}),color:'#b84040'}
     ]);
   },50);
   if(getApiKey()){
@@ -4347,8 +4349,15 @@ function monthsToPayoff(balance,monthly){
 }
 
 // Auto-detect installment payment from transactions
+function detectInstPaymentFromTxns(inst,payment){
+  // Same as detectInstPayment but always checks transactions (no short-circuit on p.paid)
+  return detectInstPaymentCore(inst,payment);
+}
 function detectInstPayment(inst,payment){
   if(payment.paid) return true;
+  return detectInstPaymentCore(inst,payment);
+}
+function detectInstPaymentCore(inst,payment){
   var keywords=(inst.keywords||[]).map(function(k){return k.toLowerCase();});
   var tolerance=payment.amount*0.05;
   var due=new Date(payment.dueDate+'T12:00:00');
@@ -4791,7 +4800,7 @@ function renderDebts(){
     // Auto-detect payments — derive paid status from transactions each time (self-healing)
     var changed=false;
     inst.payments.forEach(function(p){
-      var detected=detectInstPayment(inst,p);
+      var detected=detectInstPaymentFromTxns(inst,p); // bypass p.paid short-circuit
       if(!p.paid&&detected){p.paid=true;p.paidDate=today;changed=true;}
       else if(p.paid&&!p.manualPaid&&!detected){p.paid=false;p.paidDate=null;changed=true;}
     });
@@ -5876,7 +5885,7 @@ function calcInvestableSurplus(){
   var months = [];
   for(var i=1;i<=3;i++){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
   var avgSpend = months.reduce(function(s,m){
-    return s + db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='expense';}).reduce(function(ss,t){return ss+t.amount;},0);
+    return s + db.transactions.filter(function(t){return t.date.startsWith(m)&&t.type==='expense'&&t.category!=='Internal transfer';}).reduce(function(ss,t){return ss+t.amount;},0);
   },0) / 3;
   var fixedObligations = db.recurringPayments.filter(function(r){return r.active;}).reduce(function(s,r){return s+r.amount;},0);
   var buffer = 346;
