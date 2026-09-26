@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-23 12:19 AM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-09-25 09:12 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1186,6 +1186,10 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
       </div>
     </div>
     <div class="alert alert-blue" style="margin-top:8px;">Payment schedule cannot be changed after creation.</div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:500;margin-top:4px;">
+      <input type="checkbox" id="edit-inst-pending-alert" style="width:16px;height:16px;cursor:pointer;">
+      Show in pending when due
+    </label>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-inst">Cancel</button>
       <button class="btn btn-primary" id="btn-save-edit-inst">Save</button>
@@ -1411,6 +1415,10 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div class="form-group"><label class="form-label">Detection keywords</label><input type="text" class="form-input" id="edit-rp-keywords"></div>
     <div class="form-group"><label class="form-label">Paid from account</label><select class="form-select" id="edit-rp-from-account"></select></div>
     <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="edit-rp-category"></select></div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:500;margin-top:4px;">
+      <input type="checkbox" id="edit-rp-pending-alert" style="width:16px;height:16px;cursor:pointer;">
+      Show in pending when due
+    </label>
     <div class="modal-footer">
       <button class="btn btn-ghost" id="btn-cancel-edit-rp">Cancel</button>
       <button class="btn btn-primary" id="btn-save-edit-rp">Save</button>
@@ -1955,6 +1963,16 @@ function migrateData(d){
   if(!d.reconciledTxns) d.reconciledTxns={};
   if(!d.archivedAccounts) d.archivedAccounts=[];
   if(!d.txnReminders) d.txnReminders={};
+  // Migrate: enrich existing reminders with description so daily email can show names
+  var remChanged=false;
+  Object.keys(d.txnReminders).forEach(function(txnId){
+    var rem=d.txnReminders[txnId];
+    if(!rem.description){
+      var t=(d.transactions||[]).find(function(x){return x.id===txnId;});
+      if(t){rem.description=t.description;rem.amount=t.amount;rem.txnDate=t.date;remChanged=true;}
+    }
+  });
+  if(remChanged) setTimeout(function(){saveData(null,'txnReminders');},2000);
   if(!d.priceChangeAlerts) d.priceChangeAlerts={};
   if(!d.alertSettings) d.alertSettings={
     utilizationThreshold:30,
@@ -2616,7 +2634,7 @@ function generatePendingTransactions(){
   db._autoPending=[];
 
   // -- Recurring payments --
-  db.recurringPayments.filter(function(r){return r.active;}).forEach(function(rp){
+  db.recurringPayments.filter(function(r){return r.active&&r.pendingAlert!==false;}).forEach(function(rp){
     var cycleKey='rp-'+rp.id+'-'+yearMonth;
     if(db.dismissedPending[cycleKey]) return;
     // Already covered by a manual/Muse pending for this cycle?
@@ -2647,7 +2665,7 @@ function generatePendingTransactions(){
   });
 
   // -- Installment payments --
-  db.installmentPlans.forEach(function(inst){
+  db.installmentPlans.filter(function(i){return i.pendingAlert!==false;}).forEach(function(inst){
     var nextPmt=inst.payments.find(function(p){return !p.paid;});
     if(!nextPmt) return;
     var dueStr=nextPmt.dueDate.substring(0,10);
@@ -4449,6 +4467,7 @@ function openEditInstallment(id){
   el('edit-inst-fee-amount').value=inst.splitPayment?inst.splitPayment.feeAmount:'';
   el('edit-inst-fee-keyword').value=inst.splitPayment?inst.splitPayment.feeKeyword:'';
   el('edit-inst-principal-keyword').value=inst.splitPayment?inst.splitPayment.principalKeyword:'';
+  el('edit-inst-pending-alert').checked=inst.pendingAlert!==false; // default true
   openModal('modal-edit-installment');
 }
 
@@ -4476,6 +4495,7 @@ el('btn-save-edit-inst').addEventListener('click',function(){
   } else {
     delete inst.splitPayment;
   }
+  inst.pendingAlert=el('edit-inst-pending-alert').checked;
   saveData(null,'installmentPlans');
   closeModal('modal-edit-installment');
   renderDebts(); showToast('Installment updated');
@@ -5230,6 +5250,48 @@ function buildDebtCard(item){
 
 
 // ---- PAYCHEQUE PLAN ----
+function rpDiagnose(rp,yearMonth){
+  var parts=yearMonth.split('-');
+  var yr=parseInt(parts[0]),mo=parseInt(parts[1]);
+  var daysInMonth=new Date(yr,mo,0).getDate();
+  var dayMin=Math.max(1,rp.expectedDay-(rp.tolerance||5));
+  var dayMax=Math.min(daysInMonth,rp.expectedDay+(rp.tolerance||5));
+  var dateMin=yearMonth+'-'+String(dayMin).padStart(2,'0');
+  var dateMax=yearMonth+'-'+String(dayMax).padStart(2,'0');
+  var keywords=(rp.keywords||[]).map(function(k){return k.toLowerCase();});
+  // Look for keyword match anywhere in the month regardless of date/amount
+  var kwMatch=keywords.length?db.transactions.find(function(t){
+    if(t.type!=='expense') return false;
+    if(rp.fromAccountId&&t.account!==rp.fromAccountId) return false;
+    var desc=t.description.toLowerCase();
+    return keywords.some(function(k){return desc.includes(k);});
+  }):null;
+  if(kwMatch){
+    var d=kwMatch.date;
+    var inWindow=d>=dateMin&&d<=dateMax;
+    var amtDiff=Math.abs(kwMatch.amount-rp.amount);
+    if(!inWindow) return 'Found "'+kwMatch.description.substring(0,22)+'" on '+d+' but outside ±'+( rp.tolerance||5)+'d window (expected ~'+rp.expectedDay+'th)';
+    if(amtDiff>rp.amount*0.05) return 'Found on '+d+' for '+fmt(kwMatch.amount)+' — expected '+fmt(rp.amount)+' ('+Math.round(amtDiff/rp.amount*100)+'% off, auto-matched as price change)';
+    return null;
+  }
+  // No keyword match at all — check if it's an account mismatch
+  if(keywords.length&&rp.fromAccountId){
+    var kwAnyAcc=db.transactions.find(function(t){
+      if(t.type!=='expense') return false;
+      if(t.date<dateMin||t.date>dateMax) return false;
+      var desc=t.description.toLowerCase();
+      return keywords.some(function(k){return desc.includes(k);});
+    });
+    if(kwAnyAcc){
+      var acc=db.accounts.find(function(a){return a.id===rp.fromAccountId;});
+      var txnAcc=db.accounts.find(function(a){return a.id===kwAnyAcc.account;});
+      return 'Found on '+kwAnyAcc.date+' under '+(txnAcc?txnAcc.name:kwAnyAcc.account)+' but recurring expects '+(acc?acc.name:rp.fromAccountId);
+    }
+  }
+  if(!keywords.length) return 'No keywords set — can\'t auto-detect. Mark paid manually or add keywords.';
+  return 'No transaction found matching keywords ['+keywords.join(', ')+'] between '+dateMin+' and '+dateMax;
+}
+
 function getPaymentStatus(rp,yearMonth){
   var overrideKey=rp.id+'-'+yearMonth;
   if(db.manualOverrides[overrideKey]==='paid') return{paid:true,manual:true,txn:null};
@@ -5262,7 +5324,7 @@ function getPaymentStatus(rp,yearMonth){
       var desc=t.description.toLowerCase();
       return keywords.some(function(k){return desc.includes(k);});
     });
-    if(altTxn&&Math.abs(altTxn.amount-rp.amount)>1.00){
+    if(altTxn&&Math.abs(altTxn.amount-rp.amount)>0.01){
       // Price changed — queue alert and treat as paid
       if(!db.priceChangeAlerts) db.priceChangeAlerts={};
       var alertKey=rp.id+'-'+yearMonth;
@@ -5329,7 +5391,8 @@ function renderRecurring(){
   var pc2=allPayments.filter(function(r){return r.active&&r.paycheque===2;});
   var pc1Total=pc1.reduce(function(s,r){return s+r.amount;},0);
   var pc2Total=pc2.reduce(function(s,r){return s+r.amount;},0);
-  var chequingBal=computeLiveBalance('ws-chq');
+  var chequingBalAccId=currentFilter||'ws-chq';
+  var chequingBal=computeLiveBalance(chequingBalAccId);
 
   function makeSummaryCard(items,pcNum,total,isActive){
     var paidAmt=items.filter(function(r){return getPaymentStatus(r,yearMonth).paid;}).reduce(function(s,r){return s+r.amount;},0);
@@ -5349,7 +5412,8 @@ function renderRecurring(){
     }
     card.appendChild(statRow('Total obligations','-'+fmt(total)));
     card.appendChild(statRow('Still to pay',stillToPay<=0?'All paid!':'-'+fmt(stillToPay),stillToPay<=0?'var(--green)':'var(--red)'));
-    card.appendChild(statRow('Chequing balance',fmt(chequingBal),chequingBal>=0?'var(--green)':'var(--red)'));
+    var chequingAccName=(function(){var a=db.accounts.find(function(x){return x.id===chequingBalAccId;});return a?a.name:'Chequing';})();
+    card.appendChild(statRow(chequingAccName+' balance',fmt(chequingBal),chequingBal>=0?'var(--green)':'var(--red)'));
 
     var sep=mk('div',''); sep.style.cssText='border-top:1px solid var(--border);margin:8px 0;';
     card.appendChild(sep);
@@ -5435,6 +5499,15 @@ function renderRecurring(){
           match.style.color='var(--green)';
         }
         card.appendChild(match);
+      } else if(!status.paid){
+        // Diagnostic: explain why not matched
+        var diagText=rpDiagnose(rp,yearMonth);
+        if(diagText){
+          var diag=mk('div','');
+          diag.style.cssText='font-size:10px;color:var(--amber);margin-bottom:8px;line-height:1.4;padding:4px 7px;background:var(--amber-bg);border-radius:5px;';
+          diag.textContent='⚠ '+diagText;
+          card.appendChild(diag);
+        }
       }
 
       // Action buttons row
@@ -5539,6 +5612,7 @@ function openEditRecurring(id){
   el('edit-rp-keywords').value=(rp.keywords||[]).join(', '); el('edit-rp-paycheque').value=rp.paycheque;
   fillCatSelect('edit-rp-category',false,rp.category||'Other');
   fillAccountSelect('edit-rp-from-account', rp.fromAccountId||'ws-chq');
+  el('edit-rp-pending-alert').checked=rp.pendingAlert!==false; // default true
 
   // Show linked debt if present
   var linkedEl=el('edit-rp-linked-debt');
@@ -5569,6 +5643,7 @@ el('btn-save-edit-rp').addEventListener('click',function(){
   rp.keywords=el('edit-rp-keywords').value.split(',').map(function(k){return k.trim().toLowerCase();}).filter(Boolean);
   rp.paycheque=parseInt(el('edit-rp-paycheque').value); rp.category=el('edit-rp-category').value;
   rp.fromAccountId=el('edit-rp-from-account').value||'ws-chq';
+  rp.pendingAlert=el('edit-rp-pending-alert').checked;
   saveData(null,'recurringPayments'); closeModal('modal-edit-recurring'); renderRecurring(); renderRecurring(); showToast('Updated');
 });
 
@@ -6881,7 +6956,8 @@ el('btn-save-reminder').addEventListener('click',function(){
   var note=el('reminder-note').value.trim();
   if(!date){showToast('Please set a date');return;}
   if(!db.txnReminders) db.txnReminders={};
-  db.txnReminders[id]={date:date,note:note,dismissed:false};
+  var remTxn=db.transactions.find(function(x){return x.id===id;});
+  db.txnReminders[id]={date:date,note:note,dismissed:false,description:remTxn?remTxn.description:'',amount:remTxn?remTxn.amount:0,txnDate:remTxn?remTxn.date:''};
   saveData(null,'txnReminders');
   closeModal('modal-reminder');
   renderTransactions(); renderDashboard();
