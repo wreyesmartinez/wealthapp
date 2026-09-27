@@ -173,7 +173,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 /* Info tooltip */
 .info-tooltip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:700;cursor:help;flex-shrink:0;border:1px solid rgba(46,110,166,.2);vertical-align:middle;margin-left:5px;}
 .info-tooltip::after{content:attr(data-tip);position:fixed;background:#1a1d2e;color:#fff;font-size:12px;font-weight:400;line-height:1.5;padding:10px 13px;border-radius:8px;width:260px;white-space:normal;z-index:9999;opacity:0;pointer-events:none;transition:opacity .15s ease;box-shadow:0 4px 16px rgba(0,0,0,.2);}
-.info-tooltip:hover::after{opacity:1;}
+.info-tooltip:hover::after,.info-tooltip.tip-open::after{opacity:1;}
 /* Position tooltip to the left on right-side elements */
 .info-tooltip.tip-left::after{right:calc(100% + 8px);top:50%;transform:translateY(-50%);}
 .info-tooltip.tip-top::after{bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);}
@@ -5251,6 +5251,9 @@ function buildDebtCard(item){
 
 // ---- PAYCHEQUE PLAN ----
 function rpDiagnose(rp,yearMonth){
+  var overrideKey=rp.id+'-'+yearMonth;
+  if(db.manualOverrides[overrideKey]==='unpaid') return 'Manually marked as unpaid — auto-detection bypassed. Click "Mark paid" to clear and let auto-detection take over.';
+  if(db.manualOverrides[overrideKey]==='paid') return null; // paid, no diag needed
   var parts=yearMonth.split('-');
   var yr=parseInt(parts[0]),mo=parseInt(parts[1]);
   var daysInMonth=new Date(yr,mo,0).getDate();
@@ -5468,6 +5471,12 @@ function renderRecurring(){
       nameEl.style.cssText='font-size:13px;font-weight:600;flex:1;color:'+(status.paid?'var(--text3)':'var(--text)')+(status.paid?';text-decoration:line-through':'');
       hdrRow.appendChild(icon); hdrRow.appendChild(nameEl);
       if(!rp.active){var inact=mk('span','tag tag-gray','off');inact.style.fontSize='9px';hdrRow.appendChild(inact);}
+      if(status.manual){
+        var manualBadge=mk('span','',status.paid?'manual ✓':'manual ✗');
+        manualBadge.style.cssText='font-size:9px;padding:1px 6px;border-radius:8px;font-weight:600;flex-shrink:0;background:'+(status.paid?'var(--green-bg)':'var(--red-bg)')+';color:'+(status.paid?'var(--green)':'var(--red)')+';';
+        manualBadge.title='Manually overridden — auto-detection bypassed. Click "'+( status.paid?'Unmark':'Mark paid')+'" to clear.';
+        hdrRow.appendChild(manualBadge);
+      }
       // Linked installment badge
       if(rp.linkedInstallmentId){
         var inst=db.installmentPlans.find(function(x){return x.id===rp.linkedInstallmentId;});
@@ -6585,8 +6594,9 @@ function getCalEvents(year, month){
   // Paycheque 2 — base: last day of this month
   var pc2Base=new Date(year,month+1,0); // last day of month
   var pc2Day=prevBizDay(pc2Base);
-  addEvent(pc1Day,{type:'paycheque',color:'#3a7d52',label:'Paycheque 1 (~$2,859)',icon:'$'});
-  addEvent(pc2Day,{type:'paycheque',color:'#3a7d52',label:'Paycheque 2 (~$2,859)',icon:'$'});
+  var pcAmt=db.paychequeAmt||(db.alertSettings&&db.alertSettings.paychequeAmt)||2859;
+  addEvent(pc1Day,{type:'paycheque',color:'#3a7d52',label:'Paycheque 1 (~'+fmt(pcAmt)+')',icon:'$'});
+  addEvent(pc2Day,{type:'paycheque',color:'#3a7d52',label:'Paycheque 2 (~'+fmt(pcAmt)+')',icon:'$'});
 
   // Credit card statement dates
   db.accounts.filter(function(a){return a.type==='Credit card'&&a.statementDay&&archivedIds.indexOf(a.id)===-1;}).forEach(function(a){
@@ -6640,11 +6650,15 @@ function getCalEvents(year, month){
     dbg('detection','CC green dot: '+a.name+' | id:'+a.id+' | period:'+periodStart+'→'+periodEnd);
     var incomeOnAccount=db.transactions.filter(function(t){return t.type==='income'&&t.account===a.id;});
     dbg('detection','  income txns on account: '+incomeOnAccount.length+(incomeOnAccount.length?(' | dates:'+incomeOnAccount.map(function(t){return t.date+'($'+t.amount+')'}).join(', ')):''));
-    var paymentTxn=db.transactions.find(function(t){
+    var paymentTxns=db.transactions.filter(function(t){
       if(t.type!=='income') return false;
       if(t.account!==a.id) return false;
       return t.date>=periodStart&&t.date<=periodEnd;
     });
+    // Use the most recent payment in the window (largest amount as tiebreaker)
+    var paymentTxn=paymentTxns.sort(function(a,b){
+      return b.date>a.date?1:b.date<a.date?-1:b.amount-a.amount;
+    })[0]||null;
     if(paymentTxn) dbg('detection','  MATCHED: '+paymentTxn.date+' $'+paymentTxn.amount,true);
     else dbg('detection','  no match in window',false,true);
     addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name,paymentTxn:paymentTxn||null});
@@ -8032,6 +8046,15 @@ async function init(){
 document.addEventListener('click',function(e){
   if(!e.target.closest('.row-menu-wrap')){
     document.querySelectorAll('.row-menu-dropdown.open').forEach(function(d){d.classList.remove('open');});
+  }
+  // Info tooltip click toggle (for non-hover environments)
+  if(e.target.classList.contains('info-tooltip')){
+    var isOpen=e.target.classList.contains('tip-open');
+    document.querySelectorAll('.info-tooltip.tip-open').forEach(function(t){t.classList.remove('tip-open');});
+    if(!isOpen) e.target.classList.add('tip-open');
+    e.stopPropagation();
+  } else {
+    document.querySelectorAll('.info-tooltip.tip-open').forEach(function(t){t.classList.remove('tip-open');});
   }
 });
 
