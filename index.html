@@ -2303,18 +2303,14 @@ function renderPage(page){
     }
     var pendingAccountFilter=_txnAccountFilter;
     _txnAccountFilter=null;
+    // Pre-fill the dropdown before first render so no flash of unfiltered view
+    if(pendingAccountFilter){
+      fillAccountSelect('filter-account', pendingAccountFilter, true);
+      var fa=el('filter-account');
+      if(fa) fa.value=pendingAccountFilter;
+    }
     renderTransactions();
     renderPendingSection();
-    // Apply account filter after dropdown is built
-    if(pendingAccountFilter){
-      var fa=el('filter-account');
-      if(fa){
-        for(var i=0;i<fa.options.length;i++){
-          if(fa.options[i].value===pendingAccountFilter){fa.selectedIndex=i;break;}
-        }
-        renderTransactions();
-      }
-    }
   }
   else if(page==='accounts') renderAccounts();
   else if(page==='debts') renderDebts();
@@ -2479,7 +2475,7 @@ function renderDashboard(){
   // Dynamic income and spent this month
   var thisMonth=getCurrentMonth();
   var monthIncome=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='income';}).reduce(function(s,t){return s+t.amount;},0);
-  var monthSpent=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense'&&t.category!=='Internal transfer';}).reduce(function(s,t){return s+t.amount;},0);
+  var monthSpent=db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense'&&!t.linkedId;}).reduce(function(s,t){return s+t.amount;},0);
   if(el('stat-income')) el('stat-income').textContent=fmt(monthIncome);
   if(el('stat-spent')) el('stat-spent').textContent=fmt(monthSpent);
 
@@ -2489,7 +2485,7 @@ function renderDashboard(){
   setTimeout(function(){
     // Donut: CURRENT MONTH ONLY
     var cats={};
-    db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense'&&t.category!=='Internal transfer';})
+    db.transactions.filter(function(t){return t.date.startsWith(thisMonth)&&t.type==='expense'&&!t.linkedId;})
       .forEach(function(t){cats[t.category]=(cats[t.category]||0)+t.amount;});
     var sorted=Object.entries(cats).sort(function(a,b){return b[1]-a[1];});
     drawDonut('chart-donut',sorted.map(function(d){return[d[0],d[1],catColor(d[0])];}),'donut-legend');
@@ -6676,11 +6672,13 @@ function getCalEvents(year, month){
     addEvent(day,{type:'bill',color:'#7c4dff',label:a.name+' — '+fmt(monthly),icon:'R',accountId:a.id,fromAccount:fromName+' → '+a.name});
   });
 
+  var calYearMonth=year+'-'+String(month+1).padStart(2,'0');
   db.recurringPayments.filter(function(r){return r.active&&!r.linkedInstallmentId&&archivedIds.indexOf(r.fromAccountId)===-1;}).forEach(function(rp){
     var fromAccId=rp.fromAccountId||'ws-chq';
     var fromAcc=db.accounts.find(function(a){return a.id===fromAccId;});
     var fromAcc2=fromAcc?fromAcc.name:'Wealthsimple Chequing';
-    addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id,fromAccount:fromAcc2});
+    var rpStatus=getPaymentStatus(rp,calYearMonth);
+    addEvent(rp.expectedDay,{type:'bill',color:'#2e6ea6',label:rp.name+' — '+fmt(rp.amount),icon:'R',rpId:rp.id,fromAccount:fromAcc2,paid:rpStatus.paid,paymentTxn:rpStatus.txn||null});
   });
 
   // Installment payments
@@ -6761,7 +6759,7 @@ function renderCalendar(){
         pill.style.cssText='background:'+cfg.bg+';color:'+cfg.color+';';
         pill.title=e.label;
         // Green dot if payment was recorded
-        if(e.type==='payment-due'&&e.paymentTxn){
+        if((e.type==='payment-due'&&e.paymentTxn)||(e.type==='bill'&&e.paid)){
           var dot=mk('span',''); dot.style.cssText='display:inline-block;width:6px;height:6px;border-radius:50%;background:#22a06b;margin-left:4px;vertical-align:middle;';
           pill.appendChild(dot);
         }
@@ -6973,6 +6971,7 @@ el('btn-save-reminder').addEventListener('click',function(){
   var remTxn=db.transactions.find(function(x){return x.id===id;});
   db.txnReminders[id]={date:date,note:note,dismissed:false,description:remTxn?remTxn.description:'',amount:remTxn?remTxn.amount:0,txnDate:remTxn?remTxn.date:''};
   saveData(null,'txnReminders');
+  pushSetting('txnReminders',db.txnReminders).catch(function(e){console.error('reminder set sync error',e);});
   closeModal('modal-reminder');
   renderTransactions(); renderDashboard();
   showToast('Reminder set for '+fmtDate(date));
@@ -7071,6 +7070,7 @@ function renderDashboardReminders(){
     dismiss.addEventListener('click',function(){
       db.txnReminders[item.txnId].dismissed=true;
       saveData(null,'txnReminders');
+      pushSetting('txnReminders',db.txnReminders).catch(function(e){console.error('reminder dismiss sync error',e);});
       renderDashboardReminders();
     });
     card.appendChild(icon); card.appendChild(body); card.appendChild(dismiss);
