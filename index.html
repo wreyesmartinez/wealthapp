@@ -4245,8 +4245,9 @@ function makeDebtSection(title, debts){
   // Dense rows
   var list=mk('div','card'); list.style.padding='0';
   debts.forEach(function(d,idx){
-    var bal=Math.abs(computeLiveBalance(d.id));
-    var isPaidOff=bal<0.01;
+    var rawBal=computeLiveBalance(d.id);
+    var bal=Math.abs(rawBal);
+    var isPaidOff=rawBal>=-0.01; // zero or positive means paid off (or in credit)
     var ident=getDebtIdentity(d.id);
     var rate=d.rate||'?';
     var rcolor=rateColor(rate);
