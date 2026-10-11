@@ -1255,6 +1255,7 @@ body.privacy-mode [data-private]:hover{
       </select>
     </div>
     <div class="form-group"><label class="form-label">Detection keywords (comma separated)</label><input type="text" class="form-input" id="inst-keywords" placeholder="e.g. klarna, ticketmaster"></div>
+    <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="inst-category"></select></div>
     <!-- Optional cost breakdown -->
     <div style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-top:4px;">
       <div style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Cost breakdown (optional)
@@ -2180,6 +2181,9 @@ function fillCatSelect(selectId, includeAll, selectedVal){
   var sel=el(selectId); if(!sel) return;
   sel.innerHTML='';
   if(includeAll){var o=mk('option');o.value='';o.textContent='All categories';sel.appendChild(o);}
+  // Always add a blank placeholder when no value is pre-selected, so the browser
+  // doesn't silently default to the first real category
+  if(!includeAll&&!selectedVal){var ph=mk('option');ph.value='';ph.textContent='— select category —';sel.appendChild(ph);}
   var groups=[...new Set(db.customCategories.map(function(c){return c.group;}))];
   groups.forEach(function(grp){
     var og=document.createElement('optgroup'); og.label=grp;
@@ -2310,9 +2314,27 @@ function nav(page){
 
   // Then silently pull remote changes and re-render if anything changed
   if(syncState.online){
+    // Capture current filter state before async gap so the re-render can restore it
+    var _syncPage=page;
     pullAndMerge().then(function(changed){
       if(changed){
-        renderPage(page);
+        // If we're on transactions, preserve whatever filter the user has set
+        if(_syncPage==='transactions'){
+          var curAccFilter=el('filter-account')?el('filter-account').value:'';
+          var curCatFilter=el('filter-cat')?el('filter-cat').value:'';
+          var curTypeFilter=el('filter-type')?el('filter-type').value:'';
+          var curSearch=el('filter-search')?el('filter-search').value:'';
+          // Set _txnAccountFilter so renderPage doesn't wipe the account filter
+          if(curAccFilter) _txnAccountFilter=curAccFilter;
+          renderPage(_syncPage);
+          // Restore all other filters that renderPage may have cleared
+          if(curCatFilter&&el('filter-cat')) el('filter-cat').value=curCatFilter;
+          if(curTypeFilter&&el('filter-type')) el('filter-type').value=curTypeFilter;
+          if(curSearch&&el('filter-search')) el('filter-search').value=curSearch;
+          if(curCatFilter||curTypeFilter||curSearch) renderTransactions();
+        } else {
+          renderPage(_syncPage);
+        }
         setSyncStatus('online','Synced');
       }
     }).catch(function(){});
@@ -4635,6 +4657,7 @@ el('btn-add-installment').addEventListener('click',function(){
   el('inst-purchase-price').value=''; el('inst-borrowing-cost').value='';
   el('inst-total').value=''; el('inst-count').value='4';
   el('inst-payment-amt').value=''; el('inst-regular-amt').value=''; el('inst-keywords').value='';
+  fillCatSelect('inst-category',false,'');
   openModal('modal-add-installment');
 });
 el('btn-cancel-installment').addEventListener('click',function(){closeModal('modal-add-installment');});
@@ -4691,10 +4714,12 @@ el('btn-save-installment').addEventListener('click',function(){
     else if(freq==='30') cur.setMonth(cur.getMonth()+1);
   }
 
+  var instCat=el('inst-category')?el('inst-category').value:'';
   var newInst={
     id:'inst'+Date.now(),name:name,merchant:name,
     totalAmount:total,payments:payments,
-    provider:provider,keywords:keywords,active:true
+    provider:provider,keywords:keywords,active:true,
+    category:instCat||undefined
   };
   var purchasePrice=parseFloat(el('inst-purchase-price').value)||0;
   var borrowingCost=parseFloat(el('inst-borrowing-cost').value)||0;
