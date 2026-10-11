@@ -346,6 +346,34 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   .grid4{grid-template-columns:1fr 1fr;}
   .stat-val{font-size:15px;}
 }
+/* Privacy mode — blur all monetary values */
+body.privacy-mode .stat-val,
+body.privacy-mode .account-balance,
+body.privacy-mode .debt-balance,
+body.privacy-mode .txn-amount,
+body.privacy-mode .balance-chip,
+body.privacy-mode .net-worth-val,
+body.privacy-mode .goal-amount,
+body.privacy-mode .cal-amount,
+body.privacy-mode .summary-amount,
+body.privacy-mode .reminder-amount,
+body.privacy-mode [data-private]{
+  filter:blur(7px);
+  user-select:none;
+  transition:filter .2s ease;
+}
+body.privacy-mode .stat-val:hover,
+body.privacy-mode .account-balance:hover,
+body.privacy-mode .debt-balance:hover,
+body.privacy-mode .txn-amount:hover,
+body.privacy-mode [data-private]:hover{
+  filter:blur(7px);
+}
+#btn-privacy-toggle.privacy-active{
+  background:rgba(91,106,240,.15);
+  color:var(--accent);
+  border-radius:var(--radius-sm);
+}
 </style>
 </head>
 <body>
@@ -428,6 +456,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
         <span id="sync-label">Loading...</span>
       </div>
       <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="btn-privacy-toggle" title="Toggle privacy mode" style="font-size:16px;padding:6px 10px;">👁</button>
         <button class="btn btn-ghost btn-sm" id="btn-open-settings" title="Settings" style="font-size:16px;padding:6px 10px;">⚙️</button>
         <button class="btn btn-ghost btn-sm" id="btn-open-transfer">Transfer</button>
         <button class="btn btn-primary btn-sm" id="btn-open-add-txn">+ Transaction</button>
@@ -2325,6 +2354,8 @@ function renderPage(page){
   else if(page==='reports') renderReport();
   else if(page==='import') renderImportPage();
   else if(page==='ai'){renderAIChat();if(getApiKey()&&!db.aiHistory.length) loadAIInsights();}
+  // Re-tag money elements after each render so privacy mode blurs new content
+  if(_privacyMode) setTimeout(tagMoneyElements,50);
 }
 
 document.querySelectorAll('.nav-item').forEach(function(n){
@@ -2630,7 +2661,7 @@ function generatePendingTransactions(){
   db._autoPending=[];
 
   // -- Recurring payments --
-  db.recurringPayments.filter(function(r){return r.active&&r.pendingAlert!==false;}).forEach(function(rp){
+  db.recurringPayments.filter(function(r){return r.active&&r.pendingAlert!==false&&!r.linkedInstallmentId;}).forEach(function(rp){
     var cycleKey='rp-'+rp.id+'-'+yearMonth;
     if(db.dismissedPending[cycleKey]) return;
     // Already covered by a manual/Muse pending for this cycle?
@@ -6919,6 +6950,48 @@ function openSettings(){
 }
 
 el('btn-open-settings').addEventListener('click', openSettings);
+
+// Privacy mode toggle
+var _privacyMode=false;
+(function(){
+  var btn=el('btn-privacy-toggle');
+  var STORAGE_KEY='wt_privacy_mode';
+  function applyPrivacy(on){
+    _privacyMode=on;
+    if(on){
+      document.body.classList.add('privacy-mode');
+      btn.textContent='🙈';
+      btn.classList.add('privacy-active');
+      btn.title='Privacy mode ON — click to reveal';
+    } else {
+      document.body.classList.remove('privacy-mode');
+      btn.textContent='👁';
+      btn.classList.remove('privacy-active');
+      btn.title='Toggle privacy mode';
+    }
+    // Tag all money elements currently in DOM
+    tagMoneyElements();
+  }
+  // Restore persisted state
+  try{ if(localStorage.getItem(STORAGE_KEY)==='1') applyPrivacy(true); }catch(e){}
+  btn.addEventListener('click',function(){
+    var on=!document.body.classList.contains('privacy-mode');
+    applyPrivacy(on);
+    try{ localStorage.setItem(STORAGE_KEY, on?'1':'0'); }catch(e){}
+  });
+})();
+// Tag elements containing money values (dollar sign) for CSS blur
+function tagMoneyElements(){
+  var all=document.querySelectorAll('*:not(script):not(style)');
+  for(var i=0;i<all.length;i++){
+    var el2=all[i];
+    if(el2.children.length>0) continue; // leaf nodes only
+    var txt=el2.textContent||'';
+    if(/\$[\d,]+\.?\d*/.test(txt)){
+      el2.setAttribute('data-private','1');
+    }
+  }
+}
 el('btn-cancel-settings').addEventListener('click', function(){closeModal('modal-settings');});
 el('btn-save-settings').addEventListener('click', function(){
   if(!db.alertSettings) db.alertSettings={};
