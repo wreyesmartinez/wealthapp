@@ -404,7 +404,7 @@ body.privacy-mode [data-private]:hover{
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-13 05:42 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-13 05:52 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2017,6 +2017,12 @@ function migrateData(d){
   // One-time cleanup: remove manuallyUnpaid flag from all installment payments
   if(d.installmentPlans) d.installmentPlans.forEach(function(inst){
     if(inst.payments) inst.payments.forEach(function(p){ delete p.manuallyUnpaid; });
+  });
+  // Auto-archive fully paid installment plans
+  if(d.installmentPlans) d.installmentPlans.forEach(function(inst){
+    if(inst.active&&inst.payments&&inst.payments.length&&inst.payments.every(function(p){return p.paid;})){
+      inst.active=false;
+    }
   });  // {txnId: {date, note, dismissed}}  // [{account, completedDate, note, stats}]  // {txnId: true}
   if(!d.pendingTransactions) d.pendingTransactions=[];   // manually created pending transactions
   if(!d.dismissedPending) d.dismissedPending={};          // { [cycleKey]: true } — dismissed auto-generated pending
@@ -4497,6 +4503,10 @@ function toggleInstPayment(instId,paymentId,forcePaid){
   p.paid=forcePaid!==undefined?forcePaid:!p.paid;
   p.paidDate=p.paid?todayLocal():null;
   p.manualPaid=p.paid; // preserve manual intent so auto-detection doesn't revert it
+  // Auto-archive when all payments are paid
+  if(inst.payments.every(function(x){return x.paid;})){
+    inst.active=false;
+  }
   saveData(null,'installmentPlans'); renderDebts(); renderRecurring();
   showToast(p.paid?'Payment marked as paid':'Payment unmarked');
 }
