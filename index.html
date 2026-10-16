@@ -404,7 +404,7 @@ body.privacy-mode [data-private]:hover{
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-13 06:10 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-15 10:52 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1214,6 +1214,7 @@ body.privacy-mode [data-private]:hover{
         <div class="form-group"><label class="form-label">Principal keyword</label><input type="text" class="form-input" id="edit-inst-principal-keyword" placeholder="e.g. plan it, membership fee"></div>
       </div>
     </div>
+    <div class="form-group" style="margin-top:8px;"><label class="form-label">Pending transaction label <span style="font-weight:400;color:var(--text3);">(optional — shown on the pending card when due)</span></label><input type="text" class="form-input" id="edit-inst-pending-label" placeholder="e.g. Rezy Design payment"></div>
     <div class="alert alert-blue" style="margin-top:8px;">Payment schedule cannot be changed after creation.</div>
     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:500;margin-top:4px;">
       <input type="checkbox" id="edit-inst-pending-alert" style="width:16px;height:16px;cursor:pointer;">
@@ -1597,6 +1598,20 @@ async function pullAndMerge(){
       // Add if not present locally
       var existing=db.transactions.find(function(t){return t.id===row.id;});
       if(!existing){
+        // Dedup check: if a transaction with same date+amount+description+account already exists
+        // (different ID but same data), it's a duplicate from rapid reloads — skip it
+        var d=row.data||{};
+        var isDup=db.transactions.find(function(t){
+          return t.date===d.date&&Math.abs(t.amount-d.amount)<0.001&&
+                 t.description===d.description&&t.account===d.account;
+        });
+        if(isDup){
+          logAudit(row.id,'tombstone-blocked','sync-pull','Duplicate suppressed — same date/amt/desc/account as '+isDup.id+'. Desc: '+d.description+' Amt: '+d.amount);
+          // Tombstone this duplicate ID so it never comes back
+          if(db._deletedIds.indexOf(row.id)===-1) db._deletedIds.push(row.id);
+          pushTransaction(d&&Object.assign({},d,{id:row.id}), true).catch(function(){});
+          return;
+        }
         logAudit(row.id,'resurrected','sync-pull','Pulled from cloud, not found locally, not on tombstone list. Desc: '+(row.data?row.data.description:'?')+' Amt: '+(row.data?row.data.amount:'?'));
         dbg('sync','RESURRECTED from cloud: '+(row.data?row.data.description:'?')+' $'+(row.data?row.data.amount:'?')+' id:'+row.id, false, true);
         db.transactions.push(row.data);
@@ -2745,7 +2760,7 @@ function generatePendingTransactions(){
       sourceType:'installment',
       sourceId:inst.id,
       paymentId:nextPmt.id,
-      description:inst.provider+' (installment)',
+      description:inst.pendingLabel||inst.name,
       amount:nextPmt.amount,
       accountId:acct,
       category:inst.category||'',
@@ -3215,7 +3230,7 @@ el('btn-save-txn').addEventListener('click',function(){
   var category=el('txn-category').value, type=document.querySelector('input[name="txn-type"]:checked').value;
   var notes=el('txn-notes').value.trim();
   if(!date||!amount||!desc||!account){showToast('Please fill required fields');return;}
-  var newId='t'+Date.now();
+  var newId='t'+Date.now()+Math.random().toString(36).slice(2,6);
   db.transactions.push({id:newId,date:date,description:desc,account:account,category:category,amount:Math.abs(amount),type:type,notes:notes,linkedId:null});
   logAudit(newId,'created','manual','User added via Add Transaction modal. Desc: '+desc+' Amt: '+amount+' Date: '+date);
   // If confirming a pending transaction, remove it from pending list
@@ -3341,7 +3356,7 @@ el('btn-save-edit-txn').addEventListener('click',function(){
     // Paired transaction is opposite type on the linked account
     var pairedType=t.type==='expense'?'income':'expense';
     var paired={
-      id:'t'+Date.now()+'p',
+      id:'t'+Date.now()+Math.random().toString(36).slice(2,6)+'p',
       date:t.date,
       description:t.description,
       account:linkAccId,
@@ -3436,8 +3451,8 @@ el('btn-save-transfer').addEventListener('click',function(){
   } else {
     // Create mode
     var lid='link'+Date.now();
-    db.transactions.push({id:'t'+Date.now()+'a',date:dateFrom,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
-    db.transactions.push({id:'t'+Date.now()+'b',date:dateTo,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
+    db.transactions.push({id:'t'+Date.now()+Math.random().toString(36).slice(2,6)+'a',date:dateFrom,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
+    db.transactions.push({id:'t'+Date.now()+Math.random().toString(36).slice(2,6)+'b',date:dateTo,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
     saveData(); closeModal('modal-transfer'); showToast('Transfer recorded');
   }
   renderTransactions(); renderDashboard();
@@ -4536,6 +4551,7 @@ function openEditInstallment(id){
   el('edit-inst-fee-amount').value=inst.splitPayment?inst.splitPayment.feeAmount:'';
   el('edit-inst-fee-keyword').value=inst.splitPayment?inst.splitPayment.feeKeyword:'';
   el('edit-inst-principal-keyword').value=inst.splitPayment?inst.splitPayment.principalKeyword:'';
+  el('edit-inst-pending-label').value=inst.pendingLabel||'';
   el('edit-inst-pending-alert').checked=inst.pendingAlert!==false; // default true
   openModal('modal-edit-installment');
 }
@@ -4564,6 +4580,8 @@ el('btn-save-edit-inst').addEventListener('click',function(){
   } else {
     delete inst.splitPayment;
   }
+  var pl=el('edit-inst-pending-label').value.trim();
+  if(pl) inst.pendingLabel=pl; else delete inst.pendingLabel;
   inst.pendingAlert=el('edit-inst-pending-alert').checked;
   saveData(null,'installmentPlans');
   closeModal('modal-edit-installment');
