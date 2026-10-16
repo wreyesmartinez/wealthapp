@@ -404,7 +404,7 @@ body.privacy-mode [data-private]:hover{
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-15 10:52 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-15 11:22 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -3422,11 +3422,15 @@ function openTransferModal(){
     fillAccountSelect(sid, '');
   });
   fillCatSelect('tr-category',false,'Credit card payment');
+  el('tr-desc').value='Credit card payment';
   el('modal-transfer').removeAttribute('data-edit-lid');
   el('btn-save-transfer').textContent='Add Transfer';
   openModal('modal-transfer');
 }
 el('btn-open-transfer').addEventListener('click',openTransferModal);
+el('tr-category').addEventListener('change',function(){
+  if(!el('tr-desc').value.trim()) el('tr-desc').value=this.value;
+});
 el('btn-cancel-transfer').addEventListener('click',function(){
   closeModal('modal-transfer');
   el('modal-transfer').removeAttribute('data-edit-lid');
