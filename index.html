@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-19 11:38 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-19 11:52 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4172,12 +4172,25 @@ el('btn-save-edit-inst').addEventListener('click',function(){
 });
 
 function deleteInstallment(id){
-  if(!confirm('Remove this installment plan?')) return;
-  // Archive instead of delete — move to completed with all paid
   var inst=db.installmentPlans.find(function(x){return x.id===id;});
   if(!inst) return;
-  inst.active=false;
-  saveData(null,'installmentPlans'); renderDebts(); showToast('Plan archived');
+  if(!confirm((inst.active===false?'Permanently delete ':'Archive ')+(inst.name||'this plan')+'?')) return;
+  if(inst.active===false){
+    // Permanently delete
+    db.installmentPlans=db.installmentPlans.filter(function(x){return x.id!==id;});
+    saveData(null,'installmentPlans'); renderDebts(); showToast('Plan deleted');
+  } else {
+    inst.active=false;
+    inst.archivedDate=todayLocal();
+    saveData(null,'installmentPlans'); renderDebts(); showToast('Plan archived');
+  }
+}
+function restoreInstallment(id){
+  var inst=db.installmentPlans.find(function(x){return x.id===id;});
+  if(!inst) return;
+  inst.active=true;
+  delete inst.archivedDate;
+  saveData(null,'installmentPlans'); renderDebts(); showToast('Plan restored');
 }
 
 // ---- ADD ACCOUNT ----
@@ -4623,58 +4636,84 @@ function renderDebts(){
 function buildInstCard(item,today){
   var inst=item.inst;
   var ident=getInstIdentity(inst);
+  var isArchived=inst.active===false;
   var card=mk('div','debt-card');
-  // Light background with colored left border — no more black
-  card.style.borderLeft='4px solid '+ident.color;
-  card.style.background=item.allDone?'var(--bg3)':'var(--bg2)';
-  if(item.allDone) card.style.opacity='0.65';
+  card.style.borderLeft='4px solid '+(isArchived?'#8a7a6a':ident.color);
+  card.style.background=isArchived?'var(--bg3)':'var(--bg2)';
+  if(isArchived) card.style.opacity='0.65';
 
-  // Header row with badge
+  // Header row
   var hdr=mk('div',''); hdr.style.cssText='display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;';
-  hdr.appendChild(makeLogoBadge(item.allDone?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident,44));
-
+  hdr.appendChild(makeLogoBadge(isArchived?{initials:ident.initials,color:'#8a7a6a',bg:'var(--bg3)',textColor:'#fff'}:ident,44));
   var mid=mk('div',''); mid.style.flex='1';
-  // Provider tag
   var providerTag=mk('span','tag','');
   providerTag.style.cssText='background:'+ident.color+'18;color:'+ident.color+';border:1px solid '+ident.color+'40;margin-bottom:5px;display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;';
   providerTag.textContent=inst.provider||'Installment';
-  // Full plan name (not just provider)
   var nameEl=mk('div','',inst.name); nameEl.style.cssText='font-size:14px;font-weight:600;color:var(--text);';
   mid.appendChild(providerTag); mid.appendChild(nameEl);
+  var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
+  var amtEl=mk('div','',isArchived?'PAID OFF':fmt(item.amtRemaining)+' left');
+  amtEl.style.cssText='font-family:var(--font-mono);font-size:18px;font-weight:600;color:'+(isArchived?'var(--green)':ident.color)+';';
+  right.appendChild(amtEl);
+  hdr.appendChild(mid); hdr.appendChild(right);
+  card.appendChild(hdr);
+
+  if(isArchived){
+    // ---- ARCHIVED SUMMARY (no payment tiles) ----
+    var totalPaid=inst.payments.reduce(function(s,p){return s+p.amount;},0);
+    var summary=mk('div',''); summary.style.cssText='background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;display:flex;flex-wrap:wrap;gap:16px;';
+    function statBox(label,val){
+      var b=mk('div','');
+      var l=mk('div','',label); l.style.cssText='font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;';
+      var v=mk('div','',val); v.style.cssText='font-size:13px;font-weight:600;color:var(--text);font-family:var(--font-mono);';
+      b.appendChild(l); b.appendChild(v); return b;
+    }
+    summary.appendChild(statBox('Total paid',fmt(totalPaid)));
+    if(inst.borrowingCost) summary.appendChild(statBox('Borrowing cost',fmt(inst.borrowingCost)));
+    if(inst.purchasePrice) summary.appendChild(statBox('Purchase price',fmt(inst.purchasePrice)));
+    summary.appendChild(statBox('Payments',inst.payments.length+' × '+fmt(inst.payments[0]?inst.payments[0].amount:0)));
+    if(inst.archivedDate) summary.appendChild(statBox('Archived',fmtDate(inst.archivedDate)));
+    card.appendChild(summary);
+
+    // Footer: Restore + Delete
+    var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:flex-end;gap:6px;';
+    var restoreBtn=mk('button','btn btn-ghost btn-sm','Restore');
+    restoreBtn.style.fontSize='11px';
+    restoreBtn.addEventListener('click',function(){restoreInstallment(inst.id);});
+    var delBtn=mk('button','btn btn-ghost btn-sm','Delete');
+    delBtn.style.cssText='font-size:11px;color:var(--red);';
+    delBtn.addEventListener('click',function(){deleteInstallment(inst.id);});
+    footer.appendChild(restoreBtn); footer.appendChild(delBtn);
+    card.appendChild(footer);
+    return card;
+  }
+
+  // ---- ACTIVE CARD ----
   // Linked recurring badge
   var linkedRp=db.recurringPayments.find(function(r){return r.linkedInstallmentId===inst.id;});
   if(linkedRp){
     var linkedBadge=mk('span','','Tracked in Recurring'); linkedBadge.style.cssText='font-size:10px;color:var(--blue);background:var(--blue-bg);padding:1px 6px;border-radius:8px;margin-top:3px;display:inline-block;';
     mid.appendChild(linkedBadge);
   }
-
-  var right=mk('div',''); right.style.cssText='text-align:right;flex-shrink:0;';
-  var amtEl=mk('div','',item.allDone?'PAID OFF':fmt(item.amtRemaining)+' left');
-  amtEl.style.cssText='font-family:var(--font-mono);font-size:18px;font-weight:600;color:'+(item.allDone?'var(--green)':ident.color)+';';
   var progEl=mk('div','',item.paid+' / '+item.total+' payments');
   progEl.style.cssText='font-size:11px;color:var(--text3);margin-top:3px;';
-  right.appendChild(amtEl); right.appendChild(progEl);
-  hdr.appendChild(mid); hdr.appendChild(right);
-  card.appendChild(hdr);
+  right.appendChild(progEl);
 
-  // Cost breakdown (shown when purchasePrice/borrowingCost are set)
-  if(inst.purchasePrice&&inst.borrowingCost&&!item.allDone){
+  // Cost breakdown
+  if(inst.purchasePrice&&inst.borrowingCost){
     var totalCost=inst.purchasePrice+inst.borrowingCost;
     var borrowPct=Math.round((inst.borrowingCost/totalCost)*100);
     var breakdown=mk('div',''); breakdown.style.cssText='background:var(--bg3);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;';
-    // Bar
     var barWrap=mk('div',''); barWrap.style.cssText='height:7px;border-radius:99px;overflow:hidden;display:flex;margin-bottom:7px;';
     var prinBar=mk('div',''); prinBar.style.cssText='height:100%;width:'+(100-borrowPct)+'%;background:var(--green);border-radius:99px 0 0 99px;';
     var costBar=mk('div',''); costBar.style.cssText='height:100%;width:'+borrowPct+'%;background:var(--red);';
     barWrap.appendChild(prinBar); barWrap.appendChild(costBar);
     breakdown.appendChild(barWrap);
-    // Labels row
     var labRow=mk('div',''); labRow.style.cssText='display:flex;justify-content:space-between;font-size:12px;';
     var pLabel=mk('div',''); pLabel.innerHTML='<span style="color:var(--green);">●</span> Purchase <strong>'+fmt(inst.purchasePrice)+'</strong>';
     var cLabel=mk('div',''); cLabel.innerHTML='<span style="color:var(--red);">●</span> Borrowing cost <strong>'+fmt(inst.borrowingCost)+'</strong>';
     labRow.appendChild(pLabel); labRow.appendChild(cLabel);
     breakdown.appendChild(labRow);
-    // Total
     var totRow=mk('div',''); totRow.style.cssText='margin-top:5px;padding-top:5px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);display:flex;justify-content:space-between;';
     var totLabel=mk('span','','Total of payments:');
     var totVal=mk('span','',fmt(totalCost)); totVal.style.cssText='font-weight:600;color:var(--text);font-family:var(--font-mono);';
@@ -4683,7 +4722,7 @@ function buildInstCard(item,today){
     card.appendChild(breakdown);
   }
 
-  // Progress bar — only for active (not paid-off) plans
+  // Progress bar
   if(!item.allDone){
     var pct=item.total>0?(item.paid/item.total)*100:0;
     var pw=mk('div','progress-wrap'); var pb=mk('div','progress-bar');
@@ -4691,7 +4730,7 @@ function buildInstCard(item,today){
     pw.appendChild(pb); card.appendChild(pw);
   }
 
-  // Payment timeline — scrollable if many payments
+  // Payment timeline
   var timelineWrap=mk('div',''); timelineWrap.style.cssText='overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:14px;padding-bottom:4px;';
   var timeline=mk('div',''); timeline.style.cssText='display:flex;gap:8px;min-width:max-content;';
   inst.payments.forEach(function(p){
@@ -4707,18 +4746,15 @@ function buildInstCard(item,today){
     var dateEl=mk('div','',fmtDate(p.dueDate)); dateEl.style.cssText='font-size:10px;color:var(--text3);margin-bottom:3px;';
     var amtEl2=mk('div','',fmt(p.amount)); amtEl2.style.cssText='font-size:12px;font-weight:600;font-family:var(--font-mono);color:'+tileColor+';';
     var statusLabel=p.paid?'Paid':isPartial?'Partial':isNext?'Next':'Upcoming';
-    var statusEl=mk('div','',statusLabel);
-    statusEl.style.cssText='font-size:10px;margin-top:3px;color:'+tileColor+';font-weight:'+(isNext||isPartial?'600':'400')+';';
+    var statusEl=mk('div','',statusLabel); statusEl.style.cssText='font-size:10px;margin-top:3px;color:'+tileColor+';font-weight:'+(isNext||isPartial?'600':'400')+';';
     pCard.appendChild(dateEl); pCard.appendChild(amtEl2); pCard.appendChild(statusEl);
-    (function(pid,curPaid){
-      pCard.addEventListener('click',function(){toggleInstPayment(inst.id,pid,!curPaid);});
-    })(p.id,p.paid);
+    (function(pid,curPaid){pCard.addEventListener('click',function(){toggleInstPayment(inst.id,pid,!curPaid);});})(p.id,p.paid);
     timeline.appendChild(pCard);
   });
   timelineWrap.appendChild(timeline);
   card.appendChild(timelineWrap);
 
-  // Footer: due date + edit + remove
+  // Footer: due date + edit + archive
   var footer=mk('div',''); footer.style.cssText='margin-top:12px;display:flex;justify-content:space-between;align-items:center;';
   if(item.nextPmt&&!item.allDone){
     var daysEl=mk('span','',item.daysToNext<=0?'Due today':item.daysToNext===1?'Due tomorrow':'Due in '+item.daysToNext+' days');
@@ -4726,13 +4762,11 @@ function buildInstCard(item,today){
     footer.appendChild(daysEl);
   }else{ footer.appendChild(mk('span','')); }
   var btns=mk('div',''); btns.style.cssText='display:flex;gap:6px;';
-  var editBtn=mk('button','btn btn-ghost btn-sm','Edit');
-  editBtn.style.fontSize='11px';
+  var editBtn=mk('button','btn btn-ghost btn-sm','Edit'); editBtn.style.fontSize='11px';
   editBtn.addEventListener('click',function(){openEditInstallment(inst.id);});
-  var delBtn=mk('button','btn btn-ghost btn-sm',item.allDone?'Archive':'Remove');
-  delBtn.style.fontSize='11px';
-  delBtn.addEventListener('click',function(){deleteInstallment(inst.id);});
-  btns.appendChild(editBtn); btns.appendChild(delBtn);
+  var archBtn=mk('button','btn btn-ghost btn-sm',item.allDone?'Archive':'Remove'); archBtn.style.fontSize='11px';
+  archBtn.addEventListener('click',function(){deleteInstallment(inst.id);});
+  btns.appendChild(editBtn); btns.appendChild(archBtn);
   footer.appendChild(btns);
   card.appendChild(footer);
   return card;
