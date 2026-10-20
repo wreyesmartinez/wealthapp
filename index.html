@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-19 11:22 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-19 11:38 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -4488,8 +4488,8 @@ function renderDebts(){
   // ---- BUILD UNIFIED ITEM LIST ----
   var items=[];
 
-  // 1. Active installment plans
-  db.installmentPlans.filter(function(inst){return inst.active;}).forEach(function(inst){
+  // 1. All installment plans (active + archived/paid-off)
+  db.installmentPlans.forEach(function(inst){
     // Auto-detect payments
     inst.payments.forEach(function(p){
       if(!p.paid&&detectInstPayment(inst,p)){p.paid=true;p.paidDate=today;}
@@ -4500,7 +4500,7 @@ function renderDebts(){
     var nextPmt=inst.payments.find(function(p){return !p.paid;});
     var daysToNext=nextPmt?Math.ceil((new Date(nextPmt.dueDate+'T12:00:00')-new Date())/(1000*60*60*24)):9999;
     var amtRemaining=inst.payments.filter(function(p){return !p.paid;}).reduce(function(s,p){return s+p.amount;},0);
-    var allDone=remaining===0;
+    var allDone=remaining===0||inst.active===false;
     items.push({
       type:'installment',inst:inst,
       remaining:remaining,total:total,paid:paid,
