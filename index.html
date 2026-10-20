@@ -376,7 +376,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-19 11:15 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-19 11:18 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -6283,27 +6283,8 @@ function getCalEvents(year, month){
       if(t.account!==a.id) return false;
       return t.date>=periodStart&&t.date<=periodEnd;
     });
-    // Fallback: look for an expense transaction from any account with CC payment category
-    // whose linkedId pairs with an income transaction — catches mismatched account IDs
-    if(!paymentTxn){
-      var nameKeywords=a.name.toLowerCase().replace(/[^a-z0-9]/g,' ').split(' ').filter(function(w){return w.length>2;});
-      paymentTxn=db.transactions.find(function(t){
-        if(t.type!=='income') return false;
-        if(t.date<periodStart||t.date>periodEnd) return false;
-        // Check if the paired expense transaction is categorized as CC payment
-        if(!t.linkedId) return false;
-        var paired=db.transactions.find(function(p){return p.linkedId===t.linkedId&&p.type==='expense';});
-        if(!paired) return false;
-        var cat=(paired.category||'').toLowerCase();
-        if(cat.indexOf('credit card')===-1&&cat.indexOf('cc payment')===-1) return false;
-        // Check description contains account name keywords (e.g. "scotia", "visa")
-        var desc=(t.description||paired.description||'').toLowerCase();
-        return nameKeywords.some(function(kw){return desc.indexOf(kw)!==-1;});
-      });
-      if(paymentTxn) dbg('detection','  MATCHED via fallback (linkedId+category): '+paymentTxn.date+' $'+paymentTxn.amount,true);
-    }
     if(paymentTxn) dbg('detection','  MATCHED: '+paymentTxn.date+' $'+paymentTxn.amount,true);
-    else dbg('detection','  no match in window',false,true);
+    else dbg('detection','  no match in window — income txns in window: '+db.transactions.filter(function(t){return t.type==='income'&&t.date>=periodStart&&t.date<=periodEnd;}).map(function(t){return t.date+' acct='+t.account+' $'+t.amount;}).join(' | '),false,true);
     addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name,paymentTxn:paymentTxn||null});
   });
 
