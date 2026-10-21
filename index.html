@@ -88,9 +88,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(40,30,15,.45);z-index:200;align-items:center;justify-content:center;padding:20px;}
 .modal-overlay.open{display:flex;}
-.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;box-shadow:0 20px 60px rgba(30,33,64,.18),0 4px 16px rgba(30,33,64,.1);}
-.modal-title{font-family:var(--font-display);font-size:18px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);}
-.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:520px;max-height:min(90vh,90dvh);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(30,33,64,.18),0 4px 16px rgba(30,33,64,.1);}
+.modal-title{font-family:var(--font-display);font-size:18px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-body{padding:28px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;flex:1;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;padding:12px 28px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg2);}
 .alert{border-radius:var(--radius-sm);padding:11px 14px;font-size:13px;margin-bottom:10px;}
 .alert-red{background:var(--red-bg);border-left:3px solid var(--red);color:#963030;}
 .alert-amber{background:var(--amber-bg);border-left:3px solid var(--amber);color:#8a5510;}
@@ -257,7 +258,31 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
 .goal-chip.behind{background:var(--amber-bg);color:var(--amber);}
 .goal-chip.done{background:var(--green-bg);color:var(--green);}
 .goals-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg2);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;z-index:999;display:none;white-space:nowrap;}.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);font-size:20px;}
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes slideInRight{from{opacity:0;transform:translateX(40px);}to{opacity:1;transform:translateX(0);}}
+@keyframes slideInUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+@keyframes scaleIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+@keyframes successPulse{0%{transform:scale(1);}50%{transform:scale(1.06);background:var(--green);}100%{transform:scale(1);}}
+@keyframes countUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+/* Modal entrance */
+.modal-overlay.open .modal{animation:scaleIn .2s cubic-bezier(.34,1.36,.64,1) both;}
+@media(max-width:768px){.modal-overlay.open .modal{animation:slideInUp .28s cubic-bezier(.32,1,.64,1) both;}}
+/* Page transition */
+.page.active{animation:fadeInUp .22s ease both;}
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg2);border-radius:var(--radius-sm);padding:10px 18px;font-size:13px;z-index:999;display:none;white-space:nowrap;animation:slideInRight .22s ease both;}
+/* Progress bars animate on render */
+.progress-bar{transition:width .6s cubic-bezier(.4,0,.2,1);}
+/* Stat cards count-up feel */
+.stat-value{animation:countUp .3s ease both;}
+/* Success flash on save buttons */
+.btn-success-flash{animation:successPulse .35s ease;}
+/* Debt cards stagger in */
+.debt-card{animation:fadeInUp .2s ease both;}
+/* Transaction rows */
+.txn-row{animation:fadeIn .18s ease both;}.hamburger{display:none;background:none;border:none;cursor:pointer;color:var(--text);font-size:20px;}
 .import-step{padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:6px;font-size:13px;}
 .import-step.done{background:var(--green-bg);color:var(--green);}
 .import-step.active{background:var(--blue-bg);color:var(--blue);}
@@ -310,7 +335,9 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
 
   /* Modals - full screen on mobile */
   .modal-overlay{padding:0;align-items:flex-end;}
-  .modal{max-width:100%;width:100%;max-height:92vh;border-radius:var(--radius) var(--radius) 0 0;padding:20px 16px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+  .modal{max-width:100%;width:100%;max-height:min(92vh,92dvh);border-radius:var(--radius) var(--radius) 0 0;}
+  .modal-body{padding:20px 16px;}
+  .modal-footer{padding:12px 16px;}
 
   /* Cards - reduce padding */
   .card{padding:14px;}
@@ -376,7 +403,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-19 11:30 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-20 11:34 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -2065,7 +2092,24 @@ async function restoreApiKeyFromCloud(){
   }catch(e){ console.warn('restoreApiKey failed:',e); }
   return null;
 }
-function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(function(){t.style.display='none';},3000);}
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.display='block';
+  t.style.animation='none';
+  // Force reflow to restart animation
+  void t.offsetWidth;
+  t.style.animation='slideInRight .22s ease both';
+  clearTimeout(t._hideTimer);
+  t._hideTimer=setTimeout(function(){t.style.display='none';},3000);
+}
+function flashSuccess(btnEl){
+  if(!btnEl) return;
+  btnEl.classList.remove('btn-success-flash');
+  void btnEl.offsetWidth;
+  btnEl.classList.add('btn-success-flash');
+  setTimeout(function(){btnEl.classList.remove('btn-success-flash');},400);
+}
 function openModal(id){
   document.getElementById(id).classList.add('open');
   // Lock body scroll on mobile to prevent background bounce
@@ -2113,6 +2157,20 @@ function catColor(name){
 // Close modals on backdrop click
 document.querySelectorAll('.modal-overlay').forEach(function(o){
   o.addEventListener('click',function(e){if(e.target===o) o.classList.remove('open');});
+});
+
+// Restructure modals: wrap content between title and footer in modal-body for sticky footer
+document.querySelectorAll('.modal-overlay .modal').forEach(function(modal){
+  var footer=modal.querySelector('.modal-footer');
+  if(!footer||modal.querySelector('.modal-body')) return; // already restructured or no footer
+  var body=document.createElement('div');
+  body.className='modal-body';
+  // Move all children except footer into body
+  var children=Array.prototype.slice.call(modal.childNodes);
+  children.forEach(function(child){
+    if(child!==footer) body.appendChild(child);
+  });
+  modal.insertBefore(body,footer);
 });
 
 // ---- SETUP ----
@@ -2292,17 +2350,36 @@ function drawDonut(canvasId,data,legendId){
   var ctx=s.ctx,W=s.W,H=s.H;
   var cx=W/2,cy=H/2,r=Math.min(W,H)*0.38,ri=r*0.55;
   var total=data.reduce(function(a,b){return a+b[1];},0);
-  var angle=-Math.PI/2;
-  data.forEach(function(d){
-    var sl=(d[1]/total)*Math.PI*2;
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+sl);
-    ctx.closePath(); ctx.fillStyle=d[2]; ctx.fill(); angle+=sl;
-  });
-  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
-  ctx.fillStyle='#faf7f2'; ctx.fill();
-  ctx.fillStyle='#2a2318'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.font="500 12px 'Plus Jakarta Sans',sans-serif";
-  ctx.fillText('$'+Math.round(total).toLocaleString(),cx,cy);
+  var label='$'+Math.round(total).toLocaleString();
+  // Animated sweep
+  var startTime=null;
+  var duration=600;
+  function frame(ts){
+    if(!startTime) startTime=ts;
+    var progress=Math.min((ts-startTime)/duration,1);
+    // ease out cubic
+    var ease=1-Math.pow(1-progress,3);
+    ctx.clearRect(0,0,W,H);
+    var angle=-Math.PI/2;
+    data.forEach(function(d){
+      var sl=(d[1]/total)*Math.PI*2*ease;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+sl);
+      ctx.closePath(); ctx.fillStyle=d[2]; ctx.fill(); angle+=sl;
+    });
+    // fill remainder grey while animating
+    if(ease<1){
+      var rem=(1-ease)*Math.PI*2;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+rem);
+      ctx.closePath(); ctx.fillStyle='var(--bg3)'; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+    ctx.fillStyle='#faf7f2'; ctx.fill();
+    ctx.fillStyle='#2a2318'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font="500 12px 'Plus Jakarta Sans',sans-serif";
+    ctx.fillText(label,cx,cy);
+    if(progress<1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
   if(legendId){
     var lg=el(legendId); if(!lg) return;
     lg.innerHTML='';
@@ -2625,10 +2702,12 @@ function renderTransactions(){
       pairColors[t.linkedId]=seenLinks[t.linkedId];
     });
 
-    txns.forEach(function(t){
+    txns.forEach(function(t,idx){
       var a=db.accounts.find(function(x){return x.id===t.account;});
       var tr=document.createElement('tr');
       tr.setAttribute('data-txn-id', t.id);
+      tr.classList.add('txn-row');
+      tr.style.animationDelay=(Math.min(idx,20)*30)+'ms';
       var isReconciled = !!(db.reconciledTxns && db.reconciledTxns[t.id]);
       var pairKey=t.linkedId||null;
       var pairColor=pairKey?pairColors[pairKey]:null;
@@ -2882,6 +2961,7 @@ el('btn-save-txn').addEventListener('click',function(){
   var newId='t'+Date.now();
   db.transactions.push({id:newId,date:date,description:desc,account:account,category:category,amount:Math.abs(amount),type:type,notes:notes,linkedId:null});
   logAudit(newId,'created','manual','User added via Add Transaction modal. Desc: '+desc+' Amt: '+amount+' Date: '+date);
+  flashSuccess(el('btn-save-txn'));
   saveData(); closeModal('modal-add-txn'); showToast('Transaction added');
   renderTransactions(); renderDashboard();
 });
@@ -3050,12 +3130,14 @@ el('btn-save-transfer').addEventListener('click',function(){
     if(toTxn){toTxn.date=dateTo;toTxn.amount=Math.abs(amount);toTxn.account=toId;toTxn.category=cat;toTxn.description=desc+' (in)';}
     el('modal-transfer').removeAttribute('data-edit-lid');
     el('btn-save-transfer').textContent='Add Transfer';
+    flashSuccess(el('btn-save-transfer'));
     saveData(); closeModal('modal-transfer'); showToast('Transfer updated');
   } else {
     // Create mode
     var lid='link'+Date.now();
     db.transactions.push({id:'t'+Date.now()+'a',date:dateFrom,description:desc+' (out)',account:fromId,category:cat,amount:Math.abs(amount),type:'expense',notes:'',linkedId:lid});
     db.transactions.push({id:'t'+Date.now()+'b',date:dateTo,description:desc+' (in)',account:toId,category:cat,amount:Math.abs(amount),type:'income',notes:'',linkedId:lid});
+    flashSuccess(el('btn-save-transfer'));
     saveData(); closeModal('modal-transfer'); showToast('Transfer recorded');
   }
   renderTransactions(); renderDashboard();
@@ -4604,9 +4686,10 @@ function renderDebts(){
   }
 
   // ---- RENDER ACTIVE LOAN/INSTALLMENT ITEMS ----
-  activeItems.forEach(function(item){
-    if(item.type==='installment') c.appendChild(buildInstCard(item,today));
-    else c.appendChild(buildDebtCard(item));
+  activeItems.forEach(function(item,idx){
+    var card=item.type==='installment'?buildInstCard(item,today):buildDebtCard(item);
+    card.style.animationDelay=(idx*60)+'ms';
+    c.appendChild(card);
   });
 
   // ---- COMPLETED / PAID OFF (collapsible) ----
