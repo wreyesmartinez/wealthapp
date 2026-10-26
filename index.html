@@ -403,7 +403,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="logo">
     <div class="logo-title">WealthTrack</div>
     <div class="logo-sub">v2.5.1 - William R.M.</div>
-    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-20 11:34 PM EDT</div>
+    <div class="logo-sub" style="font-size:9px;opacity:0.6;">Built: 2026-10-25 11:41 PM EDT</div>
   </div>
   <div class="nav-section">Main</div>
   <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#9672;</span>Dashboard</div>
@@ -1108,7 +1108,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
     <div class="modal-title">Add Account</div>
     <div class="form-group"><label class="form-label">Account name</label><input type="text" class="form-input" id="acc-name" placeholder="e.g. BMO CashBack, Wealthsimple TFSA"></div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="acc-type"><option>Chequing</option><option>Savings</option><option>Credit card</option><option>Loan</option><option>Investment</option><option>TFSA</option><option>FHSA</option></select></div>
+      <div class="form-group"><label class="form-label">Type</label><select class="form-select" id="acc-type"><option>Chequing</option><option>Savings</option><option>Credit card</option><option>Cash</option><option>Loan</option><option>Investment</option><option>TFSA</option><option>FHSA</option></select></div>
       <div class="form-group"><label class="form-label">Current balance ($)</label><input type="number" step="0.01" class="form-input" id="acc-balance" placeholder="0.00"></div>
     </div>
     <div class="form-group" id="acc-last4-group" style="display:none;"><label class="form-label">Last 4 digits of card</label><input type="text" maxlength="4" class="form-input" id="acc-last4" placeholder="e.g. 1234"><div style="font-size:11px;color:var(--text3);margin-top:4px;">Will show as ••1234 in the app</div></div>
@@ -2007,7 +2007,8 @@ function fillAccountSelect(selectId, selectedId, includeAll){
     'Credit Cards':db.accounts.filter(function(a){return a.type==='Credit card';}),
     'Loans':       db.accounts.filter(function(a){return a.type==='Loan';}),
     'Investment':  db.accounts.filter(function(a){return a.type==='Investment'||a.type==='TFSA'||a.type==='FHSA';}),
-    'Other':       db.accounts.filter(function(a){return !['Chequing','Savings','Credit card','Loan','Investment','TFSA','FHSA'].includes(a.type);}),
+    'Cash':        db.accounts.filter(function(a){return a.type==='Cash';}),
+      'Other':       db.accounts.filter(function(a){return !['Chequing','Savings','Credit card','Cash','Loan','Investment','TFSA','FHSA'].includes(a.type);}),
   };
   Object.keys(groups).forEach(function(label){
     var accs=groups[label];
@@ -2853,9 +2854,20 @@ function renderTransactions(){
         document.querySelectorAll('.row-menu-dropdown.open').forEach(function(d){d.classList.remove('open');});
         // Position using fixed coords to escape table overflow clipping
         var rect=menuBtn.getBoundingClientRect();
-        menuDrop.style.top=(rect.bottom+4)+'px';
+        var menuH=menuDrop.offsetHeight||160; // estimate height if not yet visible
+        var spaceBelow=window.innerHeight-rect.bottom;
+        var spaceAbove=rect.top;
         menuDrop.style.left='auto';
         menuDrop.style.right=(window.innerWidth-rect.right)+'px';
+        if(spaceBelow<menuH+8&&spaceAbove>spaceBelow){
+          // Flip upward
+          menuDrop.style.top='auto';
+          menuDrop.style.bottom=(window.innerHeight-rect.top+4)+'px';
+        } else {
+          // Open downward (default)
+          menuDrop.style.bottom='auto';
+          menuDrop.style.top=(rect.bottom+4)+'px';
+        }
         menuDrop.classList.toggle('open');
       });
 
