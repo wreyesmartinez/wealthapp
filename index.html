@@ -421,7 +421,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.3.0<br>Account nav + date fix<br>Apr 2026</div>
+  <div class="version-badge">WealthTrack v2.5.1<br>Pending txns + Cash acct<br>Oct 2026</div>
   <div class="debug-toggle" id="debug-toggle">
     <div class="debug-switch"></div>
     <span>Debug mode</span>
@@ -534,6 +534,16 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
         <option value="">All types</option><option value="income">Income</option><option value="expense">Expense</option><option value="reminder">🔔 Reminders</option>
       </select>
       <input type="text" class="form-input" id="filter-search" placeholder="Search..." style="min-width:160px;">
+    </div>
+    <!-- Pending Transactions Section -->
+    <div id="pending-section" style="display:none;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px;">
+          <span>⏳</span><span>Pending</span><span id="pending-count" style="background:var(--amber);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-add-pending" style="font-size:11px;border-color:var(--amber);color:var(--amber);">+ Add Pending</button>
+      </div>
+      <div id="pending-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
     <div class="card" style="padding:0;overflow:hidden;">
       <table class="tbl">
@@ -1079,6 +1089,36 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-add-pending">
+  <div class="modal">
+    <div class="modal-title">Add Pending Transaction</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Date (expected)</label><input type="date" class="form-input" id="pend-date"></div>
+      <div class="form-group"><label class="form-label">Amount</label><input type="number" step="0.01" class="form-input" id="pend-amount" placeholder="0.00"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="pend-desc"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Account</label><select class="form-select" id="pend-account"></select></div>
+      <div class="form-group"><label class="form-label">Category</label><select class="form-select" id="pend-category"></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Type</label>
+      <div style="display:flex;gap:14px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="pend-type" value="expense" checked> Expense</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="pend-type" value="income"> Income</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="radio" name="pend-type" value="transfer"> Transfer</label>
+      </div>
+    </div>
+    <div class="form-group" id="pend-transfer-row" style="display:none;">
+      <label class="form-label">To account</label><select class="form-select" id="pend-to-account"></select>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="pend-notes" rows="2"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-pending">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-pending" style="background:var(--amber);border-color:var(--amber);">Save as Pending</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-transfer">
   <div class="modal">
     <div class="modal-title">Transfer Between Accounts</div>
@@ -1586,7 +1626,8 @@ async function pushAllToCloud(){
 
   // Push all settings keys
   var ts=new Date().toISOString();
-  var settingsKeys=['accounts','recurringPayments','customCategories','flexBudgets','installmentPlans','manualOverrides','dismissedAlerts','cutDate','varBudgets'];
+  var settingsKeys=['accounts','recurringPayments','customCategories','flexBudgets','installmentPlans','manualOverrides','dismissedAlerts','cutDate','varBudgets','dismissedPending'];
+  // pendingTransactions is intentionally excluded — it is written only by Muse/external tools, never by the app
   var settingsRows=settingsKeys.map(function(k){return{key:k,value:db[k]!==undefined?db[k]:null,updated_at:ts};});
   await sbUpsert('wealthtrack_settings',settingsRows);
 }
@@ -1960,6 +2001,8 @@ function migrateData(d){
   if(!d.aiHistory) d.aiHistory=[];
   if(!d.floatHistory) d.floatHistory=[];
   if(!d._settingsTs) d._settingsTs={};
+  if(!d.pendingTransactions) d.pendingTransactions=[];
+  if(!d.dismissedPending) d.dismissedPending={};
   return d;
 }
 
@@ -2299,7 +2342,9 @@ function renderPage(page){
     }
     var pendingAccountFilter=_txnAccountFilter;
     _txnAccountFilter=null;
+    generatePendingTransactions();
     renderTransactions();
+    renderPendingSection();
     // Apply account filter after dropdown is built
     if(pendingAccountFilter){
       var fa=el('filter-account');
@@ -2635,6 +2680,169 @@ function renderUpcoming(){
 // ---- TRANSACTIONS ----
 var sortTxnState={field:'date',dir:'desc'};
 var importBuffer=[];
+
+// ---- PENDING TRANSACTIONS ----
+
+function generatePendingTransactions(){
+  var today=new Date();
+  var todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var yearMonth=todayStr.substring(0,7);
+  db._autoPending=[];
+  // -- Recurring payments --
+  db.recurringPayments.filter(function(r){return r.active&&r.pendingAlert!==false&&!r.linkedInstallmentId;}).forEach(function(rp){
+    var cycleKey='rp-'+rp.id+'-'+yearMonth;
+    if(db.dismissedPending[cycleKey]) return;
+    if(db.pendingTransactions.find(function(p){return p.sourceKey===cycleKey;})) return;
+    var daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+    var tol=rp.tolerance||5;
+    var dayMin=Math.max(1,rp.expectedDay-tol);
+    var dayMax=Math.min(daysInMonth,rp.expectedDay+tol);
+    var todayDay=today.getDate();
+    if(todayDay<dayMin||todayDay>dayMax) return;
+    var status=getPaymentStatus(rp,yearMonth);
+    if(status.paid) return;
+    db._autoPending.push({
+      id:'pend-'+cycleKey+'-auto',
+      sourceKey:cycleKey,
+      sourceType:'recurring',
+      sourceId:rp.id,
+      description:rp.name,
+      amount:rp.amount,
+      accountId:rp.fromAccountId||'ws-chq',
+      category:rp.category||'',
+      type:'expense',
+      notes:'',
+      expectedDate:yearMonth+'-'+String(rp.expectedDay).padStart(2,'0'),
+      createdAt:new Date().toISOString(),
+      auto:true
+    });
+  });
+  // -- Installment payments --
+  db.installmentPlans.filter(function(i){return i.active&&i.pendingAlert!==false;}).forEach(function(inst){
+    var nextPmt=inst.payments.find(function(p){return !p.paid;});
+    if(!nextPmt) return;
+    var dueStr=nextPmt.dueDate.substring(0,10);
+    var dueDate=new Date(dueStr+'T12:00:00');
+    var diffDays=Math.round((dueDate-today)/(86400000));
+    if(diffDays>5||diffDays<-5) return;
+    var cycleKey='inst-'+inst.id+'-'+nextPmt.id;
+    if(db.dismissedPending[cycleKey]) return;
+    if(db.pendingTransactions.find(function(p){return p.sourceKey===cycleKey;})) return;
+    if(detectInstPayment&&detectInstPayment(inst,nextPmt)) return;
+    var acct=inst.chargedToAccountId||'ws-chq';
+    db._autoPending.push({
+      id:'pend-'+cycleKey+'-auto',
+      sourceKey:cycleKey,
+      sourceType:'installment',
+      sourceId:inst.id,
+      paymentId:nextPmt.id,
+      description:inst.pendingLabel||inst.name,
+      amount:nextPmt.amount,
+      accountId:acct,
+      category:inst.category||'',
+      type:'expense',
+      notes:'',
+      expectedDate:dueStr,
+      createdAt:new Date().toISOString(),
+      auto:true
+    });
+  });
+}
+
+function renderPendingSection(){
+  var section=el('pending-section');
+  var list=el('pending-list');
+  if(!section||!list) return;
+  list.innerHTML='';
+  var manualItems=db.pendingTransactions||[];
+  var autoItems=db._autoPending||[];
+  var items=manualItems.concat(autoItems);
+  if(!items.length){ section.style.display='none'; return; }
+  section.style.display='block';
+  el('pending-count').textContent=items.length;
+  items.forEach(function(pend){
+    var accId=pend.accountId||pend.account;
+    var acc=db.accounts.find(function(a){return a.id===accId;});
+    var accName=acc?acc.name:accId;
+    var typeIcon=pend.type==='income'?'↑':pend.type==='transfer'?'⇄':'↓';
+    var typeColor=pend.type==='income'?'#22a06b':pend.type==='transfer'?'#0077cc':'#b84040';
+    var autoTag=pend.auto?'<span style="font-size:9px;background:var(--bg3);color:var(--text3);border-radius:4px;padding:1px 5px;margin-left:4px;">AUTO</span>':'';
+    var card=document.createElement('div');
+    card.style.cssText='background:var(--bg2);border:1.5px dashed var(--amber);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
+    card.innerHTML=
+      '<span style="font-size:18px;color:'+typeColor+';">'+typeIcon+'</span>'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-size:13px;font-weight:600;color:var(--text);">'+pend.description+autoTag+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+accName+' · Expected '+pend.expectedDate+'</div>'+
+      '</div>'+
+      '<div style="font-size:15px;font-weight:700;color:'+typeColor+';font-family:var(--font-mono);">$'+pend.amount.toFixed(2)+'</div>'+
+      '<div style="display:flex;gap:6px;">'+
+        '<button class="btn btn-sm btn-primary" data-pend-confirm="'+pend.id+'" style="font-size:11px;">✓ Confirm</button>'+
+        '<button class="btn btn-sm btn-ghost" data-pend-dismiss="'+pend.id+'" style="font-size:11px;color:var(--text3);">✕</button>'+
+      '</div>';
+    list.appendChild(card);
+  });
+  list.querySelectorAll('[data-pend-confirm]').forEach(function(btn){
+    btn.addEventListener('click',function(){confirmPending(btn.getAttribute('data-pend-confirm'));});
+  });
+  list.querySelectorAll('[data-pend-dismiss]').forEach(function(btn){
+    btn.addEventListener('click',function(){dismissPending(btn.getAttribute('data-pend-dismiss'));});
+  });
+}
+
+function confirmPending(pendId){
+  var pend=(db.pendingTransactions||[]).find(function(p){return p.id===pendId;})
+        ||(db._autoPending||[]).find(function(p){return p.id===pendId;});
+  if(!pend) return;
+  el('modal-add-txn').setAttribute('data-confirming-pend',pendId);
+  el('txn-date').value=pend.expectedDate||new Date().toISOString().split('T')[0];
+  el('txn-amount').value=pend.amount;
+  el('txn-desc').value=pend.description;
+  el('txn-notes').value=pend.notes||'';
+  fillAccountSelect('txn-account',pend.accountId||pend.account);
+  fillCatSelect('txn-category',false,pend.category);
+  var typeRadio=document.querySelector('input[name="txn-type"][value="'+pend.type+'"]');
+  if(typeRadio) typeRadio.checked=true;
+  var chips=el('txn-recurring-chips-section');
+  if(chips) chips.style.display='none';
+  openModal('modal-add-txn');
+}
+
+function dismissPending(pendId){
+  var pend=(db._autoPending||[]).find(function(p){return p.id===pendId;});
+  if(pend){
+    if(pend.sourceKey){
+      db.dismissedPending[pend.sourceKey]=true;
+      saveData(null,'dismissedPending');
+    }
+    db._autoPending=db._autoPending.filter(function(p){return p.id!==pendId;});
+    renderPendingSection();
+    showToast('Pending dismissed');
+    return;
+  }
+  pend=db.pendingTransactions.find(function(p){return p.id===pendId;});
+  if(!pend) return;
+  db.pendingTransactions=db.pendingTransactions.filter(function(p){return p.id!==pendId;});
+  var ts=new Date().toISOString();
+  sbUpsert('wealthtrack_settings',[{key:'pendingTransactions',value:db.pendingTransactions,updated_at:ts}]).catch(function(e){console.error('dismiss save error',e);});
+  saveLocalOnly();
+  renderPendingSection();
+  showToast('Pending dismissed');
+}
+
+function openAddPendingModal(){
+  var today=new Date().toISOString().split('T')[0];
+  el('pend-date').value=today;
+  el('pend-amount').value='';
+  el('pend-desc').value='';
+  el('pend-notes').value='';
+  fillAccountSelect('pend-account','');
+  fillAccountSelect('pend-to-account','');
+  fillCatSelect('pend-category',false,'');
+  document.querySelector('input[name="pend-type"][value="expense"]').checked=true;
+  el('pend-transfer-row').style.display='none';
+  openModal('modal-add-pending');
+}
 
 function renderTransactions(){
   var fa=el('filter-account');
@@ -2973,9 +3181,59 @@ el('btn-save-txn').addEventListener('click',function(){
   var newId='t'+Date.now();
   db.transactions.push({id:newId,date:date,description:desc,account:account,category:category,amount:Math.abs(amount),type:type,notes:notes,linkedId:null});
   logAudit(newId,'created','manual','User added via Add Transaction modal. Desc: '+desc+' Amt: '+amount+' Date: '+date);
+  // If confirming a pending transaction, remove it from pending list
+  var confirmingPendId=el('modal-add-txn').getAttribute('data-confirming-pend');
+  if(confirmingPendId){
+    var pendItem=db.pendingTransactions.find(function(p){return p.id===confirmingPendId;});
+    if(pendItem&&pendItem.sourceKey) db.dismissedPending[pendItem.sourceKey]=true;
+    db.pendingTransactions=db.pendingTransactions.filter(function(p){return p.id!==confirmingPendId;});
+    // Also remove from auto-pending
+    db._autoPending=(db._autoPending||[]).filter(function(p){return p.id!==confirmingPendId;});
+    saveData(null,'pendingTransactions'); saveData(null,'dismissedPending');
+    el('modal-add-txn').removeAttribute('data-confirming-pend');
+    var chips=el('txn-recurring-chips-section'); if(chips) chips.style.display='';
+  }
   flashSuccess(el('btn-save-txn'));
   saveData(); closeModal('modal-add-txn'); showToast('Transaction added');
-  renderTransactions(); renderDashboard();
+  renderTransactions(); renderDashboard(); renderPendingSection();
+});
+
+// Add Pending modal listeners
+el('btn-add-pending').addEventListener('click',openAddPendingModal);
+el('btn-cancel-pending').addEventListener('click',function(){closeModal('modal-add-pending');});
+document.querySelectorAll('input[name="pend-type"]').forEach(function(r){
+  r.addEventListener('change',function(){
+    el('pend-transfer-row').style.display=r.value==='transfer'?'':'none';
+  });
+});
+el('btn-save-pending').addEventListener('click',function(){
+  var date=el('pend-date').value, amount=parseFloat(el('pend-amount').value);
+  var desc=el('pend-desc').value.trim(), account=el('pend-account').value;
+  var category=el('pend-category').value;
+  var type=document.querySelector('input[name="pend-type"]:checked').value;
+  var notes=el('pend-notes').value.trim();
+  if(!date||!amount||!desc||!account){showToast('Please fill required fields');return;}
+  var newPend={
+    id:'pend-manual-'+Date.now(),
+    sourceKey:null,
+    sourceType:'manual',
+    sourceId:null,
+    description:desc,
+    amount:Math.abs(amount),
+    account:account,
+    toAccount:type==='transfer'?el('pend-to-account').value:null,
+    category:category,
+    type:type,
+    notes:notes,
+    expectedDate:date,
+    createdAt:new Date().toISOString(),
+    auto:false
+  };
+  db.pendingTransactions.push(newPend);
+  saveData(null,'pendingTransactions');
+  closeModal('modal-add-pending');
+  showToast('Pending transaction saved');
+  renderPendingSection();
 });
 
 // Edit transaction
@@ -7715,6 +7973,7 @@ async function init(){
   buildMonthOptions('report-month',true);
   updateTopbarMeta();
   renderImportPage();
+  generatePendingTransactions();
   renderDashboard();
 
   // Cloud sync
