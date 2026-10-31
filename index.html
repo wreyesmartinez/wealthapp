@@ -1,9 +1,180 @@
+<!--
+================================================================================
+  WEALTHTRACK FEATURE MANIFEST — READ THIS BEFORE MAKING ANY LARGE CHANGES
+  Last updated: 2026-10-30
+================================================================================
+  This file is a single-page HTML app. All HTML, CSS, and JS live here.
+  DO NOT replace large sections without verifying every feature below is
+  still present AFTER your changes. Loss of any feature listed here is a
+  critical regression.
+
+  HISTORY OF DANGEROUS EDITS:
+  - Oct 2026 animation/modal rewrite → DELETED the entire Pending Transactions
+    feature without noticing. Required Netlify rollback to recover.
+  Rule: grep for EVERY function listed below before and after a large edit.
+
+================================================================================
+  PAGES (id="page-*")
+================================================================================
+  dashboard       renderDashboard(), renderAlerts(), renderBudgetProgress(),
+                  renderUpcoming(), renderDashboardReminders(),
+                  renderDashboardBudgetAlerts()
+  transactions    renderTransactions(), generatePendingTransactions(),
+                  renderPendingSection()           ← CRITICAL: was deleted once
+  budget          renderBudget(), renderBudgetAlerts(), renderEnvCatPicker(),
+                  makeEnvelopeCard(), openEnvelopeDetail()
+  accounts        renderAccounts(), makeAssetRow(), makeDebtSection()
+  debts           renderDebts(), buildDebtCard(), buildInstCard(),
+                  detectInstPayment(), detectInstPaymentPartial(),
+                  toggleInstPayment(), rateColor(), makeLogoBadge()
+  recurring       renderRecurring(), getPaymentStatus(), toggleManual(),
+                  openEditRecurring(), rpColor()
+  goals           renderGoals(), renderInvest(), calcGoalSaved(),
+                  projectPortfolio(), renderInvestmentCard()
+  calendar        renderCalendar(), renderCalDetail(), getCalEvents(),
+                  getCanadianHolidays(), calcEaster()
+  history         renderHistory(), openArchiveModal()
+  categories      renderCategories(), renderRecategorize(), getReCatSuggestion()
+  reports         renderReport()
+  ai              renderAIChat(), sendAIMessage(), loadAIInsights(),
+                  buildFinancialContext(), callClaude(), callClaudeVision()
+  import          renderImportPage(), handleUniversalImport()
+  paycheque       (see page-paycheque)
+  recategorize    renderRecategorize()
+
+================================================================================
+  MODALS (id="modal-*")         ← every modal needs its open/close/save wired
+================================================================================
+  modal-add-txn         openAddTxnModal(), save-txn handler
+  modal-edit-txn        openEditTxn()
+  modal-add-pending     openAddPendingModal(), btn-save-pending ← CRITICAL
+  modal-transfer        openTransferModal()
+  modal-add-account     (inline in accounts page logic)
+  modal-cut-date        cutDate setting
+  modal-add-recurring   (recurring page)
+  modal-edit-recurring  openEditRecurring()
+  modal-add-installment (debts page)
+  modal-edit-installment openEditInstallment()
+  modal-edit-debt       openEditDebt()
+  modal-monthly-review  openMonthlyReview(), checkMonthlyReviewTrigger()
+  modal-add-envelope    openAddEnvelope()
+  modal-edit-envelope   openEditEnvelope()
+  modal-set-limit       openSetLimit()
+  modal-add-goal        openAddGoal()
+  modal-edit-goal       openEditGoal()
+  modal-investment-settings openInvSettings()
+  modal-update-inv-balance  openUpdateInvBalance()
+  modal-export-csv      openExportModal(), updateExportPreview()
+  modal-audit-log       renderAuditLog()
+  modal-archive         openArchiveModal()
+  modal-convert-recurring openConvertToRecurring()
+  modal-reminder        openReminderModal()
+  modal-settings        openSettings()
+  modal-add-category    openAddCategoryModal()
+  modal-edit-category   openEditCategory()
+  modal-ai-settings     (AI page settings)
+
+================================================================================
+  PENDING TRANSACTIONS — CRITICAL FEATURE
+================================================================================
+  What it does: shows upcoming/auto-generated payments above the transaction
+  list, sourced from (a) recurring payments within ±5-day window of expectedDay,
+  (b) next unpaid installment payment within ±5 days of dueDate,
+  (c) db.pendingTransactions written externally by Muse/external tools.
+
+  Key rules:
+  - db.pendingTransactions  → persisted, written ONLY by Muse (never by this app)
+                              NOT in settingsKeys — so the app never overwrites it
+  - db._autoPending         → in-memory only, regenerated on each page load
+  - db.dismissedPending     → { [cycleKey]: true }, persisted, IS in settingsKeys
+  - cycleKey format: 'rp-'+rp.id+'-'+yearMonth  OR  'inst-'+inst.id+'-'+nextPmt.id
+
+  Functions (ALL must exist):
+    generatePendingTransactions()  — builds db._autoPending from recurring+installments
+    renderPendingSection()         — renders #pending-section cards
+    confirmPending(pendId)         — pre-fills add-txn modal, marks pending handled
+    dismissPending(pendId)         — removes card, saves dismissedPending
+    openAddPendingModal()          — manual pending entry form
+
+  HTML required:
+    #pending-section   (in page-transactions, above the .card table wrapper)
+    #pending-list
+    #pending-count
+    #btn-add-pending
+    modal-add-pending  (with pend-date, pend-amount, pend-desc, pend-account,
+                        pend-category, pend-type radios, pend-transfer-row,
+                        pend-to-account, pend-notes)
+
+  Init calls (both required):
+    generatePendingTransactions() called in init() before renderDashboard()
+    generatePendingTransactions() + renderPendingSection() called in
+      renderPage('transactions')
+
+================================================================================
+  DATA STORE (db object) — fields that must survive any rewrite
+================================================================================
+  db.accounts            []       account list
+  db.transactions        []       all transactions
+  db.recurringPayments   []       recurring payment rules
+  db.installmentPlans    []       installment plans
+  db.customCategories    []       custom category list
+  db.flexBudgets         {}       flex budget overrides
+  db.varBudgets          {}       variable budget amounts
+  db.budgetEnvelopes     []       budget envelope definitions
+  db.manualOverrides     {}       manual paid/unpaid overrides for recurring
+  db.dismissedAlerts     {}       dismissed dashboard alert keys
+  db.dismissedPending    {}       dismissed pending cycle keys  ← in settingsKeys
+  db.pendingTransactions []       Muse-written pending items   ← NOT in settingsKeys
+  db._autoPending        []       in-memory only, never persisted
+  db.cutDate             str      statement cut date
+  db.savingsGoals        []       savings goals
+  db.investmentSettings  {}       investment projection settings
+  db.alertSettings       {}       alert on/off flags
+  db.txnReminders        {}       per-transaction reminder notes
+  db.auditLog            []       audit trail (max 500 entries, local only)
+  db.archivedAccounts    []       accounts removed from active view
+  db.aiHistory           []       AI chat message history
+  db.lastMonthlyReview   str      year-month of last monthly review
+
+  settingsKeys (synced to Supabase wealthtrack_settings):
+    accounts, recurringPayments, customCategories, flexBudgets, installmentPlans,
+    manualOverrides, dismissedAlerts, cutDate, varBudgets, dismissedPending
+    ← pendingTransactions is intentionally EXCLUDED
+
+================================================================================
+  ACCOUNT TYPES (all must appear in #acc-type dropdown AND in groups object)
+================================================================================
+  Chequing | Savings | Credit card | Cash | Loan | Investment | TFSA | FHSA
+
+================================================================================
+  SECURITY — NON-NEGOTIABLE
+================================================================================
+  Supabase anon key ONLY. NEVER use the service role key.
+  Anon key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...h1PoF4tR
+  Supabase URL: https://mvxhoukpnprrmoptyyay.supabase.co
+  Current publishable key in file: sb_publishable_bVhqQrbPOJMHYczsTcXVrQ_h1PoF4tR
+  DO NOT change either key.
+
+================================================================================
+  CONTEXT MENU FLIP — position:fixed dropdown flip logic (line ~3062)
+================================================================================
+  Row "..." menus use getBoundingClientRect() to detect if there is enough
+  space below. If not, they flip upward. Both top and bottom styles are reset
+  each time to avoid stale positioning. See menuBtn click handler.
+
+================================================================================
+  BUILD TIMESTAMP
+================================================================================
+  Update the .version-badge div text on EVERY deployment to current Toronto time.
+  Format: WealthTrack vX.X.X<br>Short description<br>Mon YYYY
+================================================================================
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WealthTrack v2.1.3</title>
+<title>WealthTrack v2.5.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -6635,14 +6806,14 @@ function getCalEvents(year, month){
     dbg('detection','CC green dot: '+a.name+' | id:'+a.id+' | period:'+periodStart+'→'+periodEnd);
     var incomeOnAccount=db.transactions.filter(function(t){return t.type==='income'&&t.account===a.id;});
     dbg('detection','  income txns on account: '+incomeOnAccount.length+(incomeOnAccount.length?(' | dates:'+incomeOnAccount.map(function(t){return t.date+'($'+t.amount+')'}).join(', ')):''));
-    var paymentTxn=db.transactions.find(function(t){
+    var paymentTxns=db.transactions.filter(function(t){
       if(t.type!=='income') return false;
       if(t.account!==a.id) return false;
       return t.date>=periodStart&&t.date<=periodEnd;
     });
-    if(paymentTxn) dbg('detection','  MATCHED: '+paymentTxn.date+' $'+paymentTxn.amount,true);
+    if(paymentTxns.length) dbg('detection','  MATCHED '+paymentTxns.length+' txns: '+paymentTxns.map(function(t){return t.date+' $'+t.amount;}).join(', '),true);
     else dbg('detection','  no match in window — income txns in window: '+db.transactions.filter(function(t){return t.type==='income'&&t.date>=periodStart&&t.date<=periodEnd;}).map(function(t){return t.date+' acct='+t.account+' $'+t.amount;}).join(' | '),false,true);
-    addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name,paymentTxn:paymentTxn||null});
+    addEvent(dueDay,{type:'payment-due',color:'#b84040',label:label,icon:'!',accountId:a.id,fromAccount:fromName+' → '+a.name,paymentTxns:paymentTxns});
   });
 
   // Loan payment days
@@ -6742,7 +6913,7 @@ function renderCalendar(){
         pill.style.cssText='background:'+cfg.bg+';color:'+cfg.color+';';
         pill.title=e.label;
         // Green dot if payment was recorded
-        if(e.type==='payment-due'&&e.paymentTxn){
+        if(e.type==='payment-due'&&e.paymentTxns&&e.paymentTxns.length){
           var dot=mk('span',''); dot.style.cssText='display:inline-block;width:6px;height:6px;border-radius:50%;background:#22a06b;margin-left:4px;vertical-align:middle;';
           pill.appendChild(dot);
         }
@@ -6821,10 +6992,18 @@ function renderCalDetail(evts, dateStr){
     }
     // Show payment recorded info for payment-due events
     if(e.type==='payment-due'){
-      if(e.paymentTxn){
+      if(e.paymentTxns&&e.paymentTxns.length){
+        var total=e.paymentTxns.reduce(function(s,t){return s+t.amount;},0);
+        var sorted=e.paymentTxns.slice().sort(function(a,b){return a.date>b.date?1:-1;});
         var paidEl=mk('div',''); paidEl.style.cssText='font-size:11px;margin-top:5px;display:flex;align-items:center;gap:5px;';
         var dot=mk('span',''); dot.style.cssText='display:inline-block;width:7px;height:7px;border-radius:50%;background:#22a06b;flex-shrink:0;';
-        var paidText=mk('span','','Payment recorded: '+fmt(e.paymentTxn.amount)+' on '+fmtDate(e.paymentTxn.date));
+        var summary;
+        if(e.paymentTxns.length===1){
+          summary='Payment recorded: '+fmt(sorted[0].amount)+' on '+fmtDate(sorted[0].date);
+        } else {
+          summary=e.paymentTxns.length+' payments recorded: '+fmt(total)+' total ('+sorted.map(function(t){return fmt(t.amount)+' on '+fmtDate(t.date);}).join(', ')+')';
+        }
+        var paidText=mk('span','',summary);
         paidText.style.color='var(--green)';
         paidEl.appendChild(dot); paidEl.appendChild(paidText);
         info.appendChild(paidEl);
