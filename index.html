@@ -592,7 +592,7 @@ tr.txn-reconciled .recon-check{background:var(--green);border-color:var(--green)
   <div class="nav-section">Tools</div>
   <div class="nav-item" data-page="reports"><span class="nav-icon">&#8801;</span>Reports</div>
   <div class="nav-item nav-ai" data-page="ai"><span class="nav-icon">&#10022;</span>AI Assistant</div>
-  <div class="version-badge">WealthTrack v2.5.1<br>Pending txns + Cash acct<br>Oct 2026</div>
+  <div class="version-badge">WealthTrack v2.5.1<br>Pending txns + Cash acct<br>Nov 1 2026 · Muse sync fix</div>
   <div class="debug-toggle" id="debug-toggle">
     <div class="debug-switch"></div>
     <span>Debug mode</span>
@@ -1771,7 +1771,8 @@ async function pullAndMerge(){
     var val=row.value;
     var localTs=db._settingsTs&&db._settingsTs[key]?db._settingsTs[key]:'1970-01-01';
     var cloudTs=row.updated_at||'1970-01-01';
-    if(cloudTs>localTs){
+    if(cloudTs>localTs||key==='pendingTransactions'){
+      // pendingTransactions is always owned by Supabase — always accept cloud value
       // Never restore archived accounts from cloud
       if(key==='accounts'&&Array.isArray(val)&&db.archivedAccounts&&db.archivedAccounts.length){
         var archivedIds=db.archivedAccounts.map(function(e){return e.account.id;});
